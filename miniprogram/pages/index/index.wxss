@@ -235,23 +235,6 @@
   color: #a34231;
 }
 
-.keywords {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8rpx;
-  margin-top: 22rpx;
-}
-
-.keyword {
-  padding: 6rpx 10rpx;
-  border-radius: 999rpx;
-  background: #eef7f2;
-  color: #17695f;
-  font-size: 20rpx;
-  font-weight: 750;
-}
-
 .message,
 .reading,
 .note {

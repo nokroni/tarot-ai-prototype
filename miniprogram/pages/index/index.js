@@ -312,7 +312,7 @@ Page({
     oauthSession: null,
     oauthStatus: cloudAIEnabled ? "Connected to Hunyuan" : "Not connected",
     backendStatus: formatBackendStatus(),
-    buildLabel: "0.5.11 footer",
+    buildLabel: "0.5.12 clean",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""
