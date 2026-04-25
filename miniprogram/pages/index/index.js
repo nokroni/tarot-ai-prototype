@@ -584,7 +584,7 @@ Page({
     oauthSession: null,
     oauthStatus: cloudAIEnabled ? "已连接混元" : "未连接",
     backendStatus: formatBackendStatus(),
-    buildLabel: "0.6.15 稳定轮盘",
+    buildLabel: "0.6.16 弧线轮盘",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""
@@ -1185,14 +1185,14 @@ function updateWheelCardPresentation(wheelCards, centerPosition) {
 function createWheelCardArcStyle(distance) {
   const clampedDistance = Math.max(-WHEEL_ARC_MAX_DISTANCE, Math.min(WHEEL_ARC_MAX_DISTANCE, distance));
   const absoluteDistance = Math.abs(clampedDistance);
-  const diagonalLift = clampedDistance * -76;
-  const wheelSag = absoluteDistance * absoluteDistance * 1.2;
-  const translateY = Math.round(30 + diagonalLift + wheelSag);
-  const rotation = clampedDistance * 5.2;
-  const scale = Math.max(0.72, 1.08 - absoluteDistance * 0.045);
+  const arcProgress = clampedDistance / WHEEL_ARC_MAX_DISTANCE;
+  const translateX = Math.round(-absoluteDistance * absoluteDistance * 2.1);
+  const translateY = Math.round(32 - Math.sin(arcProgress * 1.05) * 560 + absoluteDistance * absoluteDistance * 1.5);
+  const rotation = Math.sin(arcProgress * 1.05) * 42;
+  const scale = Math.max(0.68, 1.08 - absoluteDistance * 0.044);
   const opacity = Math.max(0.45, 1 - absoluteDistance * 0.055);
 
-  return `transform: translateY(${translateY}rpx) rotate(${rotation.toFixed(1)}deg) scale(${scale.toFixed(3)}); opacity: ${opacity.toFixed(2)};`;
+  return `transform: translate(${translateX}rpx, ${translateY}rpx) rotate(${rotation.toFixed(1)}deg) scale(${scale.toFixed(3)}); opacity: ${opacity.toFixed(2)};`;
 }
 
 function handleWheelNativeScroll(page, scrollLeft) {
@@ -1205,7 +1205,8 @@ function handleWheelNativeScroll(page, scrollLeft) {
   page._wheelScrollLeft = nextScrollLeft;
   clearWheelScrollSettleTimer(page);
 
-  const targetIndex = getWheelIndexFromScrollLeft(page, nextScrollLeft);
+  const scrollPosition = getWheelPositionFromScrollLeft(page, nextScrollLeft);
+  const targetIndex = getWheelIndexFromPosition(page, scrollPosition);
   const activeIndex = findNearestAvailableIndex(page.data.wheelCards, targetIndex);
   const now = Date.now();
   const shouldUpdatePresentation =
@@ -1216,7 +1217,7 @@ function handleWheelNativeScroll(page, scrollLeft) {
 
   if (shouldUpdatePresentation) {
     page._lastWheelPresentationAt = now;
-    updates.wheelCards = updateWheelCardPresentation(page.data.wheelCards, activeIndex);
+    updates.wheelCards = updateWheelCardPresentation(page.data.wheelCards, scrollPosition);
   }
 
   if (activeIndex !== page.data.wheel.activeIndex) {
@@ -1296,13 +1297,25 @@ function getWheelScrollLeftForIndex(index, page) {
 }
 
 function getWheelIndexFromScrollLeft(page, scrollLeft) {
+  return getWheelIndexFromPosition(page, getWheelPositionFromScrollLeft(page, scrollLeft));
+}
+
+function getWheelPositionFromScrollLeft(page, scrollLeft) {
   const count = page && page.data && page.data.wheelCards && page.data.wheelCards.length
     ? page.data.wheelCards.length
     : tarotDeck.length;
   const stridePx = getWheelStridePx(page);
-  const rawIndex = stridePx > 0 ? Math.round(scrollLeft / stridePx) : 0;
+  const rawPosition = stridePx > 0 ? scrollLeft / stridePx : 0;
 
-  return Math.max(0, Math.min(count - 1, rawIndex));
+  return Math.max(0, Math.min(count - 1, rawPosition));
+}
+
+function getWheelIndexFromPosition(page, position) {
+  const count = page && page.data && page.data.wheelCards && page.data.wheelCards.length
+    ? page.data.wheelCards.length
+    : tarotDeck.length;
+
+  return Math.max(0, Math.min(count - 1, Math.round(position)));
 }
 
 function getWheelStridePx(page) {
