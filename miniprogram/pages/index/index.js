@@ -41,7 +41,8 @@ const cardFaceFileOverrides = {
   strength: "/images/thestrength.jpeg"
 };
 const WHEEL_CARD_BACK_SRC = "/images/card-back.png";
-const WHEEL_RADIUS_RPX = 470;
+const WHEEL_RADIUS_RPX = 860;
+const WHEEL_ACTIVE_ANGLE_DEG = 45;
 const WHEEL_DRAG_PX_PER_CARD = 24;
 const WHEEL_REVEAL_DELAY_MS = 560;
 const WHEEL_VIBRATE_THROTTLE_MS = 55;
@@ -583,7 +584,7 @@ Page({
     oauthSession: null,
     oauthStatus: cloudAIEnabled ? "已连接混元" : "未连接",
     backendStatus: formatBackendStatus(),
-    buildLabel: "0.6 轮盘",
+    buildLabel: "0.6.2 弧形轮盘",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""
@@ -681,7 +682,16 @@ Page({
       return;
     }
 
+    const didDrag = Boolean(this._wheelDidDrag);
+
+    if (this.data.wheel.phase === "popped" && !didDrag) {
+      return;
+    }
+
     const activeIndex = findNearestAvailableIndex(this.data.wheelCards, this.data.wheel.activeIndex);
+
+    this._wheelDidDrag = false;
+    this._wheelIgnoreNextTap = didDrag;
 
     this.setData({
       wheel: Object.assign({}, this.data.wheel, {
@@ -699,8 +709,8 @@ Page({
       return;
     }
 
-    if (this._wheelDidDrag) {
-      this._wheelDidDrag = false;
+    if (this._wheelIgnoreNextTap) {
+      this._wheelIgnoreNextTap = false;
       return;
     }
 
@@ -1101,7 +1111,7 @@ function createWheelCards() {
 }
 
 function createWheelCardStyle(index) {
-  return `transform: translate(-50%, -50%) rotate(${index * WHEEL_STEP_DEG}deg) translateY(-${WHEEL_RADIUS_RPX}rpx);`;
+  return `transform: translate(-50%, -50%) rotate(${WHEEL_ACTIVE_ANGLE_DEG + index * WHEEL_STEP_DEG}deg) translateY(-${WHEEL_RADIUS_RPX}rpx);`;
 }
 
 function confirmWheelCard(page, index) {

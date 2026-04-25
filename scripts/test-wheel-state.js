@@ -35,9 +35,14 @@ const context = {
 pageDefinition.drawCards.call(context);
 
 assert.strictEqual(context.data.wheel.isOpen, true, "Wheel should open when drawing starts.");
+assert.strictEqual(context.data.buildLabel, "0.6.2 弧形轮盘", "Build label should identify the arc wheel build.");
 assert.strictEqual(context.data.wheel.requiredCount, 3, "Three-card spread should require three selections.");
 assert.strictEqual(context.data.wheelCards.length, 78, "Wheel should contain the complete 78-card deck.");
 assert.strictEqual(context.data.wheel.cardBackSrc, "/images/card-back.png", "Wheel should use the shared card back.");
+assert(
+  context.data.wheelCards[0].style.includes("rotate(45deg)"),
+  "Wheel layout should start from the bottom-right quarter-arc angle."
+);
 
 const uniqueCards = new Set(context.data.wheelCards.map((slot) => slot.cardId));
 assert.strictEqual(uniqueCards.size, 78, "Wheel slots should map to unique card faces.");
@@ -49,6 +54,16 @@ for (let drawIndex = 0; drawIndex < 3; drawIndex += 1) {
   pageDefinition.onWheelFocusTap.call(context);
   assert.strictEqual(context.data.wheel.selectedIndex, activeIndex, "First tap should pop the active card.");
   assert.strictEqual(context.data.drawnCards.length, drawIndex, "First tap should not draw yet.");
+
+  pageDefinition.onWheelTouchStart.call(context, {
+    touches: [{ clientX: 120 }]
+  });
+  pageDefinition.onWheelTouchEnd.call(context);
+  assert.strictEqual(
+    context.data.wheel.selectedIndex,
+    activeIndex,
+    "A no-drag touchend on the popped card should not clear selection before the second tap."
+  );
 
   pageDefinition.onWheelFocusTap.call(context);
   assert.strictEqual(context.data.drawnCards.length, drawIndex + 1, "Second tap should confirm the card.");

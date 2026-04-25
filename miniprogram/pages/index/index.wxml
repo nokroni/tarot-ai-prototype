@@ -148,7 +148,7 @@
       </view>
     </view>
 
-    <view class="wheel-copy">
+    <view class="wheel-copy" bindtap="onWheelFocusTap">
       <text wx:if="{{wheel.phase === 'popped'}}">再次轻触，抽出这张牌</text>
       <text wx:elif="{{wheel.phase === 'revealing'}}">{{wheel.revealedCard.position}} · {{wheel.revealedCard.card.name}}</text>
       <text wx:else>滑动轮盘，轻触中央牌背</text>
