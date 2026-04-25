@@ -583,7 +583,7 @@ Page({
     oauthSession: null,
     oauthStatus: cloudAIEnabled ? "已连接混元" : "未连接",
     backendStatus: formatBackendStatus(),
-    buildLabel: "0.6.17 稳定弧线轮盘",
+    buildLabel: "0.6.18 贴弧轮盘",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""
@@ -1187,7 +1187,7 @@ function createWheelCardArcStyle(distance) {
   const arcProgress = clampedDistance / WHEEL_ARC_MAX_DISTANCE;
   const translateX = Math.round(-absoluteDistance * absoluteDistance * 2.1);
   const translateY = Math.round(32 - Math.sin(arcProgress * 1.05) * 760 + absoluteDistance * absoluteDistance * 0.9);
-  const rotation = Math.sin(arcProgress * 1.05) * 46;
+  const rotation = Math.sin(arcProgress * 1.05) * 78;
   const scale = Math.max(0.68, 1.08 - absoluteDistance * 0.044);
   const opacity = Math.max(0.45, 1 - absoluteDistance * 0.055);
 

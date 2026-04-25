@@ -52,7 +52,7 @@ const context = {
 pageDefinition.drawCards.call(context);
 
 assert.strictEqual(context.data.wheel.isOpen, true, "Wheel should open when drawing starts.");
-assert.strictEqual(context.data.buildLabel, "0.6.17 稳定弧线轮盘", "Build label should identify the stable high arc wheel build.");
+assert.strictEqual(context.data.buildLabel, "0.6.18 贴弧轮盘", "Build label should identify the arc-aligned wheel build.");
 assert.strictEqual(context.data.wheel.requiredCount, 3, "Three-card spread should require three selections.");
 assert.strictEqual(context.data.wheel.scrollLeft, 0, "Wheel should start at the first preassigned slot.");
 assert.strictEqual(context.data.wheel.activeIndex, 0, "Wheel should start with the first slot highlighted.");
@@ -61,8 +61,8 @@ assert.strictEqual(context.data.wheel.cardBackSrc, "/images/card-back.png", "Whe
 assert(
   context.data.wheelCards[0].arcStyle.includes("translate(0rpx, 32rpx)") &&
     context.data.wheelCards[7].arcStyle.includes("translate(-103rpx, -583rpx)") &&
-    context.data.wheelCards[7].arcStyle.includes("rotate(39.9deg)"),
-  "Wheel cards should be presented as a higher stable arc around the active slot."
+    context.data.wheelCards[7].arcStyle.includes("rotate(67.7deg)"),
+  "Wheel cards should rotate into a steeper arc alignment around the active slot."
 );
 
 pageDefinition.onWheelNativeScroll.call(context, {
@@ -79,8 +79,10 @@ assert.strictEqual(context.data.wheel.selectedIndex, -1, "Scrolling should keep 
 assert(
   context.data.wheelCards[3].arcStyle.includes("translate(0rpx, 32rpx)") &&
     context.data.wheelCards[0].arcStyle.includes("translate(-19rpx, 371rpx)") &&
-    context.data.wheelCards[6].arcStyle.includes("translate(-19rpx, -290rpx)"),
-  "Wheel presentation should use the same active-slot arc after native scrolling."
+    context.data.wheelCards[0].arcStyle.includes("rotate(-33.9deg)") &&
+    context.data.wheelCards[6].arcStyle.includes("translate(-19rpx, -290rpx)") &&
+    context.data.wheelCards[6].arcStyle.includes("rotate(33.9deg)"),
+  "Wheel presentation should use the same active-slot arc alignment after native scrolling."
 );
 
 const stableArcForActive = context.data.wheelCards.map((slot) => slot.arcStyle).join("|");
@@ -110,7 +112,8 @@ assert.strictEqual(context.data.wheel.activeIndex, 77, "Wheel should allow snapp
 assert.strictEqual(context.data.wheel.scrollLeft, WHEEL_LAST_SCROLL_LEFT, "Final deck slot should be reachable by native scroll.");
 assert(
   context.data.wheelCards[77].arcStyle.includes("translate(0rpx, 32rpx)") &&
-    context.data.wheelCards[76].arcStyle.includes("translate(-2rpx, 146rpx)"),
+    context.data.wheelCards[76].arcStyle.includes("translate(-2rpx, 146rpx)") &&
+    context.data.wheelCards[76].arcStyle.includes("rotate(-11.7deg)"),
   "Final deck slot should own the centered visual curve."
 );
 
