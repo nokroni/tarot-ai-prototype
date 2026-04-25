@@ -193,7 +193,7 @@ Page({
     oauthSession: null,
     oauthStatus: "Not connected",
     backendStatus: appConfig.oauth.readingEndpoint.replace(/\/readings$/, ""),
-    buildLabel: "0.5.2 AI key check",
+    buildLabel: "0.5.3 GPT-5.4 mini",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""
@@ -368,8 +368,8 @@ function formatOAuthStatus(session) {
 }
 
 function formatReadingError(errorMessage) {
-  if (errorMessage && errorMessage.indexOf("OpenAI API key") !== -1) {
-    return "Backend connected, but OpenAI API key is not configured on the server. Showing structured fallback.";
+  if (errorMessage && errorMessage.indexOf("bearer token") !== -1) {
+    return "Backend connected, but the AI provider token is not configured on the server. Showing structured fallback.";
   }
 
   return errorMessage || "AI reading failed. Showing structured fallback.";

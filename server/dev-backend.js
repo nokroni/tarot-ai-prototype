@@ -12,7 +12,8 @@ const PORT = Number(process.env.PORT || 8787);
 const WECHAT_APPID = process.env.WECHAT_APPID || "wx19531898b7da5eec";
 const WECHAT_APPSECRET = process.env.WECHAT_APPSECRET || "";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
-const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
+const OPENAI_BASE_URL = normalizeBaseUrl(process.env.OPENAI_BASE_URL || "https://api.openai.com/v1");
+const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5.4-mini";
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
 const TOKEN_TTL_SECONDS = 60 * 60;
 
@@ -33,6 +34,7 @@ const server = http.createServer(async (request, response) => {
       sendJson(response, 200, {
         ok: true,
         appid: WECHAT_APPID,
+        model: OPENAI_MODEL,
         openaiConfigured: Boolean(OPENAI_API_KEY),
         wechatConfigured: Boolean(WECHAT_APPSECRET)
       });
@@ -69,7 +71,7 @@ const server = http.createServer(async (request, response) => {
       const readingRequest = validateReadingRequest(body.request);
 
       if (!OPENAI_API_KEY) {
-        throw publicError(503, "OpenAI API key is not configured on the reading backend.");
+        throw publicError(503, "AI provider bearer token is not configured on the reading backend.");
       }
 
       const reading = await generateOpenAIReading({
@@ -137,7 +139,7 @@ async function authenticateWechat(loginCode) {
 }
 
 async function generateOpenAIReading({ readingRequest, responseFormat }) {
-  const response = await fetch("https://api.openai.com/v1/responses", {
+  const response = await fetch(`${OPENAI_BASE_URL}/responses`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${OPENAI_API_KEY}`,
@@ -361,4 +363,8 @@ function loadEnvFile(filename) {
       process.env[key] = value;
     }
   }
+}
+
+function normalizeBaseUrl(value) {
+  return String(value || "https://api.openai.com/v1").replace(/\/+$/, "");
 }

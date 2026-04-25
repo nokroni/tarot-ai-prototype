@@ -36,7 +36,11 @@ cp .env.example .env.local
 npm run backend
 ```
 
-Set `WECHAT_APPSECRET`, `OPENAI_API_KEY`, and `SESSION_SECRET` in `.env.local` for real WeChat auth and OpenAI readings. Without `OPENAI_API_KEY`, the backend still supports WeChat login but returns a configuration error for readings so the Mini Program can show a structured local fallback instead of pretending a model response was generated.
+Set `WECHAT_APPSECRET`, `OPENAI_API_KEY`, and `SESSION_SECRET` in `.env.local` for real WeChat auth and AI readings. The backend defaults to `OPENAI_MODEL=gpt-5.4-mini` and `OPENAI_BASE_URL=https://api.openai.com/v1`.
+
+`OPENAI_API_KEY` is the bearer token used by the model provider. For direct OpenAI Platform usage, set it to an OpenAI API key. For an internal OpenAI-compatible gateway, such as an OpenClaw Gateway kept on loopback, set `OPENAI_BASE_URL` to that gateway's `/v1` URL and set `OPENAI_API_KEY` to the gateway bearer token. Without a bearer token, the backend still supports WeChat login but returns a configuration error for readings so the Mini Program can show a structured local fallback instead of pretending a model response was generated.
+
+OpenClaw/Codex OAuth should be treated as a server-side gateway credential, not as a per-phone-user OAuth flow. Keep the OpenClaw Gateway private, for example on `127.0.0.1`, and let this backend be the only public HTTPS surface exposed to WeChat.
 
 By default `miniprogram/config.js` points at the Ubuntu-hosted HTTPS test backend:
 
