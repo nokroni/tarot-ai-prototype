@@ -73,54 +73,6 @@
   color: #9c958c;
 }
 
-.oauth-panel {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18rpx;
-  margin-bottom: 28rpx;
-  padding: 24rpx 28rpx;
-  border: 2rpx solid #dccfb9;
-  border-radius: 18rpx;
-  background: rgba(255, 250, 240, 0.96);
-  box-sizing: border-box;
-}
-
-.oauth-status {
-  display: block;
-  color: #26231f;
-  font-size: 28rpx;
-  font-weight: 850;
-}
-
-.backend-status {
-  display: block;
-  max-width: 420rpx;
-  color: #70685d;
-  font-size: 20rpx;
-  line-height: 1.25;
-  word-break: break-all;
-}
-
-.oauth-actions {
-  flex: 0 0 auto;
-}
-
-.oauth-button {
-  min-width: 164rpx;
-  min-height: 68rpx;
-  border-radius: 999rpx;
-  background: #2f376f;
-  color: #fffaf0;
-  font-size: 26rpx;
-  font-weight: 850;
-}
-
-.oauth-button.secondary {
-  background: #f1e6d0;
-  color: #70685d;
-}
-
 .spread-control {
   display: flex;
   gap: 8rpx;
@@ -385,4 +337,24 @@
   color: #70685d;
   font-size: 24rpx;
   line-height: 1.55;
+}
+
+.provider-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  margin-top: 24rpx;
+  color: #70685d;
+  font-size: 22rpx;
+  line-height: 1.4;
+}
+
+.provider-status {
+  color: #17695f;
+  font-weight: 850;
+}
+
+.provider-build {
+  color: #9c958c;
 }

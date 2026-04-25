@@ -310,9 +310,9 @@ Page({
     drawnCards: [],
     interpretation: null,
     oauthSession: null,
-    oauthStatus: cloudAIEnabled ? "CloudBase Hunyuan ready" : "Not connected",
+    oauthStatus: cloudAIEnabled ? "Connected to Hunyuan" : "Not connected",
     backendStatus: formatBackendStatus(),
-    buildLabel: "0.5.10 full",
+    buildLabel: "0.5.11 footer",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""
@@ -676,7 +676,7 @@ function createRequestId() {
 
 function formatOAuthStatus(session) {
   if (cloudAIEnabled) {
-    return canUseBackend(session) ? "CloudBase Hunyuan ready · fallback connected" : "CloudBase Hunyuan ready";
+    return canUseBackend(session) ? "Connected to Hunyuan · fallback ready" : "Connected to Hunyuan";
   }
 
   if (!session) {

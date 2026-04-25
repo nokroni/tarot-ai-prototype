@@ -20,22 +20,6 @@
     />
   </view>
 
-  <view class="oauth-panel">
-    <view>
-      <text class="label compact">AI Provider</text>
-      <text class="oauth-status">{{oauthStatus}}</text>
-      <text class="backend-status">{{buildLabel}} · {{backendStatus}}</text>
-    </view>
-    <view class="oauth-actions">
-      <button wx:if="{{!oauthSession}}" class="oauth-button" loading="{{isConnecting}}" bindtap="connectChatGPT">
-        Fallback
-      </button>
-      <button wx:else class="oauth-button secondary" bindtap="disconnectChatGPT">
-        Disconnect
-      </button>
-    </view>
-  </view>
-
   <view class="panel">
     <text class="label">Spread</text>
     <view class="spread-control">
@@ -122,5 +106,10 @@
 
   <view class="note">
     <text>Tarot readings are for reflection and entertainment, not professional advice or certain predictions. Cards are drawn inside the app before interpretation.</text>
+  </view>
+
+  <view class="provider-footer">
+    <text class="provider-status">{{oauthStatus}}</text>
+    <text class="provider-build">{{buildLabel}}</text>
   </view>
 </view>
