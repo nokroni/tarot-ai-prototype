@@ -68,6 +68,15 @@ Open the completed run in GitHub Actions and download the `iphone-ui-screenshots
 
 The Mini Program uses AppID `wx19531898b7da5eec`, draws cards locally, and generates a local reflective reading. The WeChat AppSecret and upload private key must not be committed.
 
+The page includes a prototype **ChatGPT OAuth** connection panel. In this repository it stores a demo OAuth-style session so the UX can be tested without exposing secrets. To use real model-generated readings, configure a backend in `miniprogram/config.js`:
+
+- `oauth.tokenExchangeEndpoint`: exchanges WeChat login/OAuth handoff data for a user-scoped access token.
+- `oauth.readingEndpoint`: accepts the local card draw plus `responseFormat`, then calls OpenAI server-side.
+
+The reading endpoint should return the `tarot.reading.v1` JSON shape rendered by the page. Use OpenAI Responses API Structured Outputs with `text.format.type = "json_schema"` on the server so the page receives stable sections.
+
+An example server contract is included at `docs/openai-reading-backend.example.mjs`. It expects the Mini Program to send `Authorization: Bearer <oauth access token>`, verifies that token in a placeholder function, then calls OpenAI with `OPENAI_API_KEY` from the server environment.
+
 Install upload tooling:
 
 ```sh

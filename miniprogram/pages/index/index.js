@@ -1,3 +1,17 @@
+const appConfig = require("../../config");
+const {
+  createFallbackReading,
+  createReadingRequest,
+  normalizeReading,
+  readingJsonSchema
+} = require("../../services/reading-schema");
+const {
+  clearOAuthSession,
+  connectChatGPT,
+  hasUsableOAuth,
+  loadOAuthSession
+} = require("../../services/oauth");
+
 const spreads = [
   {
     id: "oneCard",
@@ -176,7 +190,15 @@ Page({
     selectedSpread: spreads[1],
     drawnCards: [],
     interpretation: null,
+    oauthSession: null,
+    oauthStatus: "Not connected",
+    isConnecting: false,
+    isInterpreting: false,
     errorMessage: ""
+  },
+
+  onLoad() {
+    this.refreshOAuthSession();
   },
 
   onQuestionInput(event) {
@@ -216,9 +238,113 @@ Page({
       return;
     }
 
+    const fallbackReading = createFallbackReading({
+      question: this.data.question,
+      spread: this.data.selectedSpread,
+      drawnCards: this.data.drawnCards,
+      sourceLabel: this.data.oauthSession ? this.data.oauthSession.label : "Local Demo"
+    });
+
+    if (!hasUsableOAuth(this.data.oauthSession) || !appConfig.oauth.readingEndpoint) {
+      this.setData({
+        interpretation: normalizeReading(fallbackReading),
+        errorMessage: hasUsableOAuth(this.data.oauthSession)
+          ? ""
+          : "Connect ChatGPT OAuth to use AI generation. Showing a structured demo reading for now."
+      });
+      return;
+    }
+
     this.setData({
-      interpretation: buildLocalInterpretation(this.data.question, this.data.selectedSpread, this.data.drawnCards),
+      isInterpreting: true,
       errorMessage: ""
+    });
+
+    wx.request({
+      url: appConfig.oauth.readingEndpoint,
+      method: "POST",
+      header: {
+        Authorization: `${this.data.oauthSession.tokenType || "Bearer"} ${this.data.oauthSession.accessToken}`,
+        "Content-Type": "application/json"
+      },
+      data: {
+        request: createReadingRequest({
+          question: this.data.question,
+          spread: this.data.selectedSpread,
+          drawnCards: this.data.drawnCards
+        }),
+        responseFormat: readingJsonSchema()
+      },
+      success: (response) => {
+        const data = response.data || {};
+        const reading = data.reading || data;
+
+        if (response.statusCode < 200 || response.statusCode >= 300) {
+          this.setData({
+            interpretation: normalizeReading(fallbackReading),
+            errorMessage: data.error || "AI reading failed. Showing structured fallback."
+          });
+          return;
+        }
+
+        this.setData({
+          interpretation: normalizeReading(reading, fallbackReading),
+          errorMessage: ""
+        });
+      },
+      fail: () => {
+        this.setData({
+          interpretation: normalizeReading(fallbackReading),
+          errorMessage: "Unable to reach reading backend. Showing structured fallback."
+        });
+      },
+      complete: () => {
+        this.setData({
+          isInterpreting: false
+        });
+      }
+    });
+  },
+
+  connectChatGPT() {
+    this.setData({
+      isConnecting: true,
+      errorMessage: ""
+    });
+
+    connectChatGPT()
+      .then((session) => {
+        this.setData({
+          oauthSession: session,
+          oauthStatus: session.label,
+          errorMessage: session.mode === "demo"
+            ? "Prototype OAuth connected. Add a backend reading endpoint to call OpenAI with real OAuth credentials."
+            : ""
+        });
+      })
+      .catch((error) => {
+        this.setData({
+          errorMessage: error.message || "Unable to connect ChatGPT OAuth."
+        });
+      })
+      .finally(() => {
+        this.setData({
+          isConnecting: false
+        });
+      });
+  },
+
+  disconnectChatGPT() {
+    clearOAuthSession();
+    this.refreshOAuthSession();
+  },
+
+  refreshOAuthSession() {
+    const oauthSession = loadOAuthSession();
+
+    this.setData({
+      oauthSession,
+      oauthStatus: oauthSession ? oauthSession.label : "Not connected"
     });
   }
 });
@@ -248,22 +374,4 @@ function shuffle(cards) {
   }
 
   return cards;
-}
-
-function buildLocalInterpretation(question, spread, drawnCards) {
-  const safeQuestion = question.trim() || "what you need to understand today";
-  const cardSummaries = drawnCards.map((drawn) => ({
-    id: drawn.id,
-    position: drawn.position,
-    name: drawn.card.name,
-    text: `${drawn.card.name} in ${drawn.orientation} orientation points toward ${drawn.keywords.join(", ")}. In the ${drawn.position.toLowerCase()} position, treat this as a symbol to reflect on rather than a fixed prediction.`
-  }));
-
-  return {
-    summary: `For ${safeQuestion}, this ${spread.title.toLowerCase()} spread suggests looking at the pattern beneath the situation before choosing your next step.`,
-    cards: cardSummaries,
-    overall: `The shared thread is ${drawnCards.map((drawn) => drawn.keywords[0]).join(", ")}. Notice where your attention tightens, because that is likely where the reading has something useful to offer.`,
-    reflection: "Choose one small, reversible action that honors the clearest card in the spread. Avoid using the reading as medical, legal, financial, or emergency advice.",
-    journal: `What would change if you approached ${safeQuestion} with more honesty, patience, and room for uncertainty?`
-  };
 }

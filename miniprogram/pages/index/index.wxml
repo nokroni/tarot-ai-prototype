@@ -20,6 +20,21 @@
     />
   </view>
 
+  <view class="oauth-panel">
+    <view>
+      <text class="label compact">ChatGPT OAuth</text>
+      <text class="oauth-status">{{oauthStatus}}</text>
+    </view>
+    <view class="oauth-actions">
+      <button wx:if="{{!oauthSession}}" class="oauth-button" loading="{{isConnecting}}" bindtap="connectChatGPT">
+        Connect
+      </button>
+      <button wx:else class="oauth-button secondary" bindtap="disconnectChatGPT">
+        Disconnect
+      </button>
+    </view>
+  </view>
+
   <view class="panel">
     <text class="label">Spread</text>
     <view class="spread-control">
@@ -42,7 +57,8 @@
     </button>
     <button
       class="action-button interpret-button {{drawnCards.length === 0 ? 'disabled' : ''}}"
-      disabled="{{drawnCards.length === 0}}"
+      disabled="{{drawnCards.length === 0 || isInterpreting}}"
+      loading="{{isInterpreting}}"
       bindtap="interpretReading"
     >
       <text class="action-icon">✧</text>
@@ -74,22 +90,27 @@
   </view>
 
   <view wx:if="{{interpretation}}" class="reading">
-    <text class="section-title">Reading</text>
+    <view class="reading-heading">
+      <text class="section-title">Reading</text>
+      <text class="source-pill">{{interpretation.sourceLabel}}</text>
+    </view>
     <text class="reading-text">{{interpretation.summary}}</text>
 
     <view class="reading-cards">
       <view wx:for="{{interpretation.cards}}" wx:key="id" class="reading-card">
         <text class="reading-card-title">{{item.position}} · {{item.name}}</text>
-        <text class="reading-text">{{item.text}}</text>
+        <text class="reading-meta">{{item.orientation}} · {{item.keywordsText}}</text>
+        <text class="reading-text">{{item.interpretation}}</text>
       </view>
     </view>
 
     <text class="reading-label">Overall message</text>
-    <text class="reading-text">{{interpretation.overall}}</text>
+    <text class="reading-text">{{interpretation.overallMessage}}</text>
     <text class="reading-label">Practical reflection</text>
-    <text class="reading-text">{{interpretation.reflection}}</text>
+    <text class="reading-text">{{interpretation.practicalReflection}}</text>
     <text class="reading-label">Journal prompt</text>
-    <text class="reading-text">{{interpretation.journal}}</text>
+    <text class="reading-text">{{interpretation.journalQuestion}}</text>
+    <text class="reading-caveat">{{interpretation.caveat}}</text>
   </view>
 
   <view class="note">
