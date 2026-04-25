@@ -1,6 +1,6 @@
 const appConfig = require("../config");
 
-const STORAGE_KEY = "chatgpt_oauth_session";
+const STORAGE_KEY = "ai_backend_session";
 
 function loadOAuthSession() {
   return wx.getStorageSync(STORAGE_KEY) || null;
@@ -27,7 +27,7 @@ function connectChatGPT() {
     tokenType: "Bearer",
     expiresAt: Date.now() + 60 * 60 * 1000,
     mode: "demo",
-    label: "Prototype OAuth Demo"
+    label: "Prototype Backend Demo"
   };
 
   saveOAuthSession(session);
@@ -50,30 +50,30 @@ function exchangeToken(oauthConfig) {
             const data = response.data || {};
 
             if (response.statusCode < 200 || response.statusCode >= 300 || !data.access_token) {
-              reject(new Error(data.error || "Unable to connect ChatGPT OAuth."));
+              reject(new Error(data.error || "Unable to connect the AI reading backend."));
               return;
             }
 
             const session = {
-              provider: oauthConfig.providerName,
+              provider: data.provider || oauthConfig.providerName,
               accessToken: data.access_token,
               tokenType: data.token_type || "Bearer",
               expiresAt: Date.now() + (data.expires_in || 3600) * 1000,
               refreshToken: data.refresh_token || "",
-              mode: "oauth",
-              label: "ChatGPT OAuth"
+              mode: data.mode || "backend",
+              label: data.label || "AI Reading Backend"
             };
 
             saveOAuthSession(session);
             resolve(session);
           },
           fail() {
-            reject(new Error("Unable to reach the OAuth backend."));
+            reject(new Error("Unable to reach the AI reading backend."));
           }
         });
       },
       fail() {
-        reject(new Error("Unable to start WeChat login for OAuth handoff."));
+        reject(new Error("Unable to start WeChat login for backend auth."));
       }
     });
   });

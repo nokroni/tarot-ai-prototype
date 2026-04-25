@@ -7,3 +7,6 @@ private.*.key
 node_modules/
 *.xcuserdata/
 *.swp
+.env
+.env.*
+!.env.example

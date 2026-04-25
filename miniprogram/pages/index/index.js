@@ -250,7 +250,7 @@ Page({
         interpretation: normalizeReading(fallbackReading),
         errorMessage: hasUsableOAuth(this.data.oauthSession)
           ? ""
-          : "Connect ChatGPT OAuth to use AI generation. Showing a structured demo reading for now."
+          : "Connect the AI backend to use server-side generation. Showing a structured demo reading for now."
       });
       return;
     }
@@ -318,13 +318,13 @@ Page({
           oauthSession: session,
           oauthStatus: session.label,
           errorMessage: session.mode === "demo"
-            ? "Prototype OAuth connected. Add a backend reading endpoint to call OpenAI with real OAuth credentials."
+            ? "Prototype backend connected. Add a reading endpoint to call OpenAI server-side."
             : ""
         });
       })
       .catch((error) => {
         this.setData({
-          errorMessage: error.message || "Unable to connect ChatGPT OAuth."
+          errorMessage: error.message || "Unable to connect the AI reading backend."
         });
       })
       .finally(() => {

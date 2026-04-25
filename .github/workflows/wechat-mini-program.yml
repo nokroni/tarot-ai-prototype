@@ -28,3 +28,6 @@ jobs:
 
       - name: Validate Mini Program
         run: npm run validate:mp
+
+      - name: Check backend syntax
+        run: npm run backend:check

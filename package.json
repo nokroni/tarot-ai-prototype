@@ -4,6 +4,8 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
+    "backend": "node server/dev-backend.js",
+    "backend:check": "node --check server/dev-backend.js",
     "validate:mp": "node scripts/validate-miniprogram.js",
     "preview:mp": "node scripts/wechat-upload.js preview",
     "upload:mp": "node scripts/wechat-upload.js upload"

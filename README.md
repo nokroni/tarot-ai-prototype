@@ -29,6 +29,17 @@ Validate the Mini Program structure:
 npm run validate:mp
 ```
 
+Start the local test backend:
+
+```sh
+cp .env.example .env.local
+npm run backend
+```
+
+Set `WECHAT_APPSECRET`, `OPENAI_API_KEY`, and `SESSION_SECRET` in `.env.local` for real WeChat auth and OpenAI readings. Without those values, the backend still runs in development mode so the Mini Program can exercise the backend auth and reading layout path.
+
+By default `miniprogram/config.js` points at `http://127.0.0.1:8787`. That works in WeChat DevTools only when local/request-domain verification is disabled. For phone testing, expose this machine through an HTTPS tunnel, update `backendBaseUrl` in `miniprogram/config.js` to the tunnel URL, and add that HTTPS domain in the WeChat Mini Program admin request-domain settings.
+
 Create a preview QR code:
 
 ```sh
