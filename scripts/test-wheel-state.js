@@ -39,18 +39,18 @@ const context = {
 pageDefinition.drawCards.call(context);
 
 assert.strictEqual(context.data.wheel.isOpen, true, "Wheel should open when drawing starts.");
-assert.strictEqual(context.data.buildLabel, "0.6.6 宽距斜弧", "Build label should identify the wide-spaced diagonal arc build.");
+assert.strictEqual(context.data.buildLabel, "0.6.7 惯性斜弧", "Build label should identify the inertial diagonal arc build.");
 assert.strictEqual(context.data.wheel.requiredCount, 3, "Three-card spread should require three selections.");
 assert.strictEqual(context.data.wheelCards.length, 78, "Wheel should contain the complete 78-card deck.");
 assert.strictEqual(context.data.wheel.cardBackSrc, "/images/card-back.png", "Wheel should use the shared card back.");
 assert(
-  context.data.wheelCards[0].style.includes("rotate(-43deg)"),
-  "Wheel layout should start from the diagonal arrow arc angle."
+  context.data.wheelCards[0].style.includes("rotate(-60deg)"),
+  "Wheel layout should center the active card on the screen."
 );
 assert(
-  context.data.wheelCards[75].style.includes("rotate(-73deg)") &&
-    context.data.wheelCards[3].style.includes("rotate(-13deg)"),
-  "Visible wheel cards should use widened visual spacing across the arc."
+  context.data.wheelCards[75].style.includes("rotate(-93deg)") &&
+    context.data.wheelCards[3].style.includes("rotate(-27deg)"),
+  "Visible wheel cards should use widened visual spacing around the centered card."
 );
 assert.strictEqual(
   context.data.wheelCards.filter((slot) => slot.visible).length,
@@ -73,6 +73,10 @@ assert.strictEqual(
   "Wheel should keep seven visible cards after scrolling."
 );
 assert.strictEqual(context.data.wheelCards[context.data.wheel.activeIndex].visible, true, "Active card should stay visible.");
+assert(
+  context.data.wheelCards[context.data.wheel.activeIndex].style.includes("rotate(-60deg)"),
+  "Active card should settle closest to the center after inertial scrolling."
+);
 context._wheelIgnoreNextTap = false;
 
 const uniqueCards = new Set(context.data.wheelCards.map((slot) => slot.cardId));

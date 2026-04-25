@@ -42,12 +42,16 @@ const cardFaceFileOverrides = {
 };
 const WHEEL_CARD_BACK_SRC = "/images/card-back.png";
 const WHEEL_RADIUS_RPX = 1500;
-const WHEEL_ACTIVE_ANGLE_DEG = -43;
-const WHEEL_VISUAL_STEP_DEG = 10;
-const WHEEL_DRAG_PX_PER_CARD = 24;
-const WHEEL_VISIBLE_NEIGHBORS = 3;
-const WHEEL_STICKY_THRESHOLD = 0.16;
-const WHEEL_STICKY_STRENGTH = 0.62;
+const WHEEL_ACTIVE_ANGLE_DEG = -60;
+const WHEEL_VISUAL_STEP_DEG = 11;
+const WHEEL_DRAG_PX_PER_CARD = 38;
+const WHEEL_VISIBLE_RADIUS = 3.55;
+const WHEEL_MOMENTUM_PROJECT_MS = 220;
+const WHEEL_MOMENTUM_MIN_CARDS = 0.35;
+const WHEEL_MOMENTUM_MAX_CARDS = 8;
+const WHEEL_SNAP_BASE_MS = 320;
+const WHEEL_SNAP_PER_CARD_MS = 36;
+const WHEEL_SNAP_MAX_MS = 620;
 const WHEEL_REVEAL_DELAY_MS = 560;
 const WHEEL_VIBRATE_THROTTLE_MS = 55;
 
@@ -588,7 +592,7 @@ Page({
     oauthSession: null,
     oauthStatus: cloudAIEnabled ? "已连接混元" : "未连接",
     backendStatus: formatBackendStatus(),
-    buildLabel: "0.6.6 宽距斜弧",
+    buildLabel: "0.6.7 惯性斜弧",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""
@@ -641,8 +645,13 @@ Page({
       return;
     }
 
+    stopWheelMomentum(this);
     this._wheelTouchStartX = touch.clientX;
-    this._wheelStartRotationDeg = this.data.wheel.rotationDeg;
+    this._wheelStartScrollPosition = getWheelScrollPosition(this.data.wheel.rotationDeg);
+    this._wheelTouchSamples = [{
+      x: touch.clientX,
+      time: Date.now()
+    }];
     this._wheelDidDrag = false;
   },
 
@@ -658,28 +667,18 @@ Page({
     }
 
     const deltaX = touch.clientX - this._wheelTouchStartX;
-    const rawRotationDeg = this._wheelStartRotationDeg + (deltaX / WHEEL_DRAG_PX_PER_CARD) * WHEEL_STEP_DEG;
-    const rotationDeg = applyWheelStickyRotation(rawRotationDeg);
-    const activeIndex = normalizeWheelIndex(Math.round(-rotationDeg / WHEEL_STEP_DEG));
+    const scrollPosition = this._wheelStartScrollPosition - deltaX / WHEEL_DRAG_PX_PER_CARD;
     const selectedIndex = Math.abs(deltaX) > 3 ? -1 : this.data.wheel.selectedIndex;
 
     if (Math.abs(deltaX) > 3) {
       this._wheelDidDrag = true;
     }
 
-    if (activeIndex !== this.data.wheel.activeIndex) {
-      vibrateWheelStep(this);
-    }
-
-    this.setData({
-      wheelCards: updateWheelCardVisibility(this.data.wheelCards, activeIndex, rotationDeg),
-      wheel: Object.assign({}, this.data.wheel, {
-        rotationDeg,
-        activeIndex,
-        selectedIndex,
-        phase: "choosing",
-        revealedCard: null
-      })
+    rememberWheelTouchSample(this, touch.clientX);
+    updateWheelScroll(this, scrollPosition, {
+      selectedIndex,
+      phase: "choosing",
+      revealedCard: null
     });
   },
 
@@ -694,22 +693,15 @@ Page({
       return;
     }
 
-    const activeIndex = findNearestAvailableIndex(this.data.wheelCards, this.data.wheel.activeIndex);
-    const rotationDeg = -activeIndex * WHEEL_STEP_DEG;
-
     this._wheelDidDrag = false;
     this._wheelIgnoreNextTap = didDrag;
 
-    this.setData({
-      wheelCards: updateWheelCardVisibility(this.data.wheelCards, activeIndex, rotationDeg),
-      wheel: Object.assign({}, this.data.wheel, {
-        rotationDeg,
-        activeIndex,
-        selectedIndex: -1,
-        phase: "choosing",
-        revealedCard: null
-      })
-    });
+    if (didDrag) {
+      startWheelMomentum(this, getWheelReleaseVelocity(this));
+      return;
+    }
+
+    snapWheelToIndex(this, this.data.wheel.activeIndex);
   },
 
   onWheelFocusTap() {
@@ -725,18 +717,13 @@ Page({
     const activeIndex = findNearestAvailableIndex(this.data.wheelCards, this.data.wheel.activeIndex);
     const selectedIndex = this.data.wheel.selectedIndex;
 
-    if (selectedIndex !== activeIndex) {
-      const rotationDeg = -activeIndex * WHEEL_STEP_DEG;
+    stopWheelMomentum(this);
 
-      this.setData({
-        wheelCards: updateWheelCardVisibility(this.data.wheelCards, activeIndex, rotationDeg),
-        wheel: Object.assign({}, this.data.wheel, {
-          rotationDeg,
-          activeIndex,
-          selectedIndex: activeIndex,
-          phase: "popped",
-          revealedCard: null
-        })
+    if (selectedIndex !== activeIndex) {
+      snapWheelToIndex(this, activeIndex, {
+        selectedIndex: activeIndex,
+        phase: "popped",
+        revealedCard: null
       });
       return;
     }
@@ -1116,31 +1103,18 @@ function createWheelCards() {
       orientationLabel: formatOrientation(orientation),
       keywords,
       drawn: false,
-      style: createWheelCardStyle(index, 0, 0)
+      style: createWheelCardStyle(index, 0)
     };
   });
 
-  return updateWheelCardVisibility(wheelCards, 0, 0);
+  return updateWheelCardVisibility(wheelCards, 0);
 }
 
-function createWheelCardStyle(index, activeIndex, rotationDeg) {
-  const signedDistance = getSignedWheelIndexDistance(index, activeIndex);
-  const scrollOffset = getWheelScrollOffset(rotationDeg, activeIndex);
-  const visualAngle = WHEEL_ACTIVE_ANGLE_DEG + (signedDistance - scrollOffset) * WHEEL_VISUAL_STEP_DEG;
+function createWheelCardStyle(index, scrollPosition) {
+  const signedDistance = getSignedWheelScrollDistance(index, scrollPosition);
+  const visualAngle = WHEEL_ACTIVE_ANGLE_DEG + signedDistance * WHEEL_VISUAL_STEP_DEG;
 
   return `transform: translate(-50%, -50%) rotate(${visualAngle}deg) translateY(-${WHEEL_RADIUS_RPX}rpx);`;
-}
-
-function applyWheelStickyRotation(rotationDeg) {
-  const nearestIndex = Math.round(-rotationDeg / WHEEL_STEP_DEG);
-  const snappedRotationDeg = -nearestIndex * WHEEL_STEP_DEG;
-  const distance = Math.abs(rotationDeg - snappedRotationDeg) / WHEEL_STEP_DEG;
-
-  if (distance > WHEEL_STICKY_THRESHOLD) {
-    return rotationDeg;
-  }
-
-  return rotationDeg + (snappedRotationDeg - rotationDeg) * WHEEL_STICKY_STRENGTH;
 }
 
 function confirmWheelCard(page, index) {
@@ -1157,8 +1131,9 @@ function confirmWheelCard(page, index) {
   const isComplete = nextDrawnCards.length >= page.data.wheel.requiredCount;
   const markedWheelCards = markWheelCardDrawn(page.data.wheelCards, index);
   const nextActiveIndex = isComplete ? index : findNearestAvailableIndex(markedWheelCards, index + 1);
-  const rotationDeg = -nextActiveIndex * WHEEL_STEP_DEG;
-  const wheelCards = updateWheelCardVisibility(markedWheelCards, nextActiveIndex, rotationDeg);
+  const scrollPosition = getWheelIndexCyclePosition(nextActiveIndex, getWheelScrollPosition(page.data.wheel.rotationDeg));
+  const rotationDeg = -scrollPosition * WHEEL_STEP_DEG;
+  const wheelCards = updateWheelCardVisibility(markedWheelCards, scrollPosition);
 
   page.setData({
     drawnCards: nextDrawnCards,
@@ -1251,10 +1226,127 @@ function findNearestAvailableIndex(wheelCards, targetIndex) {
   return normalizedTarget;
 }
 
-function updateWheelCardVisibility(wheelCards, activeIndex, rotationDeg) {
+function updateWheelScroll(page, scrollPosition, wheelOverrides) {
+  const rotationDeg = -scrollPosition * WHEEL_STEP_DEG;
+  const activeIndex = findNearestAvailableIndex(page.data.wheelCards, Math.round(scrollPosition));
+
+  if (activeIndex !== page.data.wheel.activeIndex) {
+    vibrateWheelStep(page);
+  }
+
+  page.setData({
+    wheelCards: updateWheelCardVisibility(page.data.wheelCards, scrollPosition),
+    wheel: Object.assign({}, page.data.wheel, {
+      rotationDeg,
+      activeIndex
+    }, wheelOverrides || {})
+  });
+}
+
+function snapWheelToIndex(page, index, wheelOverrides) {
+  const currentScrollPosition = getWheelScrollPosition(page.data.wheel.rotationDeg);
+  const scrollPosition = getWheelIndexCyclePosition(index, currentScrollPosition);
+
+  updateWheelScroll(page, scrollPosition, Object.assign({
+    selectedIndex: -1,
+    phase: "choosing",
+    revealedCard: null
+  }, wheelOverrides || {}));
+}
+
+function startWheelMomentum(page, velocityCardsPerMs) {
+  const currentScrollPosition = getWheelScrollPosition(page.data.wheel.rotationDeg);
+  const projectedDistance = clamp(
+    velocityCardsPerMs * WHEEL_MOMENTUM_PROJECT_MS,
+    -WHEEL_MOMENTUM_MAX_CARDS,
+    WHEEL_MOMENTUM_MAX_CARDS
+  );
+  const projectedScrollPosition =
+    Math.abs(projectedDistance) < WHEEL_MOMENTUM_MIN_CARDS
+      ? currentScrollPosition
+      : currentScrollPosition + projectedDistance;
+  const targetIndex = findNearestAvailableIndex(page.data.wheelCards, Math.round(projectedScrollPosition));
+  const targetScrollPosition = getWheelIndexCyclePosition(targetIndex, projectedScrollPosition);
+
+  animateWheelTo(page, targetScrollPosition);
+}
+
+function animateWheelTo(page, targetScrollPosition) {
+  stopWheelMomentum(page);
+
+  const startScrollPosition = getWheelScrollPosition(page.data.wheel.rotationDeg);
+  const distance = targetScrollPosition - startScrollPosition;
+  const frameCount = Math.max(
+    1,
+    Math.ceil(Math.min(WHEEL_SNAP_MAX_MS, WHEEL_SNAP_BASE_MS + Math.abs(distance) * WHEEL_SNAP_PER_CARD_MS) / 16)
+  );
+  const token = page._wheelMomentumToken;
+  let frame = 0;
+
+  function tick() {
+    if (token !== page._wheelMomentumToken) {
+      return;
+    }
+
+    frame += 1;
+    const progress = Math.min(1, frame / frameCount);
+    const easedProgress = easeOutCubic(progress);
+    const scrollPosition = startScrollPosition + distance * easedProgress;
+
+    updateWheelScroll(page, progress === 1 ? targetScrollPosition : scrollPosition, {
+      selectedIndex: -1,
+      phase: "choosing",
+      revealedCard: null
+    });
+
+    if (progress < 1) {
+      page._wheelMomentumTimer = setTimeout(tick, 16);
+      return;
+    }
+
+    page._wheelMomentumTimer = null;
+    page._wheelIgnoreNextTap = false;
+  }
+
+  page._wheelMomentumTimer = setTimeout(tick, 16);
+}
+
+function stopWheelMomentum(page) {
+  page._wheelMomentumToken = (page._wheelMomentumToken || 0) + 1;
+
+  if (page._wheelMomentumTimer) {
+    clearTimeout(page._wheelMomentumTimer);
+    page._wheelMomentumTimer = null;
+  }
+}
+
+function rememberWheelTouchSample(page, x) {
+  const samples = (page._wheelTouchSamples || []).concat({
+    x,
+    time: Date.now()
+  });
+
+  page._wheelTouchSamples = samples.slice(-4);
+}
+
+function getWheelReleaseVelocity(page) {
+  const samples = page._wheelTouchSamples || [];
+
+  if (samples.length < 2) {
+    return 0;
+  }
+
+  const last = samples[samples.length - 1];
+  const previous = samples[0];
+  const elapsedMs = Math.max(1, last.time - previous.time);
+
+  return -((last.x - previous.x) / WHEEL_DRAG_PX_PER_CARD) / elapsedMs;
+}
+
+function updateWheelCardVisibility(wheelCards, scrollPosition) {
   return wheelCards.map((slot, index) => {
-    const visible = Math.abs(getSignedWheelIndexDistance(index, activeIndex)) <= WHEEL_VISIBLE_NEIGHBORS;
-    const style = createWheelCardStyle(index, activeIndex, rotationDeg);
+    const visible = Math.abs(getSignedWheelScrollDistance(index, scrollPosition)) <= WHEEL_VISIBLE_RADIUS;
+    const style = createWheelCardStyle(index, scrollPosition);
 
     if (slot.visible === visible && slot.style === style) {
       return slot;
@@ -1267,27 +1359,38 @@ function updateWheelCardVisibility(wheelCards, activeIndex, rotationDeg) {
   });
 }
 
-function getSignedWheelIndexDistance(index, activeIndex) {
+function getSignedWheelScrollDistance(index, scrollPosition) {
   const count = tarotDeck.length;
-  let distance = normalizeWheelIndex(index) - normalizeWheelIndex(activeIndex);
+  let distance = normalizeWheelIndex(index) - scrollPosition;
 
-  if (distance > count / 2) {
+  while (distance > count / 2) {
     distance -= count;
   }
 
-  if (distance < -count / 2) {
+  while (distance < -count / 2) {
     distance += count;
   }
 
   return distance;
 }
 
-function getWheelScrollOffset(rotationDeg, activeIndex) {
-  const count = tarotDeck.length;
-  const scrollPosition = -rotationDeg / WHEEL_STEP_DEG;
-  const activeCyclePosition = activeIndex + Math.round((scrollPosition - activeIndex) / count) * count;
+function getWheelScrollPosition(rotationDeg) {
+  return -rotationDeg / WHEEL_STEP_DEG;
+}
 
-  return scrollPosition - activeCyclePosition;
+function getWheelIndexCyclePosition(index, nearScrollPosition) {
+  const count = tarotDeck.length;
+  const normalizedIndex = normalizeWheelIndex(index);
+
+  return normalizedIndex + Math.round((nearScrollPosition - normalizedIndex) / count) * count;
+}
+
+function easeOutCubic(progress) {
+  return 1 - Math.pow(1 - progress, 3);
+}
+
+function clamp(value, min, max) {
+  return Math.max(min, Math.min(max, value));
 }
 
 function normalizeWheelIndex(index) {
