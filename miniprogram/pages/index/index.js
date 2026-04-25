@@ -198,8 +198,6 @@ const tarotDeck = [
   }
 ].concat(createMinorArcanaDeck());
 
-localizeTarotDeck(tarotDeck);
-
 function createMinorArcanaDeck() {
   const suits = [
     {
@@ -292,15 +290,26 @@ function createMinorArcanaDeck() {
     }
   ];
 
-  return suits.flatMap((suit) =>
-    suit.cards.map(([rankId, rankName, uprightMeanings, reversedMeanings]) => ({
-      id: `${rankId}_of_${suit.id}`,
-      name: `${rankName} of ${suit.name}`,
-      arcana: suit.arcana,
-      uprightMeanings: uprightMeanings.concat(suit.theme),
-      reversedMeanings
-    }))
-  );
+  const deck = [];
+
+  suits.forEach((suit) => {
+    suit.cards.forEach((cardInfo) => {
+      const rankId = cardInfo[0];
+      const rankName = cardInfo[1];
+      const uprightMeanings = cardInfo[2];
+      const reversedMeanings = cardInfo[3];
+
+      deck.push({
+        id: `${rankId}_of_${suit.id}`,
+        name: `${rankName} of ${suit.name}`,
+        arcana: suit.arcana,
+        uprightMeanings: uprightMeanings.concat(suit.theme),
+        reversedMeanings
+      });
+    });
+  });
+
+  return deck;
 }
 
 const majorCardInfo = {
@@ -552,6 +561,8 @@ function getCardInfo(cardId) {
   };
 }
 
+localizeTarotDeck(tarotDeck);
+
 Page({
   data: {
     question: "",
@@ -563,7 +574,7 @@ Page({
     oauthSession: null,
     oauthStatus: cloudAIEnabled ? "已连接混元" : "未连接",
     backendStatus: formatBackendStatus(),
-    buildLabel: "0.5.13 中文",
+    buildLabel: "0.5.14 修复",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""
