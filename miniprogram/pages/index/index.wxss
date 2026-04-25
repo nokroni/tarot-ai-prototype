@@ -382,9 +382,9 @@
 
 .wheel-stage {
   position: absolute;
-  top: 156rpx;
+  top: 126rpx;
   right: 0;
-  bottom: 142rpx;
+  bottom: 104rpx;
   left: 0;
   overflow: hidden;
 }
@@ -392,12 +392,11 @@
 .wheel-stage::before,
 .wheel-stage::after {
   position: absolute;
-  right: 50%;
-  bottom: -880rpx;
+  left: -470rpx;
+  bottom: -920rpx;
   z-index: 0;
   width: 1520rpx;
   height: 1520rpx;
-  margin-right: -760rpx;
   border: 2rpx solid rgba(217, 170, 84, 0.2);
   border-radius: 50%;
   content: "";
@@ -405,10 +404,10 @@
 }
 
 .wheel-stage::after {
-  bottom: -746rpx;
+  left: -336rpx;
+  bottom: -786rpx;
   width: 1252rpx;
   height: 1252rpx;
-  margin-right: -626rpx;
   border-color: rgba(255, 250, 240, 0.1);
 }
 
@@ -424,7 +423,7 @@
   display: inline-flex;
   align-items: center;
   height: 100%;
-  padding-top: 18rpx;
+  padding-top: 0;
   box-sizing: border-box;
 }
 
@@ -492,11 +491,11 @@
 }
 
 .wheel-card-slot.popped .wheel-card-shell {
-  transform: translateY(-46rpx) scale(1.08);
+  transform: translateY(-26rpx) scale(1.06);
 }
 
 .wheel-card-slot.revealing .wheel-card-shell {
-  transform: translateY(-62rpx) scale(1.16);
+  transform: translateY(-34rpx) scale(1.1);
 }
 
 .wheel-card-back,
