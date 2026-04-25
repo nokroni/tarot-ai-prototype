@@ -6,7 +6,7 @@ module.exports = {
     envId: "tarot-d9g2gcdx1cec4d83e",
     provider: "hunyuan-exp",
     model: "hunyuan-2.0-instruct-20251111",
-    sourceLabel: "腾讯混元"
+    sourceLabel: "腾讯混元 · 灵魂"
   },
   oauth: {
     providerName: "HTTPS 备用后端",

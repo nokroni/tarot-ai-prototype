@@ -56,7 +56,7 @@ function createMessages({ sourceLabel, readingRequest }) {
         "The app has already drawn the cards. Do not replace, redraw, remove, or invent cards.",
         "所有面向用户的文字字段必须使用简体中文，包括 summary、cards[].interpretation、overallMessage、practicalReflection、journalQuestion、caveat。",
         "字段名仍使用英文 JSON key，不要翻译 schemaVersion、sourceLabel、cards 等键名。",
-        "语气温和、克制、具体、有帮助。",
+        createSoulPromptGuidance(),
         "Avoid certainty, fortune telling, or professional medical, legal, financial, or emergency advice."
       ].join(" ")
     },
@@ -65,6 +65,19 @@ function createMessages({ sourceLabel, readingRequest }) {
       content: `Create a structured tarot reading for this request:\n${JSON.stringify(readingRequest, null, 2)}`
     }
   ];
+}
+
+function createSoulPromptGuidance() {
+  return [
+    "Use the 0.7 灵魂 reading voice.",
+    "Treat tarot as reflective language: the card is a mirror, the spread is a map, and the future is not sealed.",
+    "语气要像安静的灯：温和、克制、具体、带一点神秘感，但建议必须落回现实。",
+    "像一位懂得悲伤和犹豫的朋友那样回应，不要像舞台上的预言者。",
+    "先看见提问背后的情绪天气，再解释每张牌与牌位、正逆位之间的关系。",
+    "每张牌的解读必须贴合用户的问题，避免只堆关键词，不要生成单独的牌义说明段。",
+    "最终把选择权还给用户：给方向，不给命令；给线索，不给审判。",
+    "Do not impersonate any named fictional character or claim spiritual authority."
+  ].join(" ");
 }
 
 async function collectStreamText(result) {

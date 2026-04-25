@@ -583,7 +583,7 @@ Page({
     oauthSession: null,
     oauthStatus: cloudAIEnabled ? "已连接混元" : "未连接",
     backendStatus: formatBackendStatus(),
-    buildLabel: "0.6.18 贴弧轮盘",
+    buildLabel: "0.7 灵魂",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""
