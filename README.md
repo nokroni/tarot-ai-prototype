@@ -8,12 +8,14 @@ The active app lives under `miniprogram/`. Swift and iOS files from the first pr
 
 The Mini Program uses AppID `wx19531898b7da5eec`, draws tarot cards locally, and renders readings through a stable `tarot.reading.v1` schema.
 
-The page includes a prototype **ChatGPT OAuth** connection panel. In this repository it stores a demo OAuth-style session so the UX can be tested without exposing secrets. To use real model-generated readings, configure a backend in `miniprogram/config.js`:
+The page uses WeChat CloudBase AI as the primary reading provider. `miniprogram/app.js` initializes CloudBase with environment `tarot-d9g2gcdx1cec4d83e`, and `miniprogram/config.js` points `wx.cloud.extend.AI` at `hunyuan-exp` / `hunyuan-2.0-instruct-20251111`.
+
+The former HTTPS backend path remains as an optional fallback for beta testing. The page still includes a fallback connection panel so the backend path can be exercised without storing model secrets in the Mini Program. To use the fallback, configure these values in `miniprogram/config.js`:
 
 - `oauth.tokenExchangeEndpoint`: exchanges WeChat login/OAuth handoff data for a user-scoped access token.
 - `oauth.readingEndpoint`: accepts the local card draw plus `responseFormat`, then calls OpenAI server-side.
 
-The Mini Program must not contain OAuth client secrets, the WeChat AppSecret, or an OpenAI API key. Keep model calls on a backend. An example backend contract is included at `docs/openai-reading-backend.example.mjs`.
+The Mini Program must not contain OAuth client secrets, the WeChat AppSecret, or an OpenAI API key. CloudBase built-in Hunyuan calls use WeChat's official `wx.cloud.extend.AI` surface; non-CloudBase model calls should stay on a backend. An example backend contract is included at `docs/openai-reading-backend.example.mjs`.
 
 ## Tooling
 
@@ -42,7 +44,7 @@ Set `WECHAT_APPSECRET`, `OPENAI_API_KEY`, and `SESSION_SECRET` in `.env.local` f
 
 OpenClaw/Codex OAuth should be treated as a server-side gateway credential, not as a per-phone-user OAuth flow. Keep the OpenClaw Gateway private, for example on `127.0.0.1`, and let this backend be the only public HTTPS surface exposed to WeChat.
 
-The current beta VPS route is:
+The fallback beta VPS route is:
 
 ```text
 WeChat Mini Program -> https://muse-ai.cloud -> tarot-backend.service -> 127.0.0.1:18789 OpenClaw Gateway -> Codex OAuth GPT-5.4 mini
@@ -55,7 +57,7 @@ ssh -fN -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCoun
   -R 127.0.0.1:7897:127.0.0.1:7897 tarot-backend
 ```
 
-By default `miniprogram/config.js` points at the Ubuntu-hosted HTTPS test backend:
+By default `miniprogram/config.js` keeps the Ubuntu-hosted HTTPS test backend as the fallback endpoint:
 
 ```text
 https://muse-ai.cloud

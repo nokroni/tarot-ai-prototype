@@ -1,5 +1,9 @@
 const appConfig = require("../../config");
 const {
+  createCloudBaseReading,
+  hasCloudBaseAI
+} = require("../../services/cloudbase-ai");
+const {
   createFallbackReading,
   createReadingRequest,
   normalizeReading,
@@ -31,6 +35,7 @@ const READING_REQUEST_TIMEOUT_MS = 30000;
 const READING_POLL_TIMEOUT_MS = 180000;
 const READING_RETRY_DELAY_MS = 900;
 const READING_POLL_DELAY_MS = 1500;
+const cloudAIEnabled = hasCloudBaseAI(appConfig.cloudAI);
 
 const tarotDeck = [
   {
@@ -198,9 +203,9 @@ Page({
     drawnCards: [],
     interpretation: null,
     oauthSession: null,
-    oauthStatus: "Not connected",
-    backendStatus: appConfig.oauth.readingEndpoint.replace(/\/readings$/, ""),
-    buildLabel: "0.5.7 wait",
+    oauthStatus: cloudAIEnabled ? "CloudBase Hunyuan ready" : "Not connected",
+    backendStatus: formatBackendStatus(),
+    buildLabel: "0.5.8 cloud",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""
@@ -251,15 +256,24 @@ Page({
       question: this.data.question,
       spread: this.data.selectedSpread,
       drawnCards: this.data.drawnCards,
-      sourceLabel: this.data.oauthSession ? this.data.oauthSession.label : "Local Demo"
+      sourceLabel: cloudAIEnabled
+        ? appConfig.cloudAI.sourceLabel
+        : this.data.oauthSession
+          ? this.data.oauthSession.label
+          : "Local Demo"
+    });
+    const readingRequest = createReadingRequest({
+      question: this.data.question,
+      spread: this.data.selectedSpread,
+      drawnCards: this.data.drawnCards
     });
 
-    if (!hasUsableOAuth(this.data.oauthSession) || !appConfig.oauth.readingEndpoint) {
+    if (!cloudAIEnabled && !canUseBackend(this.data.oauthSession)) {
       this.setData({
         interpretation: normalizeReading(fallbackReading),
         errorMessage: hasUsableOAuth(this.data.oauthSession)
           ? ""
-          : "Connect the AI backend to use server-side generation. Showing a structured demo reading for now."
+          : "CloudBase AI is not configured. Connect the fallback backend or use a structured demo reading for now."
       });
       return;
     }
@@ -269,59 +283,30 @@ Page({
       errorMessage: ""
     });
 
-    const requestId = createRequestId();
-
-    requestReadingWithPolling({
-      url: appConfig.oauth.readingEndpoint,
-      startUrl: createAsyncReadingUrl(appConfig.oauth.readingEndpoint),
-      statusUrl: createReadingStatusUrl(appConfig.oauth.readingEndpoint, requestId),
-      header: {
-        Authorization: `${this.data.oauthSession.tokenType || "Bearer"} ${this.data.oauthSession.accessToken}`,
-        "Content-Type": "application/json",
-        "X-Request-Id": requestId
-      },
-      data: {
-        request: createReadingRequest({
-          question: this.data.question,
-          spread: this.data.selectedSpread,
-          drawnCards: this.data.drawnCards
-        }),
-        responseFormat: readingJsonSchema()
-      },
+    requestReadingFromBestProvider({
+      oauthSession: this.data.oauthSession,
+      readingRequest,
       onRetry: () => {
         this.setData({
-          errorMessage: "The reading connection closed; starting the wait again."
+          errorMessage: "CloudBase AI did not complete; trying the HTTPS fallback."
         });
       },
-      onWaiting: () => {
+      onWaiting: (message) => {
         this.setData({
-          errorMessage: "Waiting for the AI reading."
+          errorMessage: message || "Waiting for the AI reading."
         });
       }
     })
-      .then((response) => {
-        const data = response.data || {};
-        const reading = data.reading || data;
-
-        if (response.statusCode < 200 || response.statusCode >= 300) {
-          this.setData({
-            interpretation: normalizeReading(fallbackReading),
-            errorMessage: formatReadingError(data.error)
-          });
-          return;
-        }
-
+      .then((result) => {
         this.setData({
-          interpretation: normalizeReading(reading, fallbackReading),
-          errorMessage: data.backend && data.backend.openaiConfigured === false
-            ? "Backend connected, but model generation is not configured. Showing structured fallback."
-            : ""
+          interpretation: normalizeReading(result.reading, fallbackReading),
+          errorMessage: result.warning || ""
         });
       })
       .catch((error) => {
         this.setData({
           interpretation: normalizeReading(fallbackReading),
-          errorMessage: `Unable to reach reading backend${error && error.errMsg ? `: ${error.errMsg}` : ""}. Showing structured fallback.`
+          errorMessage: `${formatProviderError(error)} Showing structured fallback.`
         });
       })
       .finally(() => {
@@ -345,7 +330,7 @@ Page({
           errorMessage: session.mode === "demo"
             ? "Prototype backend connected. Add a reading endpoint to call OpenAI server-side."
             : session.openaiConfigured === false
-              ? "Backend connected, but OpenAI API key is not configured yet. Interpret will show a structured fallback."
+              ? "Fallback backend connected, but its model key is not configured yet."
             : ""
         });
       })
@@ -375,6 +360,82 @@ Page({
     });
   }
 });
+
+function requestReadingFromBestProvider(options) {
+  if (cloudAIEnabled) {
+    if (typeof options.onWaiting === "function") {
+      options.onWaiting("Waiting for CloudBase Hunyuan.");
+    }
+
+    return createCloudBaseReading({
+      cloudAIConfig: appConfig.cloudAI,
+      readingRequest: options.readingRequest
+    })
+      .then((reading) => ({
+        reading
+      }))
+      .catch((error) => {
+        if (!canUseBackend(options.oauthSession)) {
+          throw error;
+        }
+
+        if (typeof options.onRetry === "function") {
+          options.onRetry(error);
+        }
+
+        return requestBackendReading(options);
+      });
+  }
+
+  return requestBackendReading(options);
+}
+
+function requestBackendReading(options) {
+  const requestId = createRequestId();
+  const oauthSession = options.oauthSession;
+
+  if (typeof options.onWaiting === "function") {
+    options.onWaiting("Waiting for the HTTPS fallback reading.");
+  }
+
+  return requestReadingWithPolling({
+    url: appConfig.oauth.readingEndpoint,
+    startUrl: createAsyncReadingUrl(appConfig.oauth.readingEndpoint),
+    statusUrl: createReadingStatusUrl(appConfig.oauth.readingEndpoint, requestId),
+    header: {
+      Authorization: `${oauthSession.tokenType || "Bearer"} ${oauthSession.accessToken}`,
+      "Content-Type": "application/json",
+      "X-Request-Id": requestId
+    },
+    data: {
+      request: options.readingRequest,
+      responseFormat: readingJsonSchema()
+    },
+    onRetry: () => {
+      if (typeof options.onWaiting === "function") {
+        options.onWaiting("The fallback connection closed; starting the wait again.");
+      }
+    },
+    onWaiting: options.onWaiting
+  }).then((response) => {
+    const data = response.data || {};
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw new Error(formatReadingError(data.error));
+    }
+
+    return {
+      reading: data.reading || data,
+      warning: data.backend && data.backend.openaiConfigured === false
+        ? "Fallback backend connected, but model generation is not configured."
+        : ""
+    };
+  });
+}
+
+function canUseBackend(oauthSession) {
+  return Boolean(appConfig.oauth.readingEndpoint && hasUsableOAuth(oauthSession));
+}
 
 function requestReadingWithPolling(options) {
   const startedAt = Date.now();
@@ -507,6 +568,10 @@ function createRequestId() {
 }
 
 function formatOAuthStatus(session) {
+  if (cloudAIEnabled) {
+    return canUseBackend(session) ? "CloudBase Hunyuan ready · fallback connected" : "CloudBase Hunyuan ready";
+  }
+
   if (!session) {
     return "Not connected";
   }
@@ -518,12 +583,30 @@ function formatOAuthStatus(session) {
   return session.label;
 }
 
-function formatReadingError(errorMessage) {
-  if (errorMessage && errorMessage.indexOf("bearer token") !== -1) {
-    return "Backend connected, but the AI provider token is not configured on the server. Showing structured fallback.";
+function formatBackendStatus() {
+  if (cloudAIEnabled) {
+    return `${appConfig.cloudAI.model} · ${appConfig.cloudAI.envId}`;
   }
 
-  return errorMessage || "AI reading failed. Showing structured fallback.";
+  return appConfig.oauth.readingEndpoint.replace(/\/readings$/, "");
+}
+
+function formatReadingError(errorMessage) {
+  if (errorMessage && errorMessage.indexOf("bearer token") !== -1) {
+    return "Backend connected, but the AI provider token is not configured on the server.";
+  }
+
+  return errorMessage || "AI reading failed.";
+}
+
+function formatProviderError(error) {
+  const message = error && (error.message || error.errMsg);
+
+  if (message) {
+    return `Unable to generate an AI reading: ${message}.`;
+  }
+
+  return "Unable to generate an AI reading.";
 }
 
 function drawCards(spread) {
