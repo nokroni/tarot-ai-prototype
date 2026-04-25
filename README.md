@@ -38,7 +38,21 @@ npm run backend
 
 Set `WECHAT_APPSECRET`, `OPENAI_API_KEY`, and `SESSION_SECRET` in `.env.local` for real WeChat auth and OpenAI readings. Without those values, the backend still runs in development mode so the Mini Program can exercise the backend auth and reading layout path.
 
-By default `miniprogram/config.js` points at `http://127.0.0.1:8787`. That works in WeChat DevTools only when local/request-domain verification is disabled. For phone testing, expose this machine through an HTTPS tunnel, update `backendBaseUrl` in `miniprogram/config.js` to the tunnel URL, and add that HTTPS domain in the WeChat Mini Program admin request-domain settings.
+By default `miniprogram/config.js` points at the Ubuntu-hosted test backend:
+
+```text
+http://182.254.172.179
+```
+
+This is plain HTTP for prototype testing, so WeChat DevTools must allow non-verified request domains. For phone testing or release, move this behind a publicly trusted HTTPS domain and add that domain in the WeChat Mini Program admin request-domain settings.
+
+Backend operations use the local SSH alias:
+
+```sh
+ssh tarot-backend
+sudo systemctl status tarot-backend.service
+sudo journalctl -u tarot-backend.service -f
+```
 
 Create a preview QR code:
 
