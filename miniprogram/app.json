@@ -1,0 +1,13 @@
+{
+  "pages": [
+    "pages/index/index"
+  ],
+  "window": {
+    "navigationBarTitleText": "AI Tarot",
+    "navigationBarBackgroundColor": "#171311",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#f5f0e6"
+  },
+  "sitemapLocation": "sitemap.json",
+  "style": "v2"
+}

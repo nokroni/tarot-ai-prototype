@@ -1,0 +1,17 @@
+{
+  "appid": "wx19531898b7da5eec",
+  "compileType": "miniprogram",
+  "libVersion": "3.7.12",
+  "projectname": "tarot-ai-prototype",
+  "miniprogramRoot": "miniprogram/",
+  "setting": {
+    "urlCheck": true,
+    "es6": true,
+    "enhance": true,
+    "postcss": true,
+    "minified": true,
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "condition": true
+  }
+}

@@ -3,5 +3,7 @@
 .omx/
 artifacts/
 DerivedData/
+private.*.key
+node_modules/
 *.xcuserdata/
 *.swp

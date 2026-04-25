@@ -1,0 +1,98 @@
+<view class="page">
+  <view class="hero">
+    <view>
+      <text class="eyebrow">Prototype Reading</text>
+      <text class="title">AI Tarot</text>
+    </view>
+    <view class="moon"></view>
+  </view>
+
+  <view class="panel question-panel">
+    <text class="label">Your question</text>
+    <textarea
+      class="question-input"
+      auto-height="{{false}}"
+      maxlength="180"
+      placeholder="What do I need to understand today?"
+      placeholder-class="placeholder"
+      value="{{question}}"
+      bindinput="onQuestionInput"
+    />
+  </view>
+
+  <view class="panel">
+    <text class="label">Spread</text>
+    <view class="spread-control">
+      <button
+        wx:for="{{spreads}}"
+        wx:key="id"
+        class="spread-option {{selectedSpreadId === item.id ? 'active' : ''}}"
+        data-spread-id="{{item.id}}"
+        bindtap="selectSpread"
+      >
+        {{item.title}}
+      </button>
+    </view>
+  </view>
+
+  <view class="actions">
+    <button class="action-button draw-button" bindtap="drawCards">
+      <text class="action-icon">✦</text>
+      <text>Draw Cards</text>
+    </button>
+    <button
+      class="action-button interpret-button {{drawnCards.length === 0 ? 'disabled' : ''}}"
+      disabled="{{drawnCards.length === 0}}"
+      bindtap="interpretReading"
+    >
+      <text class="action-icon">✧</text>
+      <text>Interpret</text>
+    </button>
+  </view>
+
+  <view wx:if="{{drawnCards.length > 0}}" class="cards-section">
+    <view class="section-heading">
+      <text class="eyebrow">Drawn Locally</text>
+      <text class="section-title">{{selectedSpread.title}}</text>
+    </view>
+
+    <view class="cards-grid {{drawnCards.length === 1 ? 'single' : ''}}">
+      <view wx:for="{{drawnCards}}" wx:key="id" class="card">
+        <view class="position">{{item.position}}</view>
+        <view class="sigil">☉</view>
+        <text class="card-name">{{item.card.name}}</text>
+        <text class="orientation">{{item.orientation}}</text>
+        <view class="keywords">
+          <text wx:for="{{item.keywords}}" wx:for-item="keyword" wx:key="*this" class="keyword">{{keyword}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{errorMessage}}" class="message error">
+    {{errorMessage}}
+  </view>
+
+  <view wx:if="{{interpretation}}" class="reading">
+    <text class="section-title">Reading</text>
+    <text class="reading-text">{{interpretation.summary}}</text>
+
+    <view class="reading-cards">
+      <view wx:for="{{interpretation.cards}}" wx:key="id" class="reading-card">
+        <text class="reading-card-title">{{item.position}} · {{item.name}}</text>
+        <text class="reading-text">{{item.text}}</text>
+      </view>
+    </view>
+
+    <text class="reading-label">Overall message</text>
+    <text class="reading-text">{{interpretation.overall}}</text>
+    <text class="reading-label">Practical reflection</text>
+    <text class="reading-text">{{interpretation.reflection}}</text>
+    <text class="reading-label">Journal prompt</text>
+    <text class="reading-text">{{interpretation.journal}}</text>
+  </view>
+
+  <view class="note">
+    <text>Tarot readings are for reflection and entertainment, not professional advice or certain predictions. Cards are drawn inside the app before interpretation.</text>
+  </view>
+</view>

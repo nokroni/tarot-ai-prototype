@@ -1,6 +1,8 @@
 # AI Tarot Prototype
 
-Swift prototype for the MVP described in `tarot.md`.
+Prototype for the MVP described in `tarot.md`.
+
+The active mobile prototype is now a WeChat Mini Program under `miniprogram/`.
 
 The compiled Swift package contains the shared app logic:
 
@@ -61,3 +63,39 @@ gh run list --repo nokroni/tarot-ai-prototype --workflow "Swift Prototype"
 ```
 
 Open the completed run in GitHub Actions and download the `iphone-ui-screenshots` artifact.
+
+## WeChat Mini Program
+
+The Mini Program uses AppID `wx19531898b7da5eec`, draws cards locally, and generates a local reflective reading. The WeChat AppSecret and upload private key must not be committed.
+
+Install upload tooling:
+
+```sh
+npm install
+```
+
+Validate project structure:
+
+```sh
+npm run validate:mp
+```
+
+Create a preview QR code:
+
+```sh
+npm run preview:mp
+```
+
+Upload a development version:
+
+```sh
+WECHAT_UPLOAD_VERSION=0.1.0 WECHAT_UPLOAD_DESC="Tarot miniapp prototype" npm run upload:mp
+```
+
+The upload key is expected at:
+
+```text
+private.wx19531898b7da5eec.key
+```
+
+That file is ignored by git. Publishing to public users still requires the WeChat Mini Program admin review/release flow after upload.
