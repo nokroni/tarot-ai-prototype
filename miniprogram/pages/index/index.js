@@ -44,7 +44,8 @@ const WHEEL_CARD_BACK_SRC = "/images/card-back.png";
 const WHEEL_CARD_STRIDE_RPX = 44;
 const WHEEL_ARC_MAX_DISTANCE = 7;
 const WHEEL_PRESENTATION_THROTTLE_MS = 32;
-const WHEEL_SCROLL_SETTLE_MS = 120;
+const WHEEL_SCROLL_SETTLE_MS = 560;
+const WHEEL_DRAG_RELEASE_SETTLE_MS = 820;
 const WHEEL_REVEAL_DELAY_MS = 560;
 const WHEEL_VIBRATE_THROTTLE_MS = 55;
 
@@ -583,7 +584,7 @@ Page({
     oauthSession: null,
     oauthStatus: cloudAIEnabled ? "已连接混元" : "未连接",
     backendStatus: formatBackendStatus(),
-    buildLabel: "0.6.12 高位对角轮盘",
+    buildLabel: "0.6.13 惯性高位轮盘",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""
@@ -638,7 +639,11 @@ Page({
   },
 
   onWheelNativeScrollEnd() {
-    settleWheelNativeScroll(this);
+    scheduleWheelScrollSettle(this, WHEEL_SCROLL_SETTLE_MS);
+  },
+
+  onWheelNativeDragEnd() {
+    scheduleWheelScrollSettle(this, WHEEL_DRAG_RELEASE_SETTLE_MS);
   },
 
   onWheelCardTap(event) {
@@ -1180,9 +1185,9 @@ function updateWheelCardPresentation(wheelCards, centerPosition) {
 function createWheelCardArcStyle(distance) {
   const clampedDistance = Math.max(-WHEEL_ARC_MAX_DISTANCE, Math.min(WHEEL_ARC_MAX_DISTANCE, distance));
   const absoluteDistance = Math.abs(clampedDistance);
-  const diagonalLift = clampedDistance * -48;
-  const wheelSag = absoluteDistance * absoluteDistance * 2.3;
-  const translateY = Math.round(26 + diagonalLift + wheelSag);
+  const diagonalLift = clampedDistance * -64;
+  const wheelSag = absoluteDistance * absoluteDistance * 1.8;
+  const translateY = Math.round(30 + diagonalLift + wheelSag);
   const rotation = clampedDistance * 5.2;
   const scale = Math.max(0.72, 1.08 - absoluteDistance * 0.045);
   const opacity = Math.max(0.45, 1 - absoluteDistance * 0.055);
@@ -1226,9 +1231,7 @@ function handleWheelNativeScroll(page, scrollLeft) {
     page.setData(updates);
   }
 
-  page._wheelScrollSettleTimer = setTimeout(() => {
-    settleWheelNativeScroll(page);
-  }, WHEEL_SCROLL_SETTLE_MS);
+  scheduleWheelScrollSettle(page, WHEEL_SCROLL_SETTLE_MS);
 }
 
 function settleWheelNativeScroll(page) {
@@ -1266,6 +1269,14 @@ function snapWheelToIndex(page, index, wheelOverrides) {
       revealedCard: null
     }, wheelOverrides || {})
   });
+}
+
+function scheduleWheelScrollSettle(page, delayMs) {
+  clearWheelScrollSettleTimer(page);
+
+  page._wheelScrollSettleTimer = setTimeout(() => {
+    settleWheelNativeScroll(page);
+  }, delayMs);
 }
 
 function clearWheelScrollSettleTimer(page) {

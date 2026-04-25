@@ -126,8 +126,7 @@
         scroll-with-animation="{{true}}"
         scroll-left="{{wheel.scrollLeft}}"
         bindscroll="onWheelNativeScroll"
-        binddragend="onWheelNativeScrollEnd"
-        bindscrollend="onWheelNativeScrollEnd"
+        binddragend="onWheelNativeDragEnd"
       >
         <view class="wheel-track">
           <view class="wheel-spacer wheel-spacer-start"></view>
