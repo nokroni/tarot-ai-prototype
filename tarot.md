@@ -1,4 +1,6 @@
-Below is a practical MVP plan for an AI tarot iOS app using SwiftUI and direct OpenAI API calls from the app.
+Current implementation target: WeChat Mini Program only. Do not use the iOS/SwiftUI sections below for active development; they remain as legacy planning notes from the first prototype.
+
+Below is the original practical MVP plan for an AI tarot iOS app using SwiftUI and direct OpenAI API calls from the app.
 
 ## 1. MVP scope
 

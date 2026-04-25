@@ -1,0 +1,30 @@
+name: WeChat Mini Program
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mini-program:
+    name: Validate Mini Program
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Show Node toolchain
+        run: |
+          node --version
+          npm --version
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Mini Program
+        run: npm run validate:mp
