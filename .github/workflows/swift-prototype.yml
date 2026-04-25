@@ -1,0 +1,55 @@
+name: Swift Prototype
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Swift Package
+    runs-on: macos-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Show Apple toolchain
+        run: |
+          swift --version
+          xcodebuild -version
+
+      - name: Describe package
+        run: swift package describe
+
+      - name: Test package
+        run: swift test
+
+      - name: Build package
+        run: swift build
+
+      - name: Run CLI smoke test
+        run: swift run tarot-prototype
+
+  ios-core:
+    name: iOS Core Compile
+    runs-on: macos-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Compile TarotCore for iOS
+        run: |
+          xcodebuild \
+            -scheme TarotCore \
+            -destination 'generic/platform=iOS' \
+            -skipPackagePluginValidation \
+            build

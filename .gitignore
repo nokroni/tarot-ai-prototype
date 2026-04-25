@@ -1,0 +1,6 @@
+.build/
+.swiftpm/
+.omx/
+DerivedData/
+*.xcuserdata/
+*.swp
