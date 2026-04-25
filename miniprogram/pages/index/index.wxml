@@ -127,28 +127,28 @@
         <view
           wx:for="{{wheelCards}}"
           wx:key="id"
-          class="wheel-card-slot {{item.visible ? 'visible' : ''}} {{index === wheel.activeIndex ? 'active' : ''}} {{index === wheel.selectedIndex ? 'popped' : ''}} {{item.drawn ? 'drawn' : ''}}"
+          class="wheel-card-slot {{item.rendered ? 'rendered' : ''}} {{item.featured ? 'featured' : ''}} {{index === wheel.activeIndex ? 'active' : ''}} {{index === wheel.selectedIndex ? 'popped' : ''}} {{wheel.phase === 'revealing' && index === wheel.selectedIndex ? 'revealing' : ''}} {{item.drawn ? 'drawn' : ''}}"
           style="{{item.style}}"
+          data-index="{{index}}"
+          bindtap="onWheelCardTap"
         >
-          <image class="wheel-card-back" src="{{wheel.cardBackSrc}}" mode="aspectFit" />
+          <view class="wheel-card-shell">
+            <image
+              wx:if="{{wheel.phase === 'revealing' && index === wheel.selectedIndex && wheel.revealedCard}}"
+              class="wheel-card-face {{wheel.revealedCard.orientation === 'reversed' ? 'reversed' : ''}}"
+              src="{{wheel.revealedCard.card.imageSrc}}"
+              mode="aspectFit"
+            />
+            <image wx:else class="wheel-card-back" src="{{wheel.cardBackSrc}}" mode="aspectFit" />
+          </view>
         </view>
-      </view>
-
-      <view class="wheel-focus {{wheel.selectedIndex !== -1 ? 'popped' : ''}} {{wheel.phase === 'revealing' ? 'revealing' : ''}}" bindtap="onWheelFocusTap">
-        <image
-          wx:if="{{wheel.phase === 'revealing' && wheel.revealedCard}}"
-          class="wheel-focus-face {{wheel.revealedCard.orientation === 'reversed' ? 'reversed' : ''}}"
-          src="{{wheel.revealedCard.card.imageSrc}}"
-          mode="aspectFit"
-        />
-        <image wx:else class="wheel-focus-back" src="{{wheel.cardBackSrc}}" mode="aspectFit" />
       </view>
     </view>
 
-    <view class="wheel-copy" bindtap="onWheelFocusTap">
-      <text wx:if="{{wheel.phase === 'popped'}}">再次轻触，抽出这张牌</text>
+    <view class="wheel-copy">
+      <text wx:if="{{wheel.phase === 'popped'}}">再次轻触高亮牌，抽出这张牌</text>
       <text wx:elif="{{wheel.phase === 'revealing'}}">{{wheel.revealedCard.position}} · {{wheel.revealedCard.card.name}}</text>
-      <text wx:else>滑动轮盘，轻触右下牌背</text>
+      <text wx:else>滑动轮盘，轻触高亮牌背</text>
     </view>
   </view>
 </view>

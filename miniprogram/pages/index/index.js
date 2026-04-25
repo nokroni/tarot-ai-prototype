@@ -45,7 +45,8 @@ const WHEEL_RADIUS_RPX = 1500;
 const WHEEL_ACTIVE_ANGLE_DEG = -60;
 const WHEEL_VISUAL_STEP_DEG = 11;
 const WHEEL_DRAG_PX_PER_CARD = 38;
-const WHEEL_VISIBLE_RADIUS = 3.55;
+const WHEEL_FEATURE_RADIUS = 3.2;
+const WHEEL_RENDER_RADIUS = 4.75;
 const WHEEL_MOMENTUM_PROJECT_MS = 220;
 const WHEEL_MOMENTUM_MIN_CARDS = 0.35;
 const WHEEL_MOMENTUM_MAX_CARDS = 8;
@@ -592,7 +593,7 @@ Page({
     oauthSession: null,
     oauthStatus: cloudAIEnabled ? "已连接混元" : "未连接",
     backendStatus: formatBackendStatus(),
-    buildLabel: "0.6.7 惯性斜弧",
+    buildLabel: "0.6.8 牌面滚轮",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""
@@ -705,30 +706,17 @@ Page({
   },
 
   onWheelFocusTap() {
-    if (!this.data.wheel.isOpen || this.data.wheel.phase === "revealing") {
+    handleWheelActiveCardTap(this);
+  },
+
+  onWheelCardTap(event) {
+    const index = Number(event.currentTarget.dataset.index);
+
+    if (index !== this.data.wheel.activeIndex) {
       return;
     }
 
-    if (this._wheelIgnoreNextTap) {
-      this._wheelIgnoreNextTap = false;
-      return;
-    }
-
-    const activeIndex = findNearestAvailableIndex(this.data.wheelCards, this.data.wheel.activeIndex);
-    const selectedIndex = this.data.wheel.selectedIndex;
-
-    stopWheelMomentum(this);
-
-    if (selectedIndex !== activeIndex) {
-      snapWheelToIndex(this, activeIndex, {
-        selectedIndex: activeIndex,
-        phase: "popped",
-        revealedCard: null
-      });
-      return;
-    }
-
-    confirmWheelCard(this, activeIndex);
+    handleWheelActiveCardTap(this);
   },
 
   noopTouchMove() {},
@@ -1117,6 +1105,33 @@ function createWheelCardStyle(index, scrollPosition) {
   return `transform: translate(-50%, -50%) rotate(${visualAngle}deg) translateY(-${WHEEL_RADIUS_RPX}rpx);`;
 }
 
+function handleWheelActiveCardTap(page) {
+  if (!page.data.wheel.isOpen || page.data.wheel.phase === "revealing") {
+    return;
+  }
+
+  if (page._wheelIgnoreNextTap) {
+    page._wheelIgnoreNextTap = false;
+    return;
+  }
+
+  const activeIndex = findNearestAvailableIndex(page.data.wheelCards, page.data.wheel.activeIndex);
+  const selectedIndex = page.data.wheel.selectedIndex;
+
+  stopWheelMomentum(page);
+
+  if (selectedIndex !== activeIndex) {
+    snapWheelToIndex(page, activeIndex, {
+      selectedIndex: activeIndex,
+      phase: "popped",
+      revealedCard: null
+    });
+    return;
+  }
+
+  confirmWheelCard(page, activeIndex);
+}
+
 function confirmWheelCard(page, index) {
   const slot = page.data.wheelCards[index];
 
@@ -1345,15 +1360,18 @@ function getWheelReleaseVelocity(page) {
 
 function updateWheelCardVisibility(wheelCards, scrollPosition) {
   return wheelCards.map((slot, index) => {
-    const visible = Math.abs(getSignedWheelScrollDistance(index, scrollPosition)) <= WHEEL_VISIBLE_RADIUS;
+    const distance = Math.abs(getSignedWheelScrollDistance(index, scrollPosition));
+    const rendered = distance <= WHEEL_RENDER_RADIUS;
+    const featured = distance <= WHEEL_FEATURE_RADIUS;
     const style = createWheelCardStyle(index, scrollPosition);
 
-    if (slot.visible === visible && slot.style === style) {
+    if (slot.rendered === rendered && slot.featured === featured && slot.style === style) {
       return slot;
     }
 
     return Object.assign({}, slot, {
-      visible,
+      rendered,
+      featured,
       style
     });
   });
