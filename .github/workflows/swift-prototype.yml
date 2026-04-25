@@ -53,3 +53,26 @@ jobs:
             -destination 'generic/platform=iOS' \
             -skipPackagePluginValidation \
             build
+
+  ui-screenshots:
+    name: iPhone UI Screenshots
+    runs-on: macos-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Capture simulator screenshots
+        run: bash .github/scripts/capture-ios-screenshot.sh
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v6
+        with:
+          name: iphone-ui-screenshots
+          path: artifacts/screenshots
