@@ -392,21 +392,56 @@
 
 .wheel-marker {
   position: absolute;
-  top: 440rpx;
-  left: 20%;
+  right: 92rpx;
+  bottom: 210rpx;
   z-index: 4;
-  width: 118rpx;
-  height: 118rpx;
+  width: 136rpx;
+  height: 136rpx;
   border-top: 4rpx solid #d9aa54;
   border-left: 4rpx solid #d9aa54;
-  transform: translateX(-50%) rotate(45deg);
+  transform: rotate(45deg);
   opacity: 0.8;
+}
+
+.wheel-indicator {
+  position: absolute;
+  right: 86rpx;
+  bottom: 210rpx;
+  z-index: 8;
+  width: 154rpx;
+  height: 154rpx;
+  pointer-events: none;
+}
+
+.wheel-indicator-line {
+  position: absolute;
+  right: 74rpx;
+  bottom: 42rpx;
+  width: 4rpx;
+  height: 154rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(180deg, rgba(255, 250, 240, 0), #f3ddaa 34%, #d9aa54);
+  transform: rotate(52deg);
+  transform-origin: bottom center;
+  box-shadow: 0 0 18rpx rgba(217, 170, 84, 0.7);
+}
+
+.wheel-indicator-gem {
+  position: absolute;
+  right: 56rpx;
+  bottom: 24rpx;
+  width: 38rpx;
+  height: 38rpx;
+  border: 4rpx solid #f3ddaa;
+  border-radius: 50%;
+  background: #d9aa54;
+  box-shadow: 0 0 28rpx rgba(243, 221, 170, 0.82);
 }
 
 .wheel-ring {
   position: absolute;
-  right: -940rpx;
-  bottom: -940rpx;
+  right: -1070rpx;
+  bottom: -1354rpx;
   width: 1880rpx;
   height: 1880rpx;
   border: 2rpx solid rgba(217, 170, 84, 0.28);
@@ -436,16 +471,16 @@
   top: 50%;
   left: 50%;
   z-index: 2;
-  width: 88rpx;
-  height: 154rpx;
+  width: 104rpx;
+  height: 182rpx;
   opacity: 0.86;
   transition: opacity 160ms ease, filter 160ms ease;
 }
 
 .wheel-card-slot.active {
-  z-index: 3;
+  z-index: 5;
   opacity: 1;
-  filter: drop-shadow(0 0 14rpx rgba(217, 170, 84, 0.8));
+  filter: drop-shadow(0 0 22rpx rgba(243, 221, 170, 0.92)) drop-shadow(0 0 10rpx rgba(217, 170, 84, 0.8));
 }
 
 .wheel-card-slot.drawn {
@@ -467,27 +502,26 @@
 
 .wheel-focus {
   position: absolute;
-  top: 362rpx;
-  left: 19%;
+  right: 42rpx;
+  bottom: 48rpx;
   z-index: 6;
-  width: 192rpx;
-  height: 336rpx;
-  transform: translateX(-50%);
-  transition: top 220ms ease, transform 220ms ease, filter 220ms ease;
+  width: 210rpx;
+  height: 368rpx;
+  transition: bottom 220ms ease, right 220ms ease, transform 220ms ease, filter 220ms ease;
   filter: drop-shadow(0 18rpx 28rpx rgba(0, 0, 0, 0.28));
 }
 
 .wheel-focus.popped {
-  top: 286rpx;
-  left: 16%;
-  transform: translateX(-50%) scale(1.1);
+  right: 54rpx;
+  bottom: 96rpx;
+  transform: scale(1.08);
   filter: drop-shadow(0 28rpx 42rpx rgba(0, 0, 0, 0.34));
 }
 
 .wheel-focus.revealing {
-  top: 248rpx;
-  left: 16%;
-  transform: translateX(-50%) scale(1.18);
+  right: 60rpx;
+  bottom: 124rpx;
+  transform: scale(1.15);
 }
 
 .wheel-focus-face {
@@ -500,8 +534,8 @@
 
 .wheel-copy {
   position: absolute;
-  right: 36rpx;
-  bottom: 48rpx;
+  right: 292rpx;
+  bottom: 64rpx;
   left: 36rpx;
   z-index: 7;
   min-height: 56rpx;
@@ -509,5 +543,5 @@
   font-size: 28rpx;
   font-weight: 850;
   line-height: 1.4;
-  text-align: center;
+  text-align: left;
 }

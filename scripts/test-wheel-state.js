@@ -3,13 +3,17 @@ const sharp = require("sharp");
 
 let pageDefinition = null;
 const originalSetTimeout = global.setTimeout;
+const WHEEL_TEST_DRAG_DISTANCE = 72;
+let vibrationCount = 0;
 
 global.Page = (definition) => {
   pageDefinition = definition;
 };
 
 global.wx = {
-  vibrateShort() {}
+  vibrateShort() {
+    vibrationCount += 1;
+  }
 };
 
 global.setTimeout = (callback) => {
@@ -35,14 +39,25 @@ const context = {
 pageDefinition.drawCards.call(context);
 
 assert.strictEqual(context.data.wheel.isOpen, true, "Wheel should open when drawing starts.");
-assert.strictEqual(context.data.buildLabel, "0.6.2 弧形轮盘", "Build label should identify the arc wheel build.");
+assert.strictEqual(context.data.buildLabel, "0.6.3 指示弧轮", "Build label should identify the indicator arc wheel build.");
 assert.strictEqual(context.data.wheel.requiredCount, 3, "Three-card spread should require three selections.");
 assert.strictEqual(context.data.wheelCards.length, 78, "Wheel should contain the complete 78-card deck.");
 assert.strictEqual(context.data.wheel.cardBackSrc, "/images/card-back.png", "Wheel should use the shared card back.");
 assert(
-  context.data.wheelCards[0].style.includes("rotate(45deg)"),
-  "Wheel layout should start from the bottom-right quarter-arc angle."
+  context.data.wheelCards[0].style.includes("rotate(-20deg)"),
+  "Wheel layout should start from the shallow indicator arc angle."
 );
+
+pageDefinition.onWheelTouchStart.call(context, {
+  touches: [{ clientX: 0 }]
+});
+pageDefinition.onWheelTouchMove.call(context, {
+  touches: [{ clientX: -WHEEL_TEST_DRAG_DISTANCE }]
+});
+pageDefinition.onWheelTouchEnd.call(context);
+
+assert(vibrationCount > 0, "Wheel should vibrate when a card sweeps over the indicator.");
+context._wheelIgnoreNextTap = false;
 
 const uniqueCards = new Set(context.data.wheelCards.map((slot) => slot.cardId));
 assert.strictEqual(uniqueCards.size, 78, "Wheel slots should map to unique card faces.");

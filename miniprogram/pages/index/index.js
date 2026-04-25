@@ -42,8 +42,10 @@ const cardFaceFileOverrides = {
 };
 const WHEEL_CARD_BACK_SRC = "/images/card-back.png";
 const WHEEL_RADIUS_RPX = 860;
-const WHEEL_ACTIVE_ANGLE_DEG = 45;
+const WHEEL_ACTIVE_ANGLE_DEG = -20;
 const WHEEL_DRAG_PX_PER_CARD = 24;
+const WHEEL_STICKY_THRESHOLD = 0.16;
+const WHEEL_STICKY_STRENGTH = 0.62;
 const WHEEL_REVEAL_DELAY_MS = 560;
 const WHEEL_VIBRATE_THROTTLE_MS = 55;
 
@@ -584,7 +586,7 @@ Page({
     oauthSession: null,
     oauthStatus: cloudAIEnabled ? "已连接混元" : "未连接",
     backendStatus: formatBackendStatus(),
-    buildLabel: "0.6.2 弧形轮盘",
+    buildLabel: "0.6.3 指示弧轮",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""
@@ -654,7 +656,8 @@ Page({
     }
 
     const deltaX = touch.clientX - this._wheelTouchStartX;
-    const rotationDeg = this._wheelStartRotationDeg + (deltaX / WHEEL_DRAG_PX_PER_CARD) * WHEEL_STEP_DEG;
+    const rawRotationDeg = this._wheelStartRotationDeg + (deltaX / WHEEL_DRAG_PX_PER_CARD) * WHEEL_STEP_DEG;
+    const rotationDeg = applyWheelStickyRotation(rawRotationDeg);
     const activeIndex = normalizeWheelIndex(Math.round(-rotationDeg / WHEEL_STEP_DEG));
     const selectedIndex = Math.abs(deltaX) > 3 ? -1 : this.data.wheel.selectedIndex;
 
@@ -1112,6 +1115,18 @@ function createWheelCards() {
 
 function createWheelCardStyle(index) {
   return `transform: translate(-50%, -50%) rotate(${WHEEL_ACTIVE_ANGLE_DEG + index * WHEEL_STEP_DEG}deg) translateY(-${WHEEL_RADIUS_RPX}rpx);`;
+}
+
+function applyWheelStickyRotation(rotationDeg) {
+  const nearestIndex = Math.round(-rotationDeg / WHEEL_STEP_DEG);
+  const snappedRotationDeg = -nearestIndex * WHEEL_STEP_DEG;
+  const distance = Math.abs(rotationDeg - snappedRotationDeg) / WHEEL_STEP_DEG;
+
+  if (distance > WHEEL_STICKY_THRESHOLD) {
+    return rotationDeg;
+  }
+
+  return rotationDeg + (snappedRotationDeg - rotationDeg) * WHEEL_STICKY_STRENGTH;
 }
 
 function confirmWheelCard(page, index) {
