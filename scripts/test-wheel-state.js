@@ -50,7 +50,7 @@ const context = {
 pageDefinition.drawCards.call(context);
 
 assert.strictEqual(context.data.wheel.isOpen, true, "Wheel should open when drawing starts.");
-assert.strictEqual(context.data.buildLabel, "0.6.13 惯性高位轮盘", "Build label should identify the inertial high diagonal wheel build.");
+assert.strictEqual(context.data.buildLabel, "0.6.14 陡角轮盘", "Build label should identify the steep diagonal wheel build.");
 assert.strictEqual(context.data.wheel.requiredCount, 3, "Three-card spread should require three selections.");
 assert.strictEqual(context.data.wheel.scrollLeft, 0, "Wheel should start at the first preassigned slot.");
 assert.strictEqual(context.data.wheel.activeIndex, 0, "Wheel should start with the first slot highlighted.");
@@ -58,9 +58,9 @@ assert.strictEqual(context.data.wheelCards.length, 78, "Wheel should contain the
 assert.strictEqual(context.data.wheel.cardBackSrc, "/images/card-back.png", "Wheel should use the shared card back.");
 assert(
   context.data.wheelCards[0].arcStyle.includes("translateY(30rpx)") &&
-    context.data.wheelCards[7].arcStyle.includes("translateY(-330rpx)") &&
+    context.data.wheelCards[7].arcStyle.includes("translateY(-443rpx)") &&
     context.data.wheelCards[7].arcStyle.includes("rotate(36.4deg)"),
-  "Wheel cards should be presented as an even higher diagonal fan around the active slot."
+  "Wheel cards should be presented as a steeper diagonal fan around the active slot."
 );
 
 pageDefinition.onWheelNativeScroll.call(context, {
@@ -76,9 +76,9 @@ assert.strictEqual(context.data.wheel.scrollLeft, WHEEL_TEST_SCROLL_LEFT, "Wheel
 assert.strictEqual(context.data.wheel.selectedIndex, -1, "Scrolling should keep the wheel in choosing mode.");
 assert(
   context.data.wheelCards[3].arcStyle.includes("rotate(0.0deg)") &&
-    context.data.wheelCards[0].arcStyle.includes("translateY(238rpx)") &&
-    context.data.wheelCards[6].arcStyle.includes("translateY(-146rpx)"),
-  "Wheel presentation should recenter its inertial high diagonal fan after native scrolling."
+    context.data.wheelCards[0].arcStyle.includes("translateY(269rpx)") &&
+    context.data.wheelCards[6].arcStyle.includes("translateY(-187rpx)"),
+  "Wheel presentation should recenter its steeper diagonal fan after native scrolling."
 );
 
 const uniqueCards = new Set(context.data.wheelCards.map((slot) => slot.cardId));
