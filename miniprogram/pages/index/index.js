@@ -193,7 +193,7 @@ Page({
     oauthSession: null,
     oauthStatus: "Not connected",
     backendStatus: appConfig.oauth.readingEndpoint.replace(/\/readings$/, ""),
-    buildLabel: "0.5.1 HTTPS",
+    buildLabel: "0.5.2 AI key check",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""
@@ -284,14 +284,16 @@ Page({
         if (response.statusCode < 200 || response.statusCode >= 300) {
           this.setData({
             interpretation: normalizeReading(fallbackReading),
-            errorMessage: data.error || "AI reading failed. Showing structured fallback."
+            errorMessage: formatReadingError(data.error)
           });
           return;
         }
 
         this.setData({
           interpretation: normalizeReading(reading, fallbackReading),
-          errorMessage: ""
+          errorMessage: data.backend && data.backend.openaiConfigured === false
+            ? "Backend connected, but model generation is not configured. Showing structured fallback."
+            : ""
         });
       },
       fail: (error) => {
@@ -318,9 +320,11 @@ Page({
       .then((session) => {
         this.setData({
           oauthSession: session,
-          oauthStatus: session.label,
+          oauthStatus: formatOAuthStatus(session),
           errorMessage: session.mode === "demo"
             ? "Prototype backend connected. Add a reading endpoint to call OpenAI server-side."
+            : session.openaiConfigured === false
+              ? "Backend connected, but OpenAI API key is not configured yet. Interpret will show a structured fallback."
             : ""
         });
       })
@@ -346,10 +350,30 @@ Page({
 
     this.setData({
       oauthSession,
-      oauthStatus: oauthSession ? oauthSession.label : "Not connected"
+      oauthStatus: formatOAuthStatus(oauthSession)
     });
   }
 });
+
+function formatOAuthStatus(session) {
+  if (!session) {
+    return "Not connected";
+  }
+
+  if (session.openaiConfigured === false) {
+    return `${session.label} · AI key missing`;
+  }
+
+  return session.label;
+}
+
+function formatReadingError(errorMessage) {
+  if (errorMessage && errorMessage.indexOf("OpenAI API key") !== -1) {
+    return "Backend connected, but OpenAI API key is not configured on the server. Showing structured fallback.";
+  }
+
+  return errorMessage || "AI reading failed. Showing structured fallback.";
+}
 
 function drawCards(spread) {
   const deck = shuffle(tarotDeck.slice());

@@ -56,6 +56,8 @@ const server = http.createServer(async (request, response) => {
         expires_in: TOKEN_TTL_SECONDS,
         provider: "WeChat",
         mode: authResult.mode,
+        openai_configured: Boolean(OPENAI_API_KEY),
+        model: OPENAI_MODEL,
         label: authResult.mode === "wechat" ? "WeChat Backend Session" : "Local Backend Session"
       });
       return;
@@ -67,14 +69,7 @@ const server = http.createServer(async (request, response) => {
       const readingRequest = validateReadingRequest(body.request);
 
       if (!OPENAI_API_KEY) {
-        sendJson(response, 200, {
-          reading: createDevReading(readingRequest, "Local Backend Demo"),
-          backend: {
-            mode: session.mode,
-            openaiConfigured: false
-          }
-        });
-        return;
+        throw publicError(503, "OpenAI API key is not configured on the reading backend.");
       }
 
       const reading = await generateOpenAIReading({
@@ -196,29 +191,6 @@ function validateReadingRequest(readingRequest) {
   }
 
   return readingRequest;
-}
-
-function createDevReading(readingRequest, sourceLabel) {
-  const cards = readingRequest.drawnCards.map((card) => ({
-    id: String(card.id || card.name || "card"),
-    position: String(card.position || "Card"),
-    name: String(card.name || "Unknown card"),
-    orientation: card.orientation === "reversed" ? "reversed" : "upright",
-    keywords: Array.isArray(card.keywords) ? card.keywords.map(String) : [],
-    interpretation: `${card.name || "This card"} in the ${card.position || "card"} position points toward ${(card.keywords || []).join(", ") || "reflection"}. Treat it as a prompt for attention, not a fixed prediction.`
-  }));
-  const themes = cards.flatMap((card) => card.keywords).slice(0, 4).join(", ") || "reflection";
-
-  return {
-    schemaVersion: "tarot.reading.v1",
-    sourceLabel,
-    summary: `This backend-generated test reading keeps the layout stable while using the local server auth path for "${readingRequest.question || "today's question"}."`,
-    cards,
-    overallMessage: `The shared theme is ${themes}. Notice which part of the spread feels most specific, then use that as the starting point.`,
-    practicalReflection: "Choose one small action that is reversible and grounded in what you already know.",
-    journalQuestion: "What would become clearer if you gave this situation more patience and fewer assumptions?",
-    caveat: "Tarot readings are for reflection and entertainment, not medical, legal, financial, or emergency advice."
-  };
 }
 
 function verifyAuthorization(header) {

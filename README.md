@@ -36,7 +36,7 @@ cp .env.example .env.local
 npm run backend
 ```
 
-Set `WECHAT_APPSECRET`, `OPENAI_API_KEY`, and `SESSION_SECRET` in `.env.local` for real WeChat auth and OpenAI readings. Without those values, the backend still runs in development mode so the Mini Program can exercise the backend auth and reading layout path.
+Set `WECHAT_APPSECRET`, `OPENAI_API_KEY`, and `SESSION_SECRET` in `.env.local` for real WeChat auth and OpenAI readings. Without `OPENAI_API_KEY`, the backend still supports WeChat login but returns a configuration error for readings so the Mini Program can show a structured local fallback instead of pretending a model response was generated.
 
 By default `miniprogram/config.js` points at the Ubuntu-hosted HTTPS test backend:
 

@@ -61,6 +61,8 @@ function exchangeToken(oauthConfig) {
               expiresAt: Date.now() + (data.expires_in || 3600) * 1000,
               refreshToken: data.refresh_token || "",
               mode: data.mode || "backend",
+              openaiConfigured: data.openai_configured !== false,
+              model: data.model || "",
               label: data.label || "AI Reading Backend"
             };
 
