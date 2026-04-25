@@ -101,7 +101,7 @@
   </view>
 
   <view class="note">
-    <text>塔罗解读仅供反思与娱乐，不构成专业建议或确定预言。牌面由应用内随机抽取后再进行解读。</text>
+    <text>塔罗解读仅供反思与娱乐，不构成专业建议或确定预言。牌面由轮盘预先洗牌分配，选择后再进行解读。</text>
   </view>
 
   <view class="provider-footer">
@@ -110,39 +110,47 @@
   </view>
   </view>
 
-  <view wx:if="{{wheel.isOpen}}" class="wheel-overlay" catchtouchmove="noopTouchMove">
+  <view wx:if="{{wheel.isOpen}}" class="wheel-overlay">
     <view class="wheel-status">
       <text class="wheel-eyebrow">{{selectedSpread.title}}</text>
       <text class="wheel-title">抽取第 {{wheel.currentDrawNumber}} / {{wheel.requiredCount}} 张</text>
     </view>
 
-    <view
-      class="wheel-stage"
-      bindtouchstart="onWheelTouchStart"
-      bindtouchmove="onWheelTouchMove"
-      bindtouchend="onWheelTouchEnd"
-      bindtouchcancel="onWheelTouchEnd"
-    >
-      <view class="wheel-ring">
-        <view
-          wx:for="{{wheelCards}}"
-          wx:key="id"
-          class="wheel-card-slot {{item.rendered ? 'rendered' : ''}} {{item.featured ? 'featured' : ''}} {{index === wheel.activeIndex ? 'active' : ''}} {{index === wheel.selectedIndex ? 'popped' : ''}} {{wheel.phase === 'revealing' && index === wheel.selectedIndex ? 'revealing' : ''}} {{item.drawn ? 'drawn' : ''}}"
-          style="{{item.style}}"
-          data-index="{{index}}"
-          bindtap="onWheelCardTap"
-        >
-          <view class="wheel-card-shell">
-            <image
-              wx:if="{{wheel.phase === 'revealing' && index === wheel.selectedIndex && wheel.revealedCard}}"
-              class="wheel-card-face {{wheel.revealedCard.orientation === 'reversed' ? 'reversed' : ''}}"
-              src="{{wheel.revealedCard.card.imageSrc}}"
-              mode="aspectFit"
-            />
-            <image wx:else class="wheel-card-back" src="{{wheel.cardBackSrc}}" mode="aspectFit" />
+    <view class="wheel-stage">
+      <scroll-view
+        class="wheel-scroll"
+        scroll-x="{{true}}"
+        enhanced="{{true}}"
+        enable-flex="{{true}}"
+        show-scrollbar="{{false}}"
+        scroll-with-animation="{{true}}"
+        scroll-left="{{wheel.scrollLeft}}"
+        bindscroll="onWheelNativeScroll"
+        binddragend="onWheelNativeScrollEnd"
+        bindscrollend="onWheelNativeScrollEnd"
+      >
+        <view class="wheel-track">
+          <view class="wheel-spacer wheel-spacer-start"></view>
+          <view
+            wx:for="{{wheelCards}}"
+            wx:key="id"
+            class="wheel-card-slot {{index === wheel.activeIndex ? 'active' : ''}} {{index === wheel.selectedIndex ? 'popped' : ''}} {{wheel.phase === 'revealing' && index === wheel.selectedIndex ? 'revealing' : ''}} {{item.drawn ? 'drawn' : ''}}"
+            data-index="{{index}}"
+            bindtap="onWheelCardTap"
+          >
+            <view class="wheel-card-shell">
+              <image
+                wx:if="{{wheel.phase === 'revealing' && index === wheel.selectedIndex && wheel.revealedCard}}"
+                class="wheel-card-face {{wheel.revealedCard.orientation === 'reversed' ? 'reversed' : ''}}"
+                src="{{wheel.revealedCard.card.imageSrc}}"
+                mode="aspectFit"
+              />
+              <image wx:else class="wheel-card-back" src="{{wheel.cardBackSrc}}" mode="aspectFit" />
+            </view>
           </view>
+          <view class="wheel-spacer wheel-spacer-end"></view>
         </view>
-      </view>
+      </scroll-view>
     </view>
 
     <view class="wheel-copy">

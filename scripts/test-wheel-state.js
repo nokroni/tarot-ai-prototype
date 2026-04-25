@@ -3,7 +3,7 @@ const sharp = require("sharp");
 
 let pageDefinition = null;
 const originalSetTimeout = global.setTimeout;
-const WHEEL_TEST_DRAG_DISTANCE = 72;
+const WHEEL_TEST_SCROLL_LEFT = 78;
 let vibrationCount = 0;
 
 global.Page = (definition) => {
@@ -11,6 +11,11 @@ global.Page = (definition) => {
 };
 
 global.wx = {
+  getSystemInfoSync() {
+    return {
+      windowWidth: 375
+    };
+  },
   vibrateShort() {
     vibrationCount += 1;
   }
@@ -29,7 +34,13 @@ const context = {
   data: clone(pageDefinition.data),
   _interpreted: false,
   setData(update) {
-    this.data = Object.assign({}, this.data, clone(update));
+    const nextData = clone(this.data);
+
+    Object.keys(update).forEach((key) => {
+      setDataPath(nextData, key, clone(update[key]));
+    });
+
+    this.data = nextData;
   },
   interpretReading() {
     this._interpreted = true;
@@ -39,53 +50,24 @@ const context = {
 pageDefinition.drawCards.call(context);
 
 assert.strictEqual(context.data.wheel.isOpen, true, "Wheel should open when drawing starts.");
-assert.strictEqual(context.data.buildLabel, "0.6.8 牌面滚轮", "Build label should identify the direct card wheel build.");
+assert.strictEqual(context.data.buildLabel, "0.6.9 原生滚轮", "Build label should identify the native wheel build.");
 assert.strictEqual(context.data.wheel.requiredCount, 3, "Three-card spread should require three selections.");
+assert.strictEqual(context.data.wheel.scrollLeft, 0, "Wheel should start at the first preassigned slot.");
+assert.strictEqual(context.data.wheel.activeIndex, 0, "Wheel should start with the first slot highlighted.");
 assert.strictEqual(context.data.wheelCards.length, 78, "Wheel should contain the complete 78-card deck.");
 assert.strictEqual(context.data.wheel.cardBackSrc, "/images/card-back.png", "Wheel should use the shared card back.");
-assert(
-  context.data.wheelCards[0].style.includes("rotate(-60deg)"),
-  "Wheel layout should center the active card on the screen."
-);
-assert(
-  context.data.wheelCards[75].style.includes("rotate(-93deg)") &&
-    context.data.wheelCards[3].style.includes("rotate(-27deg)"),
-  "Visible wheel cards should use widened visual spacing around the centered card."
-);
-assert.strictEqual(
-  context.data.wheelCards.filter((slot) => slot.featured).length,
-  7,
-  "Wheel should show a compact seven-card featured selection window."
-);
-assert(
-  context.data.wheelCards.filter((slot) => slot.rendered).length > 7,
-  "Wheel should keep a rendered edge buffer so cards do not disappear while scrolling."
-);
 
-pageDefinition.onWheelTouchStart.call(context, {
-  touches: [{ clientX: 0 }]
+pageDefinition.onWheelNativeScroll.call(context, {
+  detail: {
+    scrollLeft: WHEEL_TEST_SCROLL_LEFT
+  }
 });
-pageDefinition.onWheelTouchMove.call(context, {
-  touches: [{ clientX: -WHEEL_TEST_DRAG_DISTANCE }]
-});
-pageDefinition.onWheelTouchEnd.call(context);
+pageDefinition.onWheelNativeScrollEnd.call(context);
 
 assert(vibrationCount > 0, "Wheel should vibrate when a card crosses the active selection highlight.");
-assert.strictEqual(
-  context.data.wheelCards.filter((slot) => slot.featured).length,
-  7,
-  "Wheel should keep seven featured cards after scrolling."
-);
-assert(
-  context.data.wheelCards.filter((slot) => slot.rendered).length > 7,
-  "Wheel should keep its rendered edge buffer after scrolling."
-);
-assert.strictEqual(context.data.wheelCards[context.data.wheel.activeIndex].featured, true, "Active card should stay featured.");
-assert(
-  context.data.wheelCards[context.data.wheel.activeIndex].style.includes("rotate(-60deg)"),
-  "Active card should settle closest to the center after inertial scrolling."
-);
-context._wheelIgnoreNextTap = false;
+assert.strictEqual(context.data.wheel.activeIndex, 3, "Native scroll position should map to the centered highlighted slot.");
+assert.strictEqual(context.data.wheel.scrollLeft, WHEEL_TEST_SCROLL_LEFT, "Wheel should snap to the nearest native scroll slot.");
+assert.strictEqual(context.data.wheel.selectedIndex, -1, "Scrolling should keep the wheel in choosing mode.");
 
 const uniqueCards = new Set(context.data.wheelCards.map((slot) => slot.cardId));
 assert.strictEqual(uniqueCards.size, 78, "Wheel slots should map to unique card faces.");
@@ -103,16 +85,6 @@ for (let drawIndex = 0; drawIndex < 3; drawIndex += 1) {
   });
   assert.strictEqual(context.data.wheel.selectedIndex, activeIndex, "First tap should pop the active card.");
   assert.strictEqual(context.data.drawnCards.length, drawIndex, "First tap should not draw yet.");
-
-  pageDefinition.onWheelTouchStart.call(context, {
-    touches: [{ clientX: 120 }]
-  });
-  pageDefinition.onWheelTouchEnd.call(context);
-  assert.strictEqual(
-    context.data.wheel.selectedIndex,
-    activeIndex,
-    "A no-drag touchend on the popped card should not clear selection before the second tap."
-  );
 
   pageDefinition.onWheelCardTap.call(context, {
     currentTarget: {
@@ -144,6 +116,23 @@ assertCardBackHasTransparentCorners().then(() => {
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function setDataPath(target, path, value) {
+  const segments = path.split(".");
+  let node = target;
+
+  for (let index = 0; index < segments.length - 1; index += 1) {
+    const segment = segments[index];
+
+    if (!node[segment] || typeof node[segment] !== "object") {
+      node[segment] = {};
+    }
+
+    node = node[segment];
+  }
+
+  node[segments[segments.length - 1]] = value;
 }
 
 async function assertCardBackHasTransparentCorners() {
