@@ -292,10 +292,10 @@ Page({
           errorMessage: ""
         });
       },
-      fail: () => {
+      fail: (error) => {
         this.setData({
           interpretation: normalizeReading(fallbackReading),
-          errorMessage: "Unable to reach reading backend. Showing structured fallback."
+          errorMessage: `Unable to reach reading backend${error && error.errMsg ? `: ${error.errMsg}` : ""}. Showing structured fallback.`
         });
       },
       complete: () => {

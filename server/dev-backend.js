@@ -25,6 +25,10 @@ const server = http.createServer(async (request, response) => {
 
     const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
 
+    if (url.pathname !== "/health") {
+      console.log(`${new Date().toISOString()} ${request.method} ${url.pathname}`);
+    }
+
     if (request.method === "GET" && url.pathname === "/health") {
       sendJson(response, 200, {
         ok: true,

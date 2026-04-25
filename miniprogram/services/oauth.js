@@ -67,13 +67,13 @@ function exchangeToken(oauthConfig) {
             saveOAuthSession(session);
             resolve(session);
           },
-          fail() {
-            reject(new Error("Unable to reach the AI reading backend."));
+          fail(error) {
+            reject(new Error(formatRequestError("Unable to reach the AI reading backend", error)));
           }
         });
       },
-      fail() {
-        reject(new Error("Unable to start WeChat login for backend auth."));
+      fail(error) {
+        reject(new Error(formatRequestError("Unable to start WeChat login for backend auth", error)));
       }
     });
   });
@@ -81,6 +81,14 @@ function exchangeToken(oauthConfig) {
 
 function hasUsableOAuth(session) {
   return Boolean(session && session.accessToken && (!session.expiresAt || session.expiresAt > Date.now()));
+}
+
+function formatRequestError(message, error) {
+  if (error && error.errMsg) {
+    return `${message}: ${error.errMsg}`;
+  }
+
+  return message;
 }
 
 module.exports = {
