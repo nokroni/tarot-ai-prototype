@@ -14,6 +14,7 @@ function normalizeReading(rawReading, fallbackReading) {
       position: textOr(card.position, "Card"),
       name: textOr(card.name, "Unknown card"),
       orientation: textOr(card.orientation, "upright"),
+      orientationText: formatOrientation(card.orientation),
       keywords: Array.isArray(card.keywords) ? card.keywords : [],
       keywordsText: Array.isArray(card.keywords) ? card.keywords.join(", ") : "",
       interpretation: textOr(card.interpretation, card.text || "")
@@ -30,27 +31,27 @@ function normalizeReading(rawReading, fallbackReading) {
 }
 
 function createFallbackReading({ question, spread, drawnCards, sourceLabel }) {
-  const safeQuestion = question.trim() || "what you need to understand today";
+  const safeQuestion = question.trim() || "今天需要理解的事情";
   const primaryThemes = drawnCards.map((drawn) => drawn.keywords[0]).join(", ");
 
   return {
     schemaVersion: READING_SCHEMA_VERSION,
     sourceLabel: sourceLabel || "Prototype OAuth Demo",
-    summary: `For ${safeQuestion}, this ${spread.title.toLowerCase()} spread suggests looking at the pattern beneath the situation before choosing your next step.`,
+    summary: `关于“${safeQuestion}”，这个牌阵提示你先看清局面背后的模式，再决定下一步。`,
     cards: drawnCards.map((drawn) => ({
       id: drawn.id,
       position: drawn.position,
       name: drawn.card.name,
       orientation: drawn.orientation,
       keywords: drawn.keywords,
-      interpretation: `${drawn.card.name} in ${drawn.orientation} orientation points toward ${drawn.keywords.join(", ")}. In the ${drawn.position.toLowerCase()} position, treat this as a symbol to reflect on rather than a fixed prediction.`
+      interpretation: `${drawn.card.name}以${drawn.orientation}方向出现，关键词是${drawn.keywords.join("、")}。在“${drawn.position}”位置上，它更适合作为反思的象征，而不是固定的预言。`
     })),
-    overallMessage: `The shared thread is ${primaryThemes}. Notice where your attention tightens, because that is likely where the reading has something useful to offer.`,
+    overallMessage: `这些牌共同指向：${primaryThemes}。留意你最紧绷、最在意的地方，那里可能正是这次解读真正有用的位置。`,
     practicalReflection:
-      "Choose one small, reversible action that honors the clearest card in the spread. Avoid using the reading as medical, legal, financial, or emergency advice.",
-    journalQuestion: `What would change if you approached ${safeQuestion} with more honesty, patience, and room for uncertainty?`,
+      "选择一个小而可逆的行动，回应牌阵里最清楚的提醒。不要把本解读当作医疗、法律、财务或紧急事务建议。",
+    journalQuestion: `如果你带着更多诚实、耐心和不确定性的空间来看待“${safeQuestion}”，会有什么改变？`,
     caveat:
-      "This prototype keeps the reading reflective. For medical, legal, financial, or emergency questions, consult a qualified professional."
+      "这个原型只提供反思性解读。涉及医疗、法律、财务或紧急问题时，请咨询合格专业人士。"
   };
 }
 
@@ -154,6 +155,10 @@ function readingJsonSchema() {
 
 function textOr(value, fallback) {
   return typeof value === "string" && value.trim() ? value : fallback || "";
+}
+
+function formatOrientation(orientation) {
+  return orientation === "reversed" ? "逆位" : "正位";
 }
 
 module.exports = {

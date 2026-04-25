@@ -76,9 +76,15 @@
     <view class="cards-grid {{drawnCards.length === 1 ? 'single' : ''}}">
       <view wx:for="{{drawnCards}}" wx:key="id" class="card">
         <view class="position">{{item.position}}</view>
-        <view class="sigil">☉</view>
+        <image
+          wx:if="{{item.card.imageSrc}}"
+          class="card-face {{item.orientation === 'reversed' ? 'reversed' : ''}}"
+          src="{{item.card.imageSrc}}"
+          mode="aspectFill"
+        />
+        <view wx:else class="sigil">☉</view>
         <text class="card-name">{{item.card.name}}</text>
-        <text class="orientation">{{item.orientation}}</text>
+        <text class="orientation {{item.orientation === 'reversed' ? 'reversed' : ''}}">{{item.orientationLabel}}</text>
         <view class="keywords">
           <text wx:for="{{item.keywords}}" wx:for-item="keyword" wx:key="*this" class="keyword">{{keyword}}</text>
         </view>
@@ -100,7 +106,7 @@
     <view class="reading-cards">
       <view wx:for="{{interpretation.cards}}" wx:key="id" class="reading-card">
         <text class="reading-card-title">{{item.position}} · {{item.name}}</text>
-        <text class="reading-meta">{{item.orientation}} · {{item.keywordsText}}</text>
+        <text class="reading-meta">{{item.orientationText}} · {{item.keywordsText}}</text>
         <text class="reading-text">{{item.interpretation}}</text>
       </view>
     </view>

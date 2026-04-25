@@ -8,6 +8,7 @@ const requiredFiles = [
   "miniprogram/app.wxss",
   "miniprogram/config.js",
   "miniprogram/sitemap.json",
+  "miniprogram/services/cloudbase-ai.js",
   "miniprogram/services/oauth.js",
   "miniprogram/services/reading-schema.js",
   "miniprogram/pages/index/index.js",

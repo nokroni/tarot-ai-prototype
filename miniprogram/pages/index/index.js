@@ -36,6 +36,30 @@ const READING_POLL_TIMEOUT_MS = 180000;
 const READING_RETRY_DELAY_MS = 900;
 const READING_POLL_DELAY_MS = 1500;
 const cloudAIEnabled = hasCloudBaseAI(appConfig.cloudAI);
+const cardFaceMap = {
+  the_fool: "/images/thefool.jpeg",
+  the_magician: "/images/themagician.jpeg",
+  the_high_priestess: "/images/thehighpriestess.jpeg",
+  the_empress: "/images/theempress.jpeg",
+  the_emperor: "/images/theemperor.jpeg",
+  the_hierophant: "/images/thehierophant.jpeg",
+  the_lovers: "/images/TheLovers.jpg",
+  the_chariot: "/images/thechariot.jpeg",
+  strength: "/images/thestrength.jpeg",
+  the_hermit: "/images/thehermit.jpeg",
+  wheel_of_fortune: "/images/wheeloffortune.jpeg",
+  justice: "/images/justice.jpeg",
+  the_hanged_man: "/images/thehangedman.jpeg",
+  death: "/images/death.jpeg",
+  temperance: "/images/temperance.jpeg",
+  the_devil: "/images/thedevil.jpeg",
+  the_tower: "/images/thetower.jpeg",
+  the_star: "/images/thestar.jpeg",
+  the_moon: "/images/themoon.jpeg",
+  the_sun: "/images/thesun.jpeg",
+  judgement: "/images/judgement.jpeg",
+  the_world: "/images/theworld.jpeg"
+};
 
 const tarotDeck = [
   {
@@ -205,7 +229,7 @@ Page({
     oauthSession: null,
     oauthStatus: cloudAIEnabled ? "CloudBase Hunyuan ready" : "Not connected",
     backendStatus: formatBackendStatus(),
-    buildLabel: "0.5.8 cloud",
+    buildLabel: "0.5.9 faces",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""
@@ -619,12 +643,19 @@ function drawCards(spread) {
 
     return {
       id: `${card.id}-${position}`,
-      card,
+      card: Object.assign({}, card, {
+        imageSrc: cardFaceMap[card.id] || ""
+      }),
       position,
       orientation,
+      orientationLabel: formatOrientation(orientation),
       keywords
     };
   });
+}
+
+function formatOrientation(orientation) {
+  return orientation === "reversed" ? "逆位" : "正位";
 }
 
 function shuffle(cards) {

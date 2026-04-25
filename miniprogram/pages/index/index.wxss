@@ -207,12 +207,14 @@
 }
 
 .cards-grid.single .card {
-  width: 100%;
+  width: 68%;
+  min-width: 340rpx;
+  margin: 0 auto;
 }
 
 .card {
   width: calc((100% - 28rpx) / 3);
-  min-height: 356rpx;
+  min-height: 484rpx;
   padding: 18rpx;
   border: 2rpx solid #bfae91;
   border-radius: 18rpx;
@@ -221,6 +223,21 @@
     #fff6df;
   box-sizing: border-box;
   text-align: center;
+}
+
+.card-face {
+  display: block;
+  width: 100%;
+  height: 252rpx;
+  margin: 14rpx auto 18rpx;
+  border: 2rpx solid #c78b2e;
+  border-radius: 12rpx;
+  background: #171311;
+  box-shadow: 0 10rpx 18rpx rgba(38, 35, 31, 0.16);
+}
+
+.card-face.reversed {
+  transform: rotate(180deg);
 }
 
 .position {
@@ -260,6 +277,10 @@
   font-size: 22rpx;
   font-weight: 800;
   text-transform: capitalize;
+}
+
+.orientation.reversed {
+  color: #a34231;
 }
 
 .keywords {

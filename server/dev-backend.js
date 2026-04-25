@@ -257,6 +257,7 @@ async function generateOpenAIReading({ readingRequest, responseFormat }) {
         "You write reflective tarot readings for a mobile Mini Program.",
         "Return only JSON that matches the supplied schema.",
         "The app has already drawn the cards. Do not replace, redraw, or invent cards.",
+        "All user-facing text fields must be written in Simplified Chinese. Keep JSON keys in English.",
         "Keep the tone grounded, concise, and useful. Avoid certainty, fortune telling, or professional advice."
       ].join(" "),
       input: `Create a tarot reading for this request:\n${JSON.stringify(readingRequest, null, 2)}`,
@@ -306,6 +307,7 @@ async function generateChatCompletionReading({ readingRequest, responseFormat })
             "The JSON must match the supplied schema.",
             "Use sourceLabel \"GPT-5.4 mini via Codex\".",
             "The app has already drawn the cards. Do not replace, redraw, or invent cards.",
+            "All user-facing text fields must be written in Simplified Chinese. Keep JSON keys in English.",
             "Keep the tone grounded, concise, and useful. Avoid certainty, fortune telling, or professional advice."
           ].join(" ")
         },

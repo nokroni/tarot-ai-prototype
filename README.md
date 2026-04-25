@@ -6,9 +6,9 @@ The active app lives under `miniprogram/`. Swift and iOS files from the first pr
 
 ## WeChat Mini Program
 
-The Mini Program uses AppID `wx19531898b7da5eec`, draws tarot cards locally, and renders readings through a stable `tarot.reading.v1` schema.
+The Mini Program uses AppID `wx19531898b7da5eec`, draws tarot cards locally, displays tarot card faces from `miniprogram/images/`, and renders Chinese readings through a stable `tarot.reading.v1` schema. The full source card art set is kept in `images/`; the Mini Program currently packages only the Major Arcana faces because the active deck uses those cards and WeChat rejected the full 78-card image bundle over the 2 MB source-size limit.
 
-The page uses WeChat CloudBase AI as the primary reading provider. `miniprogram/app.js` initializes CloudBase with environment `tarot-d9g2gcdx1cec4d83e`, and `miniprogram/config.js` points `wx.cloud.extend.AI` at `hunyuan-exp` / `hunyuan-2.0-instruct-20251111`.
+The page uses WeChat CloudBase AI as the primary reading provider. `miniprogram/app.js` initializes CloudBase with environment `tarot-d9g2gcdx1cec4d83e`, and `miniprogram/config.js` points `wx.cloud.extend.AI` at `hunyuan-exp` / `hunyuan-2.0-instruct-20251111`. Model prompts require Simplified Chinese user-facing content while keeping JSON keys in English for the app renderer.
 
 The former HTTPS backend path remains as an optional fallback for beta testing. The page still includes a fallback connection panel so the backend path can be exercised without storing model secrets in the Mini Program. To use the fallback, configure these values in `miniprogram/config.js`:
 

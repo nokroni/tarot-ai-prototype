@@ -54,7 +54,9 @@ function createMessages({ sourceLabel, readingRequest }) {
         "The cards array must contain exactly one item for each drawnCards item in the request.",
         "For each card, copy id, position, name, orientation, and keywords from the drawnCards item, then add interpretation.",
         "The app has already drawn the cards. Do not replace, redraw, remove, or invent cards.",
-        "Write in English. Keep each field concise, grounded, and useful.",
+        "所有面向用户的文字字段必须使用简体中文，包括 summary、cards[].interpretation、overallMessage、practicalReflection、journalQuestion、caveat。",
+        "字段名仍使用英文 JSON key，不要翻译 schemaVersion、sourceLabel、cards 等键名。",
+        "语气温和、克制、具体、有帮助。",
         "Avoid certainty, fortune telling, or professional medical, legal, financial, or emergency advice."
       ].join(" ")
     },
