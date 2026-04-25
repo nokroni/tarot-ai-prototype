@@ -25,6 +25,10 @@ const spreads = [
   }
 ];
 
+const READING_REQUEST_ATTEMPTS = 2;
+const READING_REQUEST_TIMEOUT_MS = 120000;
+const READING_RETRY_DELAY_MS = 900;
+
 const tarotDeck = [
   {
     id: "the_fool",
@@ -193,7 +197,7 @@ Page({
     oauthSession: null,
     oauthStatus: "Not connected",
     backendStatus: appConfig.oauth.readingEndpoint.replace(/\/readings$/, ""),
-    buildLabel: "0.5.4 OpenClaw",
+    buildLabel: "0.5.5 retry",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""
@@ -262,12 +266,12 @@ Page({
       errorMessage: ""
     });
 
-    wx.request({
+    requestReadingWithRetry({
       url: appConfig.oauth.readingEndpoint,
-      method: "POST",
       header: {
         Authorization: `${this.data.oauthSession.tokenType || "Bearer"} ${this.data.oauthSession.accessToken}`,
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "X-Request-Id": createRequestId()
       },
       data: {
         request: createReadingRequest({
@@ -277,7 +281,13 @@ Page({
         }),
         responseFormat: readingJsonSchema()
       },
-      success: (response) => {
+      onRetry: () => {
+        this.setData({
+          errorMessage: "The reading connection closed; retrying once."
+        });
+      }
+    })
+      .then((response) => {
         const data = response.data || {};
         const reading = data.reading || data;
 
@@ -295,19 +305,18 @@ Page({
             ? "Backend connected, but model generation is not configured. Showing structured fallback."
             : ""
         });
-      },
-      fail: (error) => {
+      })
+      .catch((error) => {
         this.setData({
           interpretation: normalizeReading(fallbackReading),
           errorMessage: `Unable to reach reading backend${error && error.errMsg ? `: ${error.errMsg}` : ""}. Showing structured fallback.`
         });
-      },
-      complete: () => {
+      })
+      .finally(() => {
         this.setData({
           isInterpreting: false
         });
-      }
-    });
+      });
   },
 
   connectChatGPT() {
@@ -354,6 +363,43 @@ Page({
     });
   }
 });
+
+function requestReadingWithRetry(options) {
+  return new Promise((resolve, reject) => {
+    runReadingRequest(options, READING_REQUEST_ATTEMPTS, resolve, reject);
+  });
+}
+
+function runReadingRequest(options, attemptsRemaining, resolve, reject) {
+  wx.request({
+    url: options.url,
+    method: "POST",
+    timeout: READING_REQUEST_TIMEOUT_MS,
+    header: options.header,
+    data: options.data,
+    success: (response) => {
+      resolve(response);
+    },
+    fail: (error) => {
+      if (attemptsRemaining > 1) {
+        if (typeof options.onRetry === "function") {
+          options.onRetry(error);
+        }
+
+        setTimeout(() => {
+          runReadingRequest(options, attemptsRemaining - 1, resolve, reject);
+        }, READING_RETRY_DELAY_MS);
+        return;
+      }
+
+      reject(error);
+    }
+  });
+}
+
+function createRequestId() {
+  return `reading-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
 
 function formatOAuthStatus(session) {
   if (!session) {

@@ -17,6 +17,10 @@ const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5.4-mini";
 const OPENAI_API_MODE = process.env.OPENAI_API_MODE || (OPENAI_BASE_URL.includes("api.openai.com") ? "responses" : "chat_completions");
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
 const TOKEN_TTL_SECONDS = 60 * 60;
+const READING_RESPONSE_CACHE_TTL_MS = 5 * 60 * 1000;
+
+const inFlightReadings = new Map();
+const readingResponseCache = new Map();
 
 const server = http.createServer(async (request, response) => {
   try {
@@ -68,7 +72,17 @@ const server = http.createServer(async (request, response) => {
     }
 
     if (request.method === "POST" && url.pathname === "/readings") {
+      const requestId = String(request.headers["x-request-id"] || crypto.randomUUID());
+      const startedAt = Date.now();
       const session = verifyAuthorization(request.headers.authorization || "");
+      const cachedResponse = getCachedReadingResponse(requestId);
+
+      if (cachedResponse) {
+        sendJson(response, 200, cachedResponse);
+        console.log(`${new Date().toISOString()} POST /readings ${requestId} cached ${Date.now() - startedAt}ms`);
+        return;
+      }
+
       const body = await readJson(request);
       const readingRequest = validateReadingRequest(body.request);
 
@@ -76,19 +90,29 @@ const server = http.createServer(async (request, response) => {
         throw publicError(503, "AI provider bearer token is not configured on the reading backend.");
       }
 
-      const reading = await generateOpenAIReading({
-        readingRequest,
-        responseFormat: body.responseFormat || readingJsonSchema()
-      });
+      let responseBody;
 
-      sendJson(response, 200, {
-        reading,
-        backend: {
-          mode: session.mode,
-          openaiConfigured: true,
-          model: OPENAI_MODEL
+      if (inFlightReadings.has(requestId)) {
+        responseBody = await inFlightReadings.get(requestId);
+      } else {
+        const readingPromise = createReadingResponse({
+          session,
+          readingRequest,
+          responseFormat: body.responseFormat || readingJsonSchema()
+        });
+
+        inFlightReadings.set(requestId, readingPromise);
+
+        try {
+          responseBody = await readingPromise;
+          cacheReadingResponse(requestId, responseBody);
+        } finally {
+          inFlightReadings.delete(requestId);
         }
-      });
+      }
+
+      sendJson(response, 200, responseBody);
+      console.log(`${new Date().toISOString()} POST /readings ${requestId} complete ${Date.now() - startedAt}ms`);
       return;
     }
 
@@ -137,6 +161,22 @@ async function authenticateWechat(loginCode) {
   return {
     mode: "wechat",
     openid: data.openid
+  };
+}
+
+async function createReadingResponse({ session, readingRequest, responseFormat }) {
+  const reading = await generateOpenAIReading({
+    readingRequest,
+    responseFormat
+  });
+
+  return {
+    reading,
+    backend: {
+      mode: session.mode,
+      openaiConfigured: true,
+      model: OPENAI_MODEL
+    }
   };
 }
 
@@ -361,6 +401,36 @@ function extractJsonObject(text) {
   }
 
   return trimmed;
+}
+
+function getCachedReadingResponse(requestId) {
+  const cached = readingResponseCache.get(requestId);
+
+  if (!cached) {
+    return null;
+  }
+
+  if (cached.expiresAt <= Date.now()) {
+    readingResponseCache.delete(requestId);
+    return null;
+  }
+
+  return cached.responseBody;
+}
+
+function cacheReadingResponse(requestId, responseBody) {
+  readingResponseCache.set(requestId, {
+    responseBody,
+    expiresAt: Date.now() + READING_RESPONSE_CACHE_TTL_MS
+  });
+
+  if (readingResponseCache.size > 100) {
+    const firstKey = readingResponseCache.keys().next().value;
+
+    if (firstKey) {
+      readingResponseCache.delete(firstKey);
+    }
+  }
 }
 
 function readJson(request) {
