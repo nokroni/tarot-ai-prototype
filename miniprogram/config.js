@@ -1,4 +1,4 @@
-const backendBaseUrl = "http://127.0.0.1:8787";
+const backendBaseUrl = "https://frp-cup.com:27681";
 
 module.exports = {
   oauth: {
