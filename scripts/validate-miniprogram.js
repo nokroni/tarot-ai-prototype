@@ -46,4 +46,13 @@ for (const page of appConfig.pages || []) {
   }
 }
 
+const cardImageFiles = fs
+  .readdirSync("miniprogram/images")
+  .filter((file) => /\.(jpe?g)$/i.test(file));
+
+if (cardImageFiles.length < 78) {
+  console.error("Mini Program card image bundle must include the complete 78-card deck.");
+  process.exit(1);
+}
+
 console.log("Mini Program structure is valid.");

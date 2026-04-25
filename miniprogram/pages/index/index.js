@@ -36,29 +36,9 @@ const READING_POLL_TIMEOUT_MS = 180000;
 const READING_RETRY_DELAY_MS = 900;
 const READING_POLL_DELAY_MS = 1500;
 const cloudAIEnabled = hasCloudBaseAI(appConfig.cloudAI);
-const cardFaceMap = {
-  the_fool: "/images/thefool.jpeg",
-  the_magician: "/images/themagician.jpeg",
-  the_high_priestess: "/images/thehighpriestess.jpeg",
-  the_empress: "/images/theempress.jpeg",
-  the_emperor: "/images/theemperor.jpeg",
-  the_hierophant: "/images/thehierophant.jpeg",
+const cardFaceFileOverrides = {
   the_lovers: "/images/TheLovers.jpg",
-  the_chariot: "/images/thechariot.jpeg",
-  strength: "/images/thestrength.jpeg",
-  the_hermit: "/images/thehermit.jpeg",
-  wheel_of_fortune: "/images/wheeloffortune.jpeg",
-  justice: "/images/justice.jpeg",
-  the_hanged_man: "/images/thehangedman.jpeg",
-  death: "/images/death.jpeg",
-  temperance: "/images/temperance.jpeg",
-  the_devil: "/images/thedevil.jpeg",
-  the_tower: "/images/thetower.jpeg",
-  the_star: "/images/thestar.jpeg",
-  the_moon: "/images/themoon.jpeg",
-  the_sun: "/images/thesun.jpeg",
-  judgement: "/images/judgement.jpeg",
-  the_world: "/images/theworld.jpeg"
+  strength: "/images/thestrength.jpeg"
 };
 
 const tarotDeck = [
@@ -216,7 +196,110 @@ const tarotDeck = [
     uprightMeanings: ["completion", "integration", "fulfillment", "arrival"],
     reversedMeanings: ["loose ends", "delayed closure", "unfinished business", "almost there"]
   }
-];
+].concat(createMinorArcanaDeck());
+
+function createMinorArcanaDeck() {
+  const suits = [
+    {
+      id: "wands",
+      name: "Wands",
+      arcana: "Minor Arcana",
+      theme: "energy, creativity, and action",
+      cards: [
+        ["ace", "Ace", ["spark", "initiative", "potential"], ["delay", "misfire", "unclear motivation"]],
+        ["two", "Two", ["planning", "vision", "choice"], ["hesitation", "limited view", "fear of expansion"]],
+        ["three", "Three", ["growth", "foresight", "momentum"], ["waiting", "small setbacks", "scattered plans"]],
+        ["four", "Four", ["celebration", "stability", "homecoming"], ["tension at home", "delayed joy", "unstable footing"]],
+        ["five", "Five", ["competition", "friction", "testing"], ["avoidance", "inner conflict", "unproductive struggle"]],
+        ["six", "Six", ["recognition", "progress", "confidence"], ["private win", "self-doubt", "delayed recognition"]],
+        ["seven", "Seven", ["defense", "conviction", "boundaries"], ["overwhelm", "defensiveness", "giving ground"]],
+        ["eight", "Eight", ["speed", "messages", "movement"], ["delays", "miscommunication", "rushed choices"]],
+        ["nine", "Nine", ["resilience", "guardedness", "persistence"], ["fatigue", "suspicion", "needing rest"]],
+        ["ten", "Ten", ["burden", "responsibility", "completion pressure"], ["release", "delegation", "unsustainable load"]],
+        ["page", "Page", ["curiosity", "fresh passion", "experiment"], ["restlessness", "immaturity", "false starts"]],
+        ["knight", "Knight", ["boldness", "pursuit", "adventure"], ["impulsiveness", "impatience", "scattered fire"]],
+        ["queen", "Queen", ["warmth", "confidence", "magnetism"], ["jealousy", "burnout", "dimmed confidence"]],
+        ["king", "King", ["leadership", "vision", "courage"], ["domination", "impatience", "unchecked ego"]]
+      ]
+    },
+    {
+      id: "cups",
+      name: "Cups",
+      arcana: "Minor Arcana",
+      theme: "feelings, relationships, and intuition",
+      cards: [
+        ["ace", "Ace", ["opening heart", "emotional renewal", "compassion"], ["blocked feeling", "emotional overflow", "guardedness"]],
+        ["two", "Two", ["connection", "mutual care", "harmony"], ["imbalance", "misalignment", "strained bond"]],
+        ["three", "Three", ["friendship", "support", "shared joy"], ["excess", "social tension", "feeling left out"]],
+        ["four", "Four", ["reflection", "discontent", "reassessment"], ["new interest", "acceptance", "lifting apathy"]],
+        ["five", "Five", ["loss", "regret", "grief"], ["acceptance", "repair", "turning toward hope"]],
+        ["six", "Six", ["nostalgia", "kindness", "memory"], ["stuck in the past", "growing up", "idealization"]],
+        ["seven", "Seven", ["options", "imagination", "temptation"], ["clarity", "choosing", "grounding fantasy"]],
+        ["eight", "Eight", ["leaving", "searching", "emotional honesty"], ["avoidance", "returning", "fear of moving on"]],
+        ["nine", "Nine", ["satisfaction", "gratitude", "wish fulfilled"], ["overindulgence", "hollow pleasure", "unmet longing"]],
+        ["ten", "Ten", ["fulfillment", "family harmony", "belonging"], ["surface harmony", "misaligned values", "domestic strain"]],
+        ["page", "Page", ["gentleness", "creative feeling", "message"], ["emotional immaturity", "shyness", "mixed signals"]],
+        ["knight", "Knight", ["romance", "idealism", "invitation"], ["moodiness", "unrealistic promise", "avoidance"]],
+        ["queen", "Queen", ["empathy", "intuition", "emotional depth"], ["overgiving", "sensitivity", "blurred boundaries"]],
+        ["king", "King", ["emotional steadiness", "wisdom", "compassion"], ["suppressed feeling", "manipulation", "cool distance"]]
+      ]
+    },
+    {
+      id: "swords",
+      name: "Swords",
+      arcana: "Minor Arcana",
+      theme: "thought, truth, and communication",
+      cards: [
+        ["ace", "Ace", ["clarity", "truth", "breakthrough"], ["confusion", "harsh words", "unclear thinking"]],
+        ["two", "Two", ["stalemate", "choice", "blocked view"], ["indecision lifting", "avoidance exposed", "information arriving"]],
+        ["three", "Three", ["heartbreak", "truth pain", "release"], ["healing", "forgiveness", "lingering hurt"]],
+        ["four", "Four", ["rest", "recovery", "pause"], ["restlessness", "burnout", "returning too soon"]],
+        ["five", "Five", ["conflict", "hollow victory", "ego clash"], ["repair", "accountability", "stepping away"]],
+        ["six", "Six", ["transition", "moving on", "mental distance"], ["resistance", "unfinished transition", "emotional baggage"]],
+        ["seven", "Seven", ["strategy", "secrecy", "self-protection"], ["truth revealed", "self-deception", "changing tactics"]],
+        ["eight", "Eight", ["restriction", "overthinking", "feeling trapped"], ["new perspective", "release", "choice returning"]],
+        ["nine", "Nine", ["anxiety", "worry", "rumination"], ["support", "perspective", "facing fears"]],
+        ["ten", "Ten", ["ending", "mental exhaustion", "finality"], ["recovery", "survival", "new dawn"]],
+        ["page", "Page", ["curiosity", "observation", "direct words"], ["gossip", "scattered thought", "defensiveness"]],
+        ["knight", "Knight", ["speed", "argument", "decisive action"], ["recklessness", "haste", "tunnel vision"]],
+        ["queen", "Queen", ["discernment", "honesty", "clear boundaries"], ["coldness", "bitterness", "overanalysis"]],
+        ["king", "King", ["logic", "authority", "fair judgment"], ["rigidity", "misuse of intellect", "detachment"]]
+      ]
+    },
+    {
+      id: "pentacles",
+      name: "Pentacles",
+      arcana: "Minor Arcana",
+      theme: "body, work, money, and the material world",
+      cards: [
+        ["ace", "Ace", ["opportunity", "seed", "material start"], ["missed chance", "delay", "ungrounded plan"]],
+        ["two", "Two", ["balance", "adaptability", "priorities"], ["overload", "disorganization", "dropped ball"]],
+        ["three", "Three", ["skill", "collaboration", "craft"], ["misalignment", "poor teamwork", "unfinished work"]],
+        ["four", "Four", ["security", "holding on", "control"], ["release", "scarcity fear", "generosity lesson"]],
+        ["five", "Five", ["hardship", "exclusion", "support needed"], ["recovery", "help available", "hope returning"]],
+        ["six", "Six", ["generosity", "exchange", "fair support"], ["imbalance", "strings attached", "uneven giving"]],
+        ["seven", "Seven", ["patience", "assessment", "long-term growth"], ["impatience", "poor investment", "reassessment"]],
+        ["eight", "Eight", ["practice", "discipline", "mastery"], ["perfectionism", "boredom", "cutting corners"]],
+        ["nine", "Nine", ["self-sufficiency", "comfort", "earned ease"], ["dependence", "overwork", "fragile security"]],
+        ["ten", "Ten", ["legacy", "stability", "family resources"], ["family pressure", "short-term thinking", "unstable legacy"]],
+        ["page", "Page", ["study", "practical offer", "beginner focus"], ["procrastination", "lack of follow-through", "unready plan"]],
+        ["knight", "Knight", ["reliability", "routine", "steady progress"], ["stagnation", "stubbornness", "drudgery"]],
+        ["queen", "Queen", ["nurture", "practical care", "resourcefulness"], ["overextension", "neglecting self", "material worry"]],
+        ["king", "King", ["stability", "leadership", "material mastery"], ["greed", "rigidity", "status attachment"]]
+      ]
+    }
+  ];
+
+  return suits.flatMap((suit) =>
+    suit.cards.map(([rankId, rankName, uprightMeanings, reversedMeanings]) => ({
+      id: `${rankId}_of_${suit.id}`,
+      name: `${rankName} of ${suit.name}`,
+      arcana: suit.arcana,
+      uprightMeanings: uprightMeanings.concat(suit.theme),
+      reversedMeanings
+    }))
+  );
+}
 
 Page({
   data: {
@@ -229,7 +312,7 @@ Page({
     oauthSession: null,
     oauthStatus: cloudAIEnabled ? "CloudBase Hunyuan ready" : "Not connected",
     backendStatus: formatBackendStatus(),
-    buildLabel: "0.5.9 faces",
+    buildLabel: "0.5.10 full",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""
@@ -644,7 +727,7 @@ function drawCards(spread) {
     return {
       id: `${card.id}-${position}`,
       card: Object.assign({}, card, {
-        imageSrc: cardFaceMap[card.id] || ""
+        imageSrc: getCardFacePath(card.id)
       }),
       position,
       orientation,
@@ -656,6 +739,10 @@ function drawCards(spread) {
 
 function formatOrientation(orientation) {
   return orientation === "reversed" ? "逆位" : "正位";
+}
+
+function getCardFacePath(cardId) {
+  return cardFaceFileOverrides[cardId] || `/images/${cardId.replace(/_/g, "")}.jpeg`;
 }
 
 function shuffle(cards) {

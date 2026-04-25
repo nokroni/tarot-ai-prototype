@@ -6,11 +6,13 @@
   "scripts": {
     "backend": "node server/dev-backend.js",
     "backend:check": "node --check server/dev-backend.js",
+    "build:card-images": "node scripts/build-card-images.js",
     "validate:mp": "node scripts/validate-miniprogram.js",
     "preview:mp": "node scripts/wechat-upload.js preview",
     "upload:mp": "node scripts/wechat-upload.js upload"
   },
   "devDependencies": {
-    "miniprogram-ci": "^2.1.22"
+    "miniprogram-ci": "^2.1.22",
+    "sharp": "^0.34.5"
   }
 }

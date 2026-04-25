@@ -6,7 +6,7 @@ The active app lives under `miniprogram/`. Swift and iOS files from the first pr
 
 ## WeChat Mini Program
 
-The Mini Program uses AppID `wx19531898b7da5eec`, draws tarot cards locally, displays tarot card faces from `miniprogram/images/`, and renders Chinese readings through a stable `tarot.reading.v1` schema. The full source card art set is kept in `images/`; the Mini Program currently packages only the Major Arcana faces because the active deck uses those cards and WeChat rejected the full 78-card image bundle over the 2 MB source-size limit.
+The Mini Program uses AppID `wx19531898b7da5eec`, draws tarot cards locally from the complete 78-card tarot deck, displays optimized card faces from `miniprogram/images/`, and renders Chinese readings through a stable `tarot.reading.v1` schema. The full source card art set is kept in `images/`; run `npm run build:card-images` to regenerate the compressed Mini Program bundle that fits under WeChat's 2 MB source-size limit.
 
 The page uses WeChat CloudBase AI as the primary reading provider. `miniprogram/app.js` initializes CloudBase with environment `tarot-d9g2gcdx1cec4d83e`, and `miniprogram/config.js` points `wx.cloud.extend.AI` at `hunyuan-exp` / `hunyuan-2.0-instruct-20251111`. Model prompts require Simplified Chinese user-facing content while keeping JSON keys in English for the app renderer.
 
