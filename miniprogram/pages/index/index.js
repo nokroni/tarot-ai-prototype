@@ -574,7 +574,7 @@ Page({
     oauthSession: null,
     oauthStatus: cloudAIEnabled ? "已连接混元" : "未连接",
     backendStatus: formatBackendStatus(),
-    buildLabel: "0.5.14 修复",
+    buildLabel: "0.5.15 牌面",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""

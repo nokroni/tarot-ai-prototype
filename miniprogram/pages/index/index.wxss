@@ -154,20 +154,19 @@
 
 .cards-grid {
   display: flex;
-  flex-wrap: wrap;
-  gap: 14rpx;
+  flex-direction: column;
+  gap: 24rpx;
 }
 
 .cards-grid.single .card {
-  width: 68%;
-  min-width: 340rpx;
-  margin: 0 auto;
+  width: 100%;
+  min-width: 0;
 }
 
 .card {
-  width: calc((100% - 28rpx) / 3);
-  min-height: 484rpx;
-  padding: 18rpx;
+  width: 100%;
+  min-height: 0;
+  padding: 22rpx 24rpx 24rpx;
   border: 2rpx solid #bfae91;
   border-radius: 18rpx;
   background:
@@ -179,9 +178,9 @@
 
 .card-face {
   display: block;
-  width: 100%;
-  height: 252rpx;
-  margin: 14rpx auto 18rpx;
+  width: 58%;
+  height: 630rpx;
+  margin: 18rpx auto 20rpx;
   border: 2rpx solid #c78b2e;
   border-radius: 12rpx;
   background: #171311;
@@ -215,7 +214,7 @@
 
 .card-name {
   display: block;
-  min-height: 74rpx;
+  min-height: 42rpx;
   color: #26231f;
   font-size: 28rpx;
   font-weight: 900;

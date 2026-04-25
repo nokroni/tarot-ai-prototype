@@ -64,7 +64,7 @@
           wx:if="{{item.card.imageSrc}}"
           class="card-face {{item.orientation === 'reversed' ? 'reversed' : ''}}"
           src="{{item.card.imageSrc}}"
-          mode="aspectFill"
+          mode="aspectFit"
         />
         <view wx:else class="sigil">☉</view>
         <text class="card-name">{{item.card.name}}</text>
