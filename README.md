@@ -38,13 +38,13 @@ npm run backend
 
 Set `WECHAT_APPSECRET`, `OPENAI_API_KEY`, and `SESSION_SECRET` in `.env.local` for real WeChat auth and OpenAI readings. Without those values, the backend still runs in development mode so the Mini Program can exercise the backend auth and reading layout path.
 
-By default `miniprogram/config.js` points at the Ubuntu-hosted test backend:
+By default `miniprogram/config.js` points at the Ubuntu-hosted HTTPS test backend:
 
 ```text
-http://182.254.172.179
+https://muse-ai.cloud
 ```
 
-This is plain HTTP for prototype testing, so WeChat DevTools must allow non-verified request domains. For phone testing or release, move this behind a publicly trusted HTTPS domain and add that domain in the WeChat Mini Program admin request-domain settings.
+For phone testing, `https://muse-ai.cloud` must be listed in the WeChat Mini Program admin request-domain settings.
 
 Backend operations use the local SSH alias:
 
