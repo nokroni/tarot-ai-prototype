@@ -27,7 +27,7 @@ function connectChatGPT() {
     tokenType: "Bearer",
     expiresAt: Date.now() + 60 * 60 * 1000,
     mode: "demo",
-    label: "Prototype Backend Demo"
+    label: "原型后端演示"
   };
 
   saveOAuthSession(session);
@@ -50,7 +50,7 @@ function exchangeToken(oauthConfig) {
             const data = response.data || {};
 
             if (response.statusCode < 200 || response.statusCode >= 300 || !data.access_token) {
-              reject(new Error(data.error || "Unable to connect the AI reading backend."));
+              reject(new Error(data.error || "无法连接 AI 解读后端。"));
               return;
             }
 
@@ -63,19 +63,19 @@ function exchangeToken(oauthConfig) {
               mode: data.mode || "backend",
               openaiConfigured: data.openai_configured !== false,
               model: data.model || "",
-              label: data.label || "AI Reading Backend"
+              label: data.label || "AI 解读后端"
             };
 
             saveOAuthSession(session);
             resolve(session);
           },
           fail(error) {
-            reject(new Error(formatRequestError("Unable to reach the AI reading backend", error)));
+            reject(new Error(formatRequestError("无法访问 AI 解读后端", error)));
           }
         });
       },
       fail(error) {
-        reject(new Error(formatRequestError("Unable to start WeChat login for backend auth", error)));
+        reject(new Error(formatRequestError("无法启动微信登录以连接后端", error)));
       }
     });
   });

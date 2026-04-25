@@ -19,13 +19,13 @@ const {
 const spreads = [
   {
     id: "oneCard",
-    title: "One Card",
-    positions: ["Guidance"]
+    title: "单张牌",
+    positions: ["指引"]
   },
   {
     id: "threeCard",
-    title: "Three Cards",
-    positions: ["Situation", "Challenge", "Advice"]
+    title: "三张牌",
+    positions: ["现状", "挑战", "建议"]
   }
 ];
 
@@ -198,6 +198,8 @@ const tarotDeck = [
   }
 ].concat(createMinorArcanaDeck());
 
+localizeTarotDeck(tarotDeck);
+
 function createMinorArcanaDeck() {
   const suits = [
     {
@@ -301,6 +303,255 @@ function createMinorArcanaDeck() {
   );
 }
 
+const majorCardInfo = {
+  the_fool: {
+    name: "愚者",
+    upright: ["新的开始", "信任", "自发性", "冒险精神"],
+    reversed: ["鲁莽", "迟疑", "天真", "计划不足"]
+  },
+  the_magician: {
+    name: "魔术师",
+    upright: ["显化", "技巧", "专注", "资源整合"],
+    reversed: ["操控", "能量分散", "潜力未用"]
+  },
+  the_high_priestess: {
+    name: "女祭司",
+    upright: ["直觉", "秘密", "内在智慧", "潜意识"],
+    reversed: ["隐瞒", "直觉受阻", "困惑"]
+  },
+  the_empress: {
+    name: "皇后",
+    upright: ["丰盛", "创造力", "滋养", "成长"],
+    reversed: ["停滞", "过度付出", "创造力受阻"]
+  },
+  the_emperor: {
+    name: "皇帝",
+    upright: ["结构", "权威", "纪律", "稳定"],
+    reversed: ["控制欲", "僵化", "缺乏秩序"]
+  },
+  the_hierophant: {
+    name: "教皇",
+    upright: ["传统", "学习", "共同体", "价值观"],
+    reversed: ["教条", "不合常规", "过时建议", "质疑规则"]
+  },
+  the_lovers: {
+    name: "恋人",
+    upright: ["选择", "一致", "关系", "价值排序"],
+    reversed: ["不协调", "艰难选择", "失衡"]
+  },
+  the_chariot: {
+    name: "战车",
+    upright: ["推进", "意志力", "方向", "自我掌控"],
+    reversed: ["用力过猛", "力量分散", "停滞", "内在冲突"]
+  },
+  strength: {
+    name: "力量",
+    upright: ["勇气", "耐心", "温柔的力量", "内在稳定"],
+    reversed: ["自我怀疑", "反应过度", "疲惫", "未处理的恐惧"]
+  },
+  the_hermit: {
+    name: "隐士",
+    upright: ["沉思", "独处", "辨别", "内在指引"],
+    reversed: ["孤立", "逃避", "想太多", "退缩"]
+  },
+  wheel_of_fortune: {
+    name: "命运之轮",
+    upright: ["变化", "周期", "时机", "转折点"],
+    reversed: ["抗拒", "挫折", "模式重复", "不稳定"]
+  },
+  justice: {
+    name: "正义",
+    upright: ["真相", "责任", "公平", "清楚后果"],
+    reversed: ["偏见", "回避", "不公", "事实不明"]
+  },
+  the_hanged_man: {
+    name: "倒吊人",
+    upright: ["暂停", "新视角", "放下", "转念"],
+    reversed: ["停滞", "牺牲感", "延迟", "抗拒领悟"]
+  },
+  death: {
+    name: "死神",
+    upright: ["结束", "转化", "更新", "放手"],
+    reversed: ["执着", "害怕改变", "未完成的告别", "僵持"]
+  },
+  temperance: {
+    name: "节制",
+    upright: ["平衡", "整合", "适度", "疗愈节奏"],
+    reversed: ["过度", "急躁", "失衡", "不协调"]
+  },
+  the_devil: {
+    name: "恶魔",
+    upright: ["依附", "诱惑", "阴影模式", "物质牵引"],
+    reversed: ["松绑", "夺回力量", "打破模式", "觉察"]
+  },
+  the_tower: {
+    name: "高塔",
+    upright: ["震动", "揭露", "突破", "旧结构崩塌"],
+    reversed: ["回避改变", "余震", "害怕动荡", "缓慢重建"]
+  },
+  the_star: {
+    name: "星星",
+    upright: ["希望", "更新", "灵感", "温柔信任"],
+    reversed: ["灰心", "信念变弱", "失去连接", "需要休息"]
+  },
+  the_moon: {
+    name: "月亮",
+    upright: ["不确定", "梦境", "直觉", "隐藏感受"],
+    reversed: ["迷雾散开", "焦虑", "误读讯号", "逃避"]
+  },
+  the_sun: {
+    name: "太阳",
+    upright: ["清晰", "生命力", "喜悦", "自信"],
+    reversed: ["喜悦减弱", "过度自信", "暂时阴影", "耗竭"]
+  },
+  judgement: {
+    name: "审判",
+    upright: ["觉醒", "回顾", "召唤", "自我审视"],
+    reversed: ["自我批判", "回避", "怀疑", "未完成的功课"]
+  },
+  the_world: {
+    name: "世界",
+    upright: ["完成", "整合", "圆满", "抵达"],
+    reversed: ["收尾未完", "延迟结束", "未竟之事", "只差一步"]
+  }
+};
+
+const minorSuitInfo = {
+  wands: {
+    name: "权杖",
+    upright: ["行动力", "创造力", "热情"],
+    reversed: ["急躁", "能量分散", "行动受阻"]
+  },
+  cups: {
+    name: "圣杯",
+    upright: ["情感", "关系", "直觉"],
+    reversed: ["情绪失衡", "边界模糊", "感受受阻"]
+  },
+  swords: {
+    name: "宝剑",
+    upright: ["思考", "沟通", "真相"],
+    reversed: ["想法混乱", "言语压力", "判断失衡"]
+  },
+  pentacles: {
+    name: "星币",
+    upright: ["现实", "资源", "身体与工作"],
+    reversed: ["资源紧张", "执行不稳", "现实压力"]
+  }
+};
+
+const minorRankInfo = {
+  ace: {
+    name: "王牌",
+    upright: ["开端", "种子", "新机会"],
+    reversed: ["机会延迟", "起步不稳", "潜力未落地"]
+  },
+  two: {
+    name: "二",
+    upright: ["选择", "平衡", "调整"],
+    reversed: ["犹豫", "失衡", "优先级混乱"]
+  },
+  three: {
+    name: "三",
+    upright: ["扩展", "协作", "初步成果"],
+    reversed: ["配合不顺", "进展延迟", "方向需重整"]
+  },
+  four: {
+    name: "四",
+    upright: ["稳定", "基础", "安全感"],
+    reversed: ["停滞", "过度防守", "安全感不稳"]
+  },
+  five: {
+    name: "五",
+    upright: ["冲突", "挑战", "重新定位"],
+    reversed: ["修复", "退让", "从争执中抽身"]
+  },
+  six: {
+    name: "六",
+    upright: ["过渡", "支持", "阶段性进展"],
+    reversed: ["迟滞", "不平衡", "旧模式牵扯"]
+  },
+  seven: {
+    name: "七",
+    upright: ["评估", "选择", "坚持立场"],
+    reversed: ["分心", "信心不足", "需要重新选择"]
+  },
+  eight: {
+    name: "八",
+    upright: ["推进", "练习", "持续投入"],
+    reversed: ["拖延", "过度用力", "节奏失衡"]
+  },
+  nine: {
+    name: "九",
+    upright: ["接近完成", "韧性", "个人成果"],
+    reversed: ["疲惫", "过度防备", "满足感不足"]
+  },
+  ten: {
+    name: "十",
+    upright: ["完成", "累积", "阶段收束"],
+    reversed: ["负担过重", "收尾困难", "需要释放"]
+  },
+  page: {
+    name: "侍从",
+    upright: ["学习", "讯息", "新的尝试"],
+    reversed: ["不成熟", "三分钟热度", "行动不足"]
+  },
+  knight: {
+    name: "骑士",
+    upright: ["追求", "行动", "推进"],
+    reversed: ["冲动", "固执", "方向不稳"]
+  },
+  queen: {
+    name: "王后",
+    upright: ["成熟表达", "滋养", "内在掌握"],
+    reversed: ["过度付出", "情绪消耗", "边界需要修复"]
+  },
+  king: {
+    name: "国王",
+    upright: ["掌控", "领导", "稳定力量"],
+    reversed: ["僵化", "控制过度", "权力失衡"]
+  }
+};
+
+function localizeTarotDeck(deck) {
+  deck.forEach((card) => {
+    const info = getCardInfo(card.id);
+
+    if (!info) {
+      return;
+    }
+
+    card.name = info.name;
+    card.arcana = card.arcana === "Major Arcana" ? "大阿卡那" : "小阿卡那";
+    card.uprightMeanings = info.upright;
+    card.reversedMeanings = info.reversed;
+  });
+}
+
+function getCardInfo(cardId) {
+  if (majorCardInfo[cardId]) {
+    return majorCardInfo[cardId];
+  }
+
+  const match = cardId.match(/^(.+)_of_(.+)$/);
+
+  if (!match) {
+    return null;
+  }
+
+  const rank = minorRankInfo[match[1]];
+  const suit = minorSuitInfo[match[2]];
+
+  if (!rank || !suit) {
+    return null;
+  }
+
+  return {
+    name: `${suit.name}${rank.name}`,
+    upright: rank.upright.concat(suit.upright),
+    reversed: rank.reversed.concat(suit.reversed)
+  };
+}
+
 Page({
   data: {
     question: "",
@@ -310,9 +561,9 @@ Page({
     drawnCards: [],
     interpretation: null,
     oauthSession: null,
-    oauthStatus: cloudAIEnabled ? "Connected to Hunyuan" : "Not connected",
+    oauthStatus: cloudAIEnabled ? "已连接混元" : "未连接",
     backendStatus: formatBackendStatus(),
-    buildLabel: "0.5.12 clean",
+    buildLabel: "0.5.13 中文",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""
@@ -354,7 +605,7 @@ Page({
   interpretReading() {
     if (!this.data.drawnCards.length) {
       this.setData({
-        errorMessage: "Draw cards first."
+        errorMessage: "请先抽牌。"
       });
       return;
     }
@@ -367,7 +618,7 @@ Page({
         ? appConfig.cloudAI.sourceLabel
         : this.data.oauthSession
           ? this.data.oauthSession.label
-          : "Local Demo"
+          : "本地演示"
     });
     const readingRequest = createReadingRequest({
       question: this.data.question,
@@ -380,7 +631,7 @@ Page({
         interpretation: normalizeReading(fallbackReading),
         errorMessage: hasUsableOAuth(this.data.oauthSession)
           ? ""
-          : "CloudBase AI is not configured. Connect the fallback backend or use a structured demo reading for now."
+          : "云开发 AI 尚未配置。可连接备用后端，或暂时查看结构化演示解读。"
       });
       return;
     }
@@ -395,12 +646,12 @@ Page({
       readingRequest,
       onRetry: () => {
         this.setData({
-          errorMessage: "CloudBase AI did not complete; trying the HTTPS fallback."
+          errorMessage: "云开发 AI 暂未完成，正在尝试备用后端。"
         });
       },
       onWaiting: (message) => {
         this.setData({
-          errorMessage: message || "Waiting for the AI reading."
+          errorMessage: message || "正在等待 AI 解读。"
         });
       }
     })
@@ -413,7 +664,7 @@ Page({
       .catch((error) => {
         this.setData({
           interpretation: normalizeReading(fallbackReading),
-          errorMessage: `${formatProviderError(error)} Showing structured fallback.`
+          errorMessage: `${formatProviderError(error)}正在显示结构化备用解读。`
         });
       })
       .finally(() => {
@@ -435,15 +686,15 @@ Page({
           oauthSession: session,
           oauthStatus: formatOAuthStatus(session),
           errorMessage: session.mode === "demo"
-            ? "Prototype backend connected. Add a reading endpoint to call OpenAI server-side."
+            ? "备用后端已连接。可配置解读接口以启用服务端模型。"
             : session.openaiConfigured === false
-              ? "Fallback backend connected, but its model key is not configured yet."
+              ? "备用后端已连接，但模型密钥尚未配置。"
             : ""
         });
       })
       .catch((error) => {
         this.setData({
-          errorMessage: error.message || "Unable to connect the AI reading backend."
+          errorMessage: error.message || "无法连接 AI 解读后端。"
         });
       })
       .finally(() => {
@@ -471,7 +722,7 @@ Page({
 function requestReadingFromBestProvider(options) {
   if (cloudAIEnabled) {
     if (typeof options.onWaiting === "function") {
-      options.onWaiting("Waiting for CloudBase Hunyuan.");
+      options.onWaiting("正在等待混元解读。");
     }
 
     return createCloudBaseReading({
@@ -502,7 +753,7 @@ function requestBackendReading(options) {
   const oauthSession = options.oauthSession;
 
   if (typeof options.onWaiting === "function") {
-    options.onWaiting("Waiting for the HTTPS fallback reading.");
+    options.onWaiting("正在等待备用后端解读。");
   }
 
   return requestReadingWithPolling({
@@ -520,7 +771,7 @@ function requestBackendReading(options) {
     },
     onRetry: () => {
       if (typeof options.onWaiting === "function") {
-        options.onWaiting("The fallback connection closed; starting the wait again.");
+        options.onWaiting("备用连接已中断，正在重新等待。");
       }
     },
     onWaiting: options.onWaiting
@@ -534,7 +785,7 @@ function requestBackendReading(options) {
     return {
       reading: data.reading || data,
       warning: data.backend && data.backend.openaiConfigured === false
-        ? "Fallback backend connected, but model generation is not configured."
+        ? "备用后端已连接，但模型生成尚未配置。"
         : ""
     };
   });
@@ -676,15 +927,15 @@ function createRequestId() {
 
 function formatOAuthStatus(session) {
   if (cloudAIEnabled) {
-    return canUseBackend(session) ? "Connected to Hunyuan · fallback ready" : "Connected to Hunyuan";
+    return canUseBackend(session) ? "已连接混元 · 备用后端已就绪" : "已连接混元";
   }
 
   if (!session) {
-    return "Not connected";
+    return "未连接";
   }
 
   if (session.openaiConfigured === false) {
-    return `${session.label} · AI key missing`;
+    return `${session.label} · 模型密钥缺失`;
   }
 
   return session.label;
@@ -700,20 +951,20 @@ function formatBackendStatus() {
 
 function formatReadingError(errorMessage) {
   if (errorMessage && errorMessage.indexOf("bearer token") !== -1) {
-    return "Backend connected, but the AI provider token is not configured on the server.";
+    return "后端已连接，但服务器尚未配置 AI 提供方令牌。";
   }
 
-  return errorMessage || "AI reading failed.";
+  return errorMessage || "AI 解读失败。";
 }
 
 function formatProviderError(error) {
   const message = error && (error.message || error.errMsg);
 
   if (message) {
-    return `Unable to generate an AI reading: ${message}.`;
+    return `无法生成 AI 解读：${message}。`;
   }
 
-  return "Unable to generate an AI reading.";
+  return "无法生成 AI 解读。";
 }
 
 function drawCards(spread) {

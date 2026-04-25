@@ -7,12 +7,12 @@ function normalizeReading(rawReading, fallbackReading) {
 
   return {
     schemaVersion: reading.schemaVersion || READING_SCHEMA_VERSION,
-    sourceLabel: reading.sourceLabel || fallback.sourceLabel || "Prototype",
+    sourceLabel: reading.sourceLabel || fallback.sourceLabel || "原型",
     summary: textOr(reading.summary, fallback.summary),
     cards: cards.map((card, index) => ({
       id: textOr(card.id, `card-${index}`),
-      position: textOr(card.position, "Card"),
-      name: textOr(card.name, "Unknown card"),
+      position: textOr(card.position, "牌位"),
+      name: textOr(card.name, "未知牌"),
       orientation: textOr(card.orientation, "upright"),
       orientationText: formatOrientation(card.orientation),
       keywords: Array.isArray(card.keywords) ? card.keywords : [],
@@ -25,7 +25,7 @@ function normalizeReading(rawReading, fallbackReading) {
     caveat: textOr(
       reading.caveat,
       fallback.caveat ||
-        "Tarot readings are for reflection and entertainment, not professional advice or certain predictions."
+        "塔罗解读仅供反思与娱乐，不构成专业建议或确定预言。"
     )
   };
 }
@@ -36,7 +36,7 @@ function createFallbackReading({ question, spread, drawnCards, sourceLabel }) {
 
   return {
     schemaVersion: READING_SCHEMA_VERSION,
-    sourceLabel: sourceLabel || "Prototype OAuth Demo",
+    sourceLabel: sourceLabel || "原型演示",
     summary: `关于“${safeQuestion}”，这个牌阵提示你先看清局面背后的模式，再决定下一步。`,
     cards: drawnCards.map((drawn) => ({
       id: drawn.id,
@@ -44,7 +44,7 @@ function createFallbackReading({ question, spread, drawnCards, sourceLabel }) {
       name: drawn.card.name,
       orientation: drawn.orientation,
       keywords: drawn.keywords,
-      interpretation: `${drawn.card.name}以${drawn.orientation}方向出现，关键词是${drawn.keywords.join("、")}。在“${drawn.position}”位置上，它更适合作为反思的象征，而不是固定的预言。`
+      interpretation: `${drawn.card.name}以${formatOrientation(drawn.orientation)}出现，关键词是${drawn.keywords.join("、")}。在“${drawn.position}”位置上，它更适合作为反思的象征，而不是固定的预言。`
     })),
     overallMessage: `这些牌共同指向：${primaryThemes}。留意你最紧绷、最在意的地方，那里可能正是这次解读真正有用的位置。`,
     practicalReflection:
@@ -58,7 +58,7 @@ function createFallbackReading({ question, spread, drawnCards, sourceLabel }) {
 function createReadingRequest({ question, spread, drawnCards }) {
   return {
     schemaVersion: READING_SCHEMA_VERSION,
-    question: question.trim() || "No specific question was provided.",
+    question: question.trim() || "没有提供具体问题。",
     spread: {
       id: spread.id,
       title: spread.title,

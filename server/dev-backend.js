@@ -16,6 +16,7 @@ const OPENAI_BASE_URL = normalizeBaseUrl(process.env.OPENAI_BASE_URL || "https:/
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5.4-mini";
 const OPENAI_API_MODE = process.env.OPENAI_API_MODE || (OPENAI_BASE_URL.includes("api.openai.com") ? "responses" : "chat_completions");
 const OPENAI_REASONING_EFFORT = process.env.OPENAI_REASONING_EFFORT || "low";
+const READING_SOURCE_LABEL = "GPT-5.4 mini 备用";
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
 const TOKEN_TTL_SECONDS = 60 * 60;
 const READING_RESPONSE_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -66,11 +67,11 @@ const server = http.createServer(async (request, response) => {
         access_token: accessToken,
         token_type: "Bearer",
         expires_in: TOKEN_TTL_SECONDS,
-        provider: "WeChat",
+        provider: "微信",
         mode: authResult.mode,
         openai_configured: Boolean(OPENAI_API_KEY),
         model: OPENAI_MODEL,
-        label: authResult.mode === "wechat" ? "WeChat Backend Session" : "Local Backend Session"
+        label: authResult.mode === "wechat" ? "微信后端会话" : "本地后端会话"
       });
       return;
     }
@@ -95,7 +96,7 @@ const server = http.createServer(async (request, response) => {
       const readingRequest = validateReadingRequest(body.request);
 
       if (!OPENAI_API_KEY) {
-        throw publicError(503, "AI provider bearer token is not configured on the reading backend.");
+        throw publicError(503, "后端尚未配置 AI 提供方令牌。");
       }
 
       if (asyncRequested) {
@@ -142,7 +143,7 @@ const server = http.createServer(async (request, response) => {
       const startedAt = Date.now();
 
       if (!requestId) {
-        throw publicError(400, "Missing reading request id.");
+        throw publicError(400, "缺少解读请求 ID。");
       }
 
       const cachedResponse = getCachedReadingResponse(requestId);
@@ -157,12 +158,12 @@ const server = http.createServer(async (request, response) => {
 
       if (!job) {
         console.log(`${new Date().toISOString()} GET /readings/status ${requestId} missing ${Date.now() - startedAt}ms`);
-        throw publicError(404, "Reading is not ready yet.");
+        throw publicError(404, "解读尚未完成。");
       }
 
       if (job.status === "failed") {
         console.log(`${new Date().toISOString()} GET /readings/status ${requestId} failed ${Date.now() - startedAt}ms`);
-        throw publicError(job.statusCode || 502, job.error || "AI reading generation failed.");
+        throw publicError(job.statusCode || 502, job.error || "AI 解读生成失败。");
       }
 
       if (job.status === "completed" && job.responseBody) {
@@ -177,12 +178,12 @@ const server = http.createServer(async (request, response) => {
     }
 
     sendJson(response, 404, {
-      error: "Route not found."
+      error: "接口不存在。"
     });
   } catch (error) {
     const statusCode = error.statusCode || 500;
     sendJson(response, statusCode, {
-      error: error.publicMessage || "Backend request failed."
+      error: error.publicMessage || "后端请求失败。"
     });
   }
 });
@@ -194,7 +195,7 @@ server.listen(PORT, "0.0.0.0", () => {
 
 async function authenticateWechat(loginCode) {
   if (!loginCode || typeof loginCode !== "string") {
-    throw publicError(400, "Missing WeChat login code.");
+    throw publicError(400, "缺少微信登录 code。");
   }
 
   if (!WECHAT_APPSECRET) {
@@ -215,7 +216,7 @@ async function authenticateWechat(loginCode) {
   const data = await response.json();
 
   if (!response.ok || data.errcode || !data.openid) {
-    throw publicError(502, data.errmsg || "WeChat login exchange failed.");
+    throw publicError(502, data.errmsg || "微信登录换取会话失败。");
   }
 
   return {
@@ -254,11 +255,12 @@ async function generateOpenAIReading({ readingRequest, responseFormat }) {
     body: JSON.stringify({
       model: OPENAI_MODEL,
       instructions: [
-        "You write reflective tarot readings for a mobile Mini Program.",
-        "Return only JSON that matches the supplied schema.",
-        "The app has already drawn the cards. Do not replace, redraw, or invent cards.",
-        "All user-facing text fields must be written in Simplified Chinese. Keep JSON keys in English.",
-        "Keep the tone grounded, concise, and useful. Avoid certainty, fortune telling, or professional advice."
+        "你为移动端小程序撰写克制、反思性的塔罗解读。",
+        "只返回符合所给 schema 的 JSON，不要输出 markdown、解释文字或代码块。",
+        `sourceLabel 必须使用 \"${READING_SOURCE_LABEL}\"。`,
+        "应用已经完成抽牌。不要替换、重抽、删除或编造牌。",
+        "所有面向用户的文字字段必须使用简体中文。JSON key 保持英文。",
+        "语气温和、具体、有帮助。避免确定性预言，也不要提供医疗、法律、财务或紧急事务建议。"
       ].join(" "),
       input: `Create a tarot reading for this request:\n${JSON.stringify(readingRequest, null, 2)}`,
       text: {
@@ -273,19 +275,22 @@ async function generateOpenAIReading({ readingRequest, responseFormat }) {
   const data = await response.json();
 
   if (!response.ok) {
-    throw publicError(502, data.error && data.error.message ? data.error.message : "OpenAI reading generation failed.");
+    throw publicError(502, data.error && data.error.message ? data.error.message : "AI 解读生成失败。");
   }
 
   const outputText = extractOutputText(data);
 
   if (!outputText) {
-    throw publicError(502, "OpenAI response did not include JSON output text.");
+    throw publicError(502, "AI 响应没有包含 JSON 解读。");
   }
 
   try {
-    return JSON.parse(outputText);
+    return {
+      ...JSON.parse(outputText),
+      sourceLabel: READING_SOURCE_LABEL
+    };
   } catch (error) {
-    throw publicError(502, "OpenAI response was not valid JSON.");
+    throw publicError(502, "AI 响应不是有效 JSON。");
   }
 }
 
@@ -302,13 +307,13 @@ async function generateChatCompletionReading({ readingRequest, responseFormat })
         {
           role: "system",
           content: [
-            "You write reflective tarot readings for a mobile Mini Program.",
-            "Return exactly one valid JSON object and no markdown, prose, or code fences.",
-            "The JSON must match the supplied schema.",
-            "Use sourceLabel \"GPT-5.4 mini via Codex\".",
-            "The app has already drawn the cards. Do not replace, redraw, or invent cards.",
-            "All user-facing text fields must be written in Simplified Chinese. Keep JSON keys in English.",
-            "Keep the tone grounded, concise, and useful. Avoid certainty, fortune telling, or professional advice."
+            "你为移动端小程序撰写克制、反思性的塔罗解读。",
+            "只返回一个有效 JSON 对象，不要输出 markdown、解释文字或代码块。",
+            "JSON 必须符合所给 schema。",
+            `sourceLabel 必须使用 \"${READING_SOURCE_LABEL}\"。`,
+            "应用已经完成抽牌。不要替换、重抽、删除或编造牌。",
+            "所有面向用户的文字字段必须使用简体中文。JSON key 保持英文。",
+            "语气温和、具体、有帮助。避免确定性预言，也不要提供专业建议。"
           ].join(" ")
         },
         {
@@ -328,7 +333,7 @@ async function generateChatCompletionReading({ readingRequest, responseFormat })
   const data = await response.json();
 
   if (!response.ok || data.error) {
-    const message = data.error && data.error.message ? data.error.message : "AI reading generation failed.";
+    const message = data.error && data.error.message ? data.error.message : "AI 解读生成失败。";
     throw publicError(502, message);
   }
 
@@ -341,30 +346,30 @@ async function generateChatCompletionReading({ readingRequest, responseFormat })
       : "";
 
   if (!outputText) {
-    throw publicError(502, "AI response did not include JSON output text.");
+    throw publicError(502, "AI 响应没有包含 JSON 解读。");
   }
 
   try {
     return {
       ...JSON.parse(extractJsonObject(outputText)),
-      sourceLabel: "GPT-5.4 mini via Codex"
+      sourceLabel: READING_SOURCE_LABEL
     };
   } catch (error) {
-    throw publicError(502, "AI response was not valid JSON.");
+    throw publicError(502, "AI 响应不是有效 JSON。");
   }
 }
 
 function validateReadingRequest(readingRequest) {
   if (!readingRequest || typeof readingRequest !== "object") {
-    throw publicError(400, "Missing reading request.");
+    throw publicError(400, "缺少解读请求。");
   }
 
   if (!readingRequest.spread || !Array.isArray(readingRequest.drawnCards)) {
-    throw publicError(400, "Reading request must include spread and drawnCards.");
+    throw publicError(400, "解读请求必须包含牌阵和已抽取牌面。");
   }
 
   if (readingRequest.drawnCards.length < 1 || readingRequest.drawnCards.length > 10) {
-    throw publicError(400, "Reading request must include between 1 and 10 drawn cards.");
+    throw publicError(400, "解读请求必须包含 1 到 10 张已抽取牌面。");
   }
 
   return readingRequest;

@@ -10,6 +10,6 @@ App({
   },
 
   globalData: {
-    appName: "AI Tarot"
+    appName: "AI 塔罗"
   }
 });

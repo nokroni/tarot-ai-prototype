@@ -12,11 +12,11 @@ function hasCloudBaseAI(cloudAIConfig) {
 
 async function createCloudBaseReading({ cloudAIConfig, readingRequest }) {
   if (!hasCloudBaseAI(cloudAIConfig)) {
-    throw new Error("CloudBase AI is not configured.");
+    throw new Error("云开发 AI 尚未配置。");
   }
 
   if (!wx.cloud || !wx.cloud.extend || !wx.cloud.extend.AI) {
-    throw new Error("CloudBase AI is unavailable in this WeChat runtime.");
+    throw new Error("当前微信运行环境不可用云开发 AI。");
   }
 
   const model = wx.cloud.extend.AI.createModel(cloudAIConfig.provider);
@@ -24,7 +24,7 @@ async function createCloudBaseReading({ cloudAIConfig, readingRequest }) {
     data: {
       model: cloudAIConfig.model,
       messages: createMessages({
-        sourceLabel: cloudAIConfig.sourceLabel || "CloudBase Hunyuan",
+        sourceLabel: cloudAIConfig.sourceLabel || "腾讯混元",
         readingRequest
       })
     }
@@ -32,13 +32,13 @@ async function createCloudBaseReading({ cloudAIConfig, readingRequest }) {
   const outputText = await collectStreamText(result);
 
   if (!outputText) {
-    throw new Error("CloudBase AI returned an empty reading.");
+    throw new Error("云开发 AI 返回了空解读。");
   }
 
   try {
     return JSON.parse(extractJsonObject(outputText));
   } catch (error) {
-    throw new Error("CloudBase AI response was not valid reading JSON.");
+    throw new Error("云开发 AI 返回的解读 JSON 无效。");
   }
 }
 

@@ -1,19 +1,19 @@
 <view class="page">
   <view class="hero">
     <view>
-      <text class="eyebrow">Prototype Reading</text>
-      <text class="title">AI Tarot</text>
+      <text class="eyebrow">原型解读</text>
+      <text class="title">AI 塔罗</text>
     </view>
     <view class="moon"></view>
   </view>
 
   <view class="panel question-panel">
-    <text class="label">Your question</text>
+    <text class="label">你的问题</text>
     <textarea
       class="question-input"
       auto-height="{{false}}"
       maxlength="180"
-      placeholder="What do I need to understand today?"
+      placeholder="今天我需要理解什么？"
       placeholder-class="placeholder"
       value="{{question}}"
       bindinput="onQuestionInput"
@@ -21,7 +21,7 @@
   </view>
 
   <view class="panel">
-    <text class="label">Spread</text>
+    <text class="label">牌阵</text>
     <view class="spread-control">
       <button
         wx:for="{{spreads}}"
@@ -38,7 +38,7 @@
   <view class="actions">
     <button class="action-button draw-button" bindtap="drawCards">
       <text class="action-icon">✦</text>
-      <text>Draw Cards</text>
+      <text>抽牌</text>
     </button>
     <button
       class="action-button interpret-button {{drawnCards.length === 0 ? 'disabled' : ''}}"
@@ -47,13 +47,13 @@
       bindtap="interpretReading"
     >
       <text class="action-icon">✧</text>
-      <text>Interpret</text>
+      <text>解读</text>
     </button>
   </view>
 
   <view wx:if="{{drawnCards.length > 0}}" class="cards-section">
     <view class="section-heading">
-      <text class="eyebrow">Drawn Locally</text>
+      <text class="eyebrow">已抽取</text>
       <text class="section-title">{{selectedSpread.title}}</text>
     </view>
 
@@ -79,7 +79,7 @@
 
   <view wx:if="{{interpretation}}" class="reading">
     <view class="reading-heading">
-      <text class="section-title">Reading</text>
+      <text class="section-title">解读</text>
       <text class="source-pill">{{interpretation.sourceLabel}}</text>
     </view>
     <text class="reading-text">{{interpretation.summary}}</text>
@@ -92,17 +92,17 @@
       </view>
     </view>
 
-    <text class="reading-label">Overall message</text>
+    <text class="reading-label">整体讯息</text>
     <text class="reading-text">{{interpretation.overallMessage}}</text>
-    <text class="reading-label">Practical reflection</text>
+    <text class="reading-label">行动提醒</text>
     <text class="reading-text">{{interpretation.practicalReflection}}</text>
-    <text class="reading-label">Journal prompt</text>
+    <text class="reading-label">书写提示</text>
     <text class="reading-text">{{interpretation.journalQuestion}}</text>
     <text class="reading-caveat">{{interpretation.caveat}}</text>
   </view>
 
   <view class="note">
-    <text>Tarot readings are for reflection and entertainment, not professional advice or certain predictions. Cards are drawn inside the app before interpretation.</text>
+    <text>塔罗解读仅供反思与娱乐，不构成专业建议或确定预言。牌面由应用内随机抽取后再进行解读。</text>
   </view>
 
   <view class="provider-footer">

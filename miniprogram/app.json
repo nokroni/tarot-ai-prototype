@@ -3,7 +3,7 @@
     "pages/index/index"
   ],
   "window": {
-    "navigationBarTitleText": "AI Tarot",
+    "navigationBarTitleText": "AI 塔罗",
     "navigationBarBackgroundColor": "#171311",
     "navigationBarTextStyle": "white",
     "backgroundColor": "#f5f0e6"
