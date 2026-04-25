@@ -2,9 +2,9 @@
   min-height: 100vh;
   padding: 52rpx 32rpx 72rpx;
   background:
-    linear-gradient(90deg, rgba(47, 55, 111, 0.06) 1px, transparent 1px),
-    linear-gradient(0deg, rgba(47, 55, 111, 0.05) 1px, transparent 1px),
-    #f5f0e6;
+    linear-gradient(90deg, rgba(91, 63, 163, 0.08) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(91, 63, 163, 0.06) 1px, transparent 1px),
+    #f3edf8;
   background-size: 36rpx 36rpx;
   box-sizing: border-box;
 }
@@ -40,7 +40,7 @@
   height: 76rpx;
   border: 2rpx solid #c78b2e;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, transparent 0 23rpx, #2f376f 24rpx 29rpx, transparent 30rpx);
+  background: radial-gradient(circle at 35% 35%, transparent 0 23rpx, #5b3fa3 24rpx 29rpx, transparent 30rpx);
 }
 
 .panel {
@@ -60,7 +60,7 @@
   width: 100%;
   height: 178rpx;
   padding: 28rpx 32rpx;
-  border: 2rpx solid #dccfb9;
+  border: 2rpx solid #d8c5e8;
   border-radius: 18rpx;
   background: rgba(255, 250, 240, 0.96);
   box-sizing: border-box;
@@ -77,9 +77,9 @@
   display: flex;
   gap: 8rpx;
   padding: 8rpx;
-  border: 2rpx solid #dccfb9;
+  border: 2rpx solid #d8c5e8;
   border-radius: 18rpx;
-  background: #f1e6d0;
+  background: #eadff7;
 }
 
 .spread-option {
@@ -120,12 +120,12 @@
 }
 
 .draw-button {
-  background: #17695f;
+  background: #5b3fa3;
   color: #fffaf0;
 }
 
 .interpret-button {
-  background: #a34231;
+  background: #9b3f76;
   color: #fffaf0;
 }
 
@@ -167,11 +167,11 @@
   width: 100%;
   min-height: 0;
   padding: 22rpx 24rpx 24rpx;
-  border: 2rpx solid #bfae91;
+  border: 2rpx solid #c9b0dd;
   border-radius: 18rpx;
   background:
-    linear-gradient(135deg, transparent 0 25%, rgba(199, 139, 46, 0.18) 25% 28%, transparent 28%),
-    #fff6df;
+    linear-gradient(135deg, transparent 0 25%, rgba(91, 63, 163, 0.16) 25% 28%, transparent 28%),
+    #fbf7ff;
   box-sizing: border-box;
   text-align: center;
 }
@@ -181,7 +181,7 @@
   width: 58%;
   height: 630rpx;
   margin: 18rpx auto 20rpx;
-  border: 2rpx solid #c78b2e;
+  border: 2rpx solid #8f6ac5;
   border-radius: 12rpx;
   background: #171311;
   box-shadow: 0 10rpx 18rpx rgba(38, 35, 31, 0.16);
@@ -208,7 +208,7 @@
   border: 2rpx solid #c78b2e;
   border-radius: 50%;
   background: #fffaf0;
-  color: #2f376f;
+  color: #5b3fa3;
   font-size: 34rpx;
 }
 
@@ -239,7 +239,7 @@
 .note {
   margin-top: 28rpx;
   padding: 28rpx 32rpx;
-  border: 2rpx solid #dccfb9;
+  border: 2rpx solid #d8c5e8;
   border-radius: 18rpx;
   background: rgba(255, 250, 240, 0.96);
   box-sizing: border-box;
@@ -268,8 +268,8 @@
   flex: 0 0 auto;
   padding: 8rpx 12rpx;
   border-radius: 999rpx;
-  background: #eef7f2;
-  color: #17695f;
+  background: #f1e9ff;
+  color: #5b3fa3;
   font-size: 20rpx;
   font-weight: 850;
 }
@@ -288,14 +288,14 @@
 
 .reading-card {
   padding: 20rpx 0;
-  border-top: 1rpx solid #dccfb9;
+  border-top: 1rpx solid #d8c5e8;
 }
 
 .reading-card-title,
 .reading-label {
   display: block;
   margin-top: 24rpx;
-  color: #17695f;
+  color: #5b3fa3;
   font-size: 24rpx;
   font-weight: 900;
 }
@@ -312,7 +312,7 @@
 .reading-caveat {
   margin-top: 28rpx;
   padding-top: 20rpx;
-  border-top: 1rpx solid #dccfb9;
+  border-top: 1rpx solid #d8c5e8;
 }
 
 .note {
@@ -333,7 +333,7 @@
 }
 
 .provider-status {
-  color: #17695f;
+  color: #5b3fa3;
   font-weight: 850;
 }
 
@@ -351,8 +351,8 @@
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 16%, rgba(199, 139, 46, 0.2), transparent 24%),
-    radial-gradient(circle at 50% 64%, rgba(23, 105, 95, 0.42), transparent 42%),
-    #143f3f;
+    radial-gradient(circle at 52% 64%, rgba(91, 63, 163, 0.56), transparent 42%),
+    #241047;
   color: #fffaf0;
 }
 
@@ -392,16 +392,16 @@
 
 .wheel-arrow {
   position: absolute;
-  top: 168rpx;
-  right: 122rpx;
+  top: 164rpx;
+  right: 90rpx;
   z-index: 8;
-  width: 118rpx;
+  width: 126rpx;
   height: 8rpx;
   border-radius: 999rpx;
   background: #f3ddaa;
   box-shadow: 0 0 20rpx rgba(243, 221, 170, 0.78);
   pointer-events: none;
-  transform: rotate(135deg);
+  transform: rotate(-45deg);
   transform-origin: right center;
 }
 
@@ -420,10 +420,10 @@
 .wheel-ring {
   position: absolute;
   top: 50%;
-  right: -2380rpx;
+  right: -2554rpx;
   width: 3260rpx;
   height: 3260rpx;
-  margin-top: -1050rpx;
+  margin-top: -880rpx;
   border: 2rpx solid rgba(217, 170, 84, 0.28);
   border-radius: 50%;
   transform-origin: center center;
@@ -451,10 +451,15 @@
   top: 50%;
   left: 50%;
   z-index: 2;
-  width: 104rpx;
-  height: 182rpx;
-  opacity: 0.86;
+  width: 168rpx;
+  height: 294rpx;
+  opacity: 0;
+  pointer-events: none;
   transition: opacity 160ms ease, filter 160ms ease;
+}
+
+.wheel-card-slot.visible {
+  opacity: 0.9;
 }
 
 .wheel-card-slot.active {
@@ -485,8 +490,8 @@
   right: 42rpx;
   bottom: 48rpx;
   z-index: 6;
-  width: 210rpx;
-  height: 368rpx;
+  width: 232rpx;
+  height: 406rpx;
   transition: bottom 220ms ease, right 220ms ease, transform 220ms ease, filter 220ms ease;
   filter: drop-shadow(0 18rpx 28rpx rgba(0, 0, 0, 0.28));
 }
@@ -514,7 +519,7 @@
 
 .wheel-copy {
   position: absolute;
-  right: 292rpx;
+  right: 330rpx;
   bottom: 64rpx;
   left: 36rpx;
   z-index: 7;

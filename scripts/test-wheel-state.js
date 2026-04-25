@@ -39,13 +39,18 @@ const context = {
 pageDefinition.drawCards.call(context);
 
 assert.strictEqual(context.data.wheel.isOpen, true, "Wheel should open when drawing starts.");
-assert.strictEqual(context.data.buildLabel, "0.6.4 箭头斜弧", "Build label should identify the arrow diagonal arc build.");
+assert.strictEqual(context.data.buildLabel, "0.6.5 紫色斜弧", "Build label should identify the purple diagonal arc build.");
 assert.strictEqual(context.data.wheel.requiredCount, 3, "Three-card spread should require three selections.");
 assert.strictEqual(context.data.wheelCards.length, 78, "Wheel should contain the complete 78-card deck.");
 assert.strictEqual(context.data.wheel.cardBackSrc, "/images/card-back.png", "Wheel should use the shared card back.");
 assert(
   context.data.wheelCards[0].style.includes("rotate(-43deg)"),
   "Wheel layout should start from the diagonal arrow arc angle."
+);
+assert.strictEqual(
+  context.data.wheelCards.filter((slot) => slot.visible).length,
+  7,
+  "Wheel should show a compact seven-card selection window."
 );
 
 pageDefinition.onWheelTouchStart.call(context, {
@@ -57,6 +62,12 @@ pageDefinition.onWheelTouchMove.call(context, {
 pageDefinition.onWheelTouchEnd.call(context);
 
 assert(vibrationCount > 0, "Wheel should vibrate when a card sweeps over the indicator.");
+assert.strictEqual(
+  context.data.wheelCards.filter((slot) => slot.visible).length,
+  7,
+  "Wheel should keep seven visible cards after scrolling."
+);
+assert.strictEqual(context.data.wheelCards[context.data.wheel.activeIndex].visible, true, "Active card should stay visible.");
 context._wheelIgnoreNextTap = false;
 
 const uniqueCards = new Set(context.data.wheelCards.map((slot) => slot.cardId));

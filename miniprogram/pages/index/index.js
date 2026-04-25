@@ -44,6 +44,7 @@ const WHEEL_CARD_BACK_SRC = "/images/card-back.png";
 const WHEEL_RADIUS_RPX = 1500;
 const WHEEL_ACTIVE_ANGLE_DEG = -43;
 const WHEEL_DRAG_PX_PER_CARD = 24;
+const WHEEL_VISIBLE_NEIGHBORS = 3;
 const WHEEL_STICKY_THRESHOLD = 0.16;
 const WHEEL_STICKY_STRENGTH = 0.62;
 const WHEEL_REVEAL_DELAY_MS = 560;
@@ -586,7 +587,7 @@ Page({
     oauthSession: null,
     oauthStatus: cloudAIEnabled ? "已连接混元" : "未连接",
     backendStatus: formatBackendStatus(),
-    buildLabel: "0.6.4 箭头斜弧",
+    buildLabel: "0.6.5 紫色斜弧",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""
@@ -670,6 +671,7 @@ Page({
     }
 
     this.setData({
+      wheelCards: updateWheelCardVisibility(this.data.wheelCards, activeIndex),
       wheel: Object.assign({}, this.data.wheel, {
         rotationDeg,
         activeIndex,
@@ -697,6 +699,7 @@ Page({
     this._wheelIgnoreNextTap = didDrag;
 
     this.setData({
+      wheelCards: updateWheelCardVisibility(this.data.wheelCards, activeIndex),
       wheel: Object.assign({}, this.data.wheel, {
         rotationDeg: -activeIndex * WHEEL_STEP_DEG,
         activeIndex,
@@ -1092,7 +1095,7 @@ function createOpenWheelState(spread) {
 }
 
 function createWheelCards() {
-  return shuffle(tarotDeck.slice()).map((card, index) => {
+  const wheelCards = shuffle(tarotDeck.slice()).map((card, index) => {
     const orientation = Math.random() >= 0.5 ? "upright" : "reversed";
     const keywords = orientation === "upright" ? card.uprightMeanings : card.reversedMeanings;
 
@@ -1111,6 +1114,8 @@ function createWheelCards() {
       style: createWheelCardStyle(index)
     };
   });
+
+  return updateWheelCardVisibility(wheelCards, 0);
 }
 
 function createWheelCardStyle(index) {
@@ -1139,10 +1144,11 @@ function confirmWheelCard(page, index) {
   const drawnCards = page.data.drawnCards.slice();
   const position = page.data.selectedSpread.positions[drawnCards.length];
   const drawnCard = createDrawnCardFromWheelSlot(slot, position);
-  const wheelCards = markWheelCardDrawn(page.data.wheelCards, index);
   const nextDrawnCards = drawnCards.concat(drawnCard);
   const isComplete = nextDrawnCards.length >= page.data.wheel.requiredCount;
-  const nextActiveIndex = isComplete ? index : findNearestAvailableIndex(wheelCards, index + 1);
+  const markedWheelCards = markWheelCardDrawn(page.data.wheelCards, index);
+  const nextActiveIndex = isComplete ? index : findNearestAvailableIndex(markedWheelCards, index + 1);
+  const wheelCards = updateWheelCardVisibility(markedWheelCards, nextActiveIndex);
 
   page.setData({
     drawnCards: nextDrawnCards,
@@ -1233,6 +1239,27 @@ function findNearestAvailableIndex(wheelCards, targetIndex) {
   }
 
   return normalizedTarget;
+}
+
+function updateWheelCardVisibility(wheelCards, activeIndex) {
+  return wheelCards.map((slot, index) => {
+    const visible = getWheelIndexDistance(index, activeIndex) <= WHEEL_VISIBLE_NEIGHBORS;
+
+    if (slot.visible === visible) {
+      return slot;
+    }
+
+    return Object.assign({}, slot, {
+      visible
+    });
+  });
+}
+
+function getWheelIndexDistance(firstIndex, secondIndex) {
+  const count = tarotDeck.length;
+  const distance = Math.abs(normalizeWheelIndex(firstIndex) - normalizeWheelIndex(secondIndex));
+
+  return Math.min(distance, count - distance);
 }
 
 function normalizeWheelIndex(index) {

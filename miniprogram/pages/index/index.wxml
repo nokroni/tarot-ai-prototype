@@ -97,8 +97,6 @@
     <text class="reading-text">{{interpretation.overallMessage}}</text>
     <text class="reading-label">行动提醒</text>
     <text class="reading-text">{{interpretation.practicalReflection}}</text>
-    <text class="reading-label">书写提示</text>
-    <text class="reading-text">{{interpretation.journalQuestion}}</text>
     <text class="reading-caveat">{{interpretation.caveat}}</text>
   </view>
 
@@ -130,7 +128,7 @@
         <view
           wx:for="{{wheelCards}}"
           wx:key="id"
-          class="wheel-card-slot {{index === wheel.activeIndex ? 'active' : ''}} {{index === wheel.selectedIndex ? 'popped' : ''}} {{item.drawn ? 'drawn' : ''}}"
+          class="wheel-card-slot {{item.visible ? 'visible' : ''}} {{index === wheel.activeIndex ? 'active' : ''}} {{index === wheel.selectedIndex ? 'popped' : ''}} {{item.drawn ? 'drawn' : ''}}"
           style="{{item.style}}"
         >
           <image class="wheel-card-back" src="{{wheel.cardBackSrc}}" mode="aspectFit" />
