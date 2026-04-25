@@ -52,7 +52,7 @@ const context = {
 pageDefinition.drawCards.call(context);
 
 assert.strictEqual(context.data.wheel.isOpen, true, "Wheel should open when drawing starts.");
-assert.strictEqual(context.data.buildLabel, "0.6.16 弧线轮盘", "Build label should identify the continuous arc wheel build.");
+assert.strictEqual(context.data.buildLabel, "0.6.17 稳定弧线轮盘", "Build label should identify the stable high arc wheel build.");
 assert.strictEqual(context.data.wheel.requiredCount, 3, "Three-card spread should require three selections.");
 assert.strictEqual(context.data.wheel.scrollLeft, 0, "Wheel should start at the first preassigned slot.");
 assert.strictEqual(context.data.wheel.activeIndex, 0, "Wheel should start with the first slot highlighted.");
@@ -60,9 +60,9 @@ assert.strictEqual(context.data.wheelCards.length, 78, "Wheel should contain the
 assert.strictEqual(context.data.wheel.cardBackSrc, "/images/card-back.png", "Wheel should use the shared card back.");
 assert(
   context.data.wheelCards[0].arcStyle.includes("translate(0rpx, 32rpx)") &&
-    context.data.wheelCards[7].arcStyle.includes("translate(-103rpx, -380rpx)") &&
-    context.data.wheelCards[7].arcStyle.includes("rotate(36.4deg)"),
-  "Wheel cards should be presented as a continuous arc around the active slot."
+    context.data.wheelCards[7].arcStyle.includes("translate(-103rpx, -583rpx)") &&
+    context.data.wheelCards[7].arcStyle.includes("rotate(39.9deg)"),
+  "Wheel cards should be presented as a higher stable arc around the active slot."
 );
 
 pageDefinition.onWheelNativeScroll.call(context, {
@@ -78,9 +78,25 @@ assert.strictEqual(context.data.wheel.scrollLeft, WHEEL_TEST_SCROLL_LEFT, "Wheel
 assert.strictEqual(context.data.wheel.selectedIndex, -1, "Scrolling should keep the wheel in choosing mode.");
 assert(
   context.data.wheelCards[3].arcStyle.includes("translate(0rpx, 32rpx)") &&
-    context.data.wheelCards[0].arcStyle.includes("translate(-19rpx, 289rpx)") &&
-    context.data.wheelCards[6].arcStyle.includes("translate(-19rpx, -198rpx)"),
-  "Wheel presentation should follow the same centered arc after native scrolling."
+    context.data.wheelCards[0].arcStyle.includes("translate(-19rpx, 371rpx)") &&
+    context.data.wheelCards[6].arcStyle.includes("translate(-19rpx, -290rpx)"),
+  "Wheel presentation should use the same active-slot arc after native scrolling."
+);
+
+const stableArcForActive = context.data.wheelCards.map((slot) => slot.arcStyle).join("|");
+
+pageDefinition.onWheelNativeScroll.call(context, {
+  detail: {
+    scrollLeft: WHEEL_TEST_SCROLL_LEFT + 8
+  }
+});
+pageDefinition.onWheelNativeScrollEnd.call(context);
+
+assert.strictEqual(context.data.wheel.activeIndex, 3, "Approaching the same active slot should keep the same highlighted card.");
+assert.strictEqual(
+  context.data.wheelCards.map((slot) => slot.arcStyle).join("|"),
+  stableArcForActive,
+  "Same active slot should keep identical card heights regardless of fractional scroll approach."
 );
 
 pageDefinition.onWheelNativeScroll.call(context, {
@@ -94,7 +110,7 @@ assert.strictEqual(context.data.wheel.activeIndex, 77, "Wheel should allow snapp
 assert.strictEqual(context.data.wheel.scrollLeft, WHEEL_LAST_SCROLL_LEFT, "Final deck slot should be reachable by native scroll.");
 assert(
   context.data.wheelCards[77].arcStyle.includes("translate(0rpx, 32rpx)") &&
-    context.data.wheelCards[76].arcStyle.includes("translate(-2rpx, 117rpx)"),
+    context.data.wheelCards[76].arcStyle.includes("translate(-2rpx, 146rpx)"),
   "Final deck slot should own the centered visual curve."
 );
 

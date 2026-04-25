@@ -395,7 +395,7 @@
 
 .wheel-stage {
   position: absolute;
-  top: 72rpx;
+  top: 20rpx;
   right: 0;
   bottom: 104rpx;
   left: 0;

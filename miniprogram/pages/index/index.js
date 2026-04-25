@@ -43,7 +43,6 @@ const cardFaceFileOverrides = {
 const WHEEL_CARD_BACK_SRC = "/images/card-back.png";
 const WHEEL_CARD_STRIDE_RPX = 44;
 const WHEEL_ARC_MAX_DISTANCE = 7;
-const WHEEL_PRESENTATION_THROTTLE_MS = 32;
 const WHEEL_SCROLL_SETTLE_MS = 560;
 const WHEEL_DRAG_RELEASE_SETTLE_MS = 820;
 const WHEEL_REVEAL_DELAY_MS = 560;
@@ -584,7 +583,7 @@ Page({
     oauthSession: null,
     oauthStatus: cloudAIEnabled ? "已连接混元" : "未连接",
     backendStatus: formatBackendStatus(),
-    buildLabel: "0.6.16 弧线轮盘",
+    buildLabel: "0.6.17 稳定弧线轮盘",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""
@@ -1187,8 +1186,8 @@ function createWheelCardArcStyle(distance) {
   const absoluteDistance = Math.abs(clampedDistance);
   const arcProgress = clampedDistance / WHEEL_ARC_MAX_DISTANCE;
   const translateX = Math.round(-absoluteDistance * absoluteDistance * 2.1);
-  const translateY = Math.round(32 - Math.sin(arcProgress * 1.05) * 560 + absoluteDistance * absoluteDistance * 1.5);
-  const rotation = Math.sin(arcProgress * 1.05) * 42;
+  const translateY = Math.round(32 - Math.sin(arcProgress * 1.05) * 760 + absoluteDistance * absoluteDistance * 0.9);
+  const rotation = Math.sin(arcProgress * 1.05) * 46;
   const scale = Math.max(0.68, 1.08 - absoluteDistance * 0.044);
   const opacity = Math.max(0.45, 1 - absoluteDistance * 0.055);
 
@@ -1205,19 +1204,17 @@ function handleWheelNativeScroll(page, scrollLeft) {
   page._wheelScrollLeft = nextScrollLeft;
   clearWheelScrollSettleTimer(page);
 
-  const scrollPosition = getWheelPositionFromScrollLeft(page, nextScrollLeft);
-  const targetIndex = getWheelIndexFromPosition(page, scrollPosition);
+  const targetIndex = getWheelIndexFromScrollLeft(page, nextScrollLeft);
   const activeIndex = findNearestAvailableIndex(page.data.wheelCards, targetIndex);
   const now = Date.now();
   const shouldUpdatePresentation =
     activeIndex !== page.data.wheel.activeIndex ||
-    !page._lastWheelPresentationAt ||
-    now - page._lastWheelPresentationAt >= WHEEL_PRESENTATION_THROTTLE_MS;
+    !page._lastWheelPresentationAt;
   const updates = {};
 
   if (shouldUpdatePresentation) {
     page._lastWheelPresentationAt = now;
-    updates.wheelCards = updateWheelCardPresentation(page.data.wheelCards, scrollPosition);
+    updates.wheelCards = updateWheelCardPresentation(page.data.wheelCards, activeIndex);
   }
 
   if (activeIndex !== page.data.wheel.activeIndex) {
