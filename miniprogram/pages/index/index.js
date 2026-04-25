@@ -583,7 +583,7 @@ Page({
     oauthSession: null,
     oauthStatus: cloudAIEnabled ? "已连接混元" : "未连接",
     backendStatus: formatBackendStatus(),
-    buildLabel: "0.6.11 对角轮盘",
+    buildLabel: "0.6.12 高位对角轮盘",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""
@@ -1180,9 +1180,9 @@ function updateWheelCardPresentation(wheelCards, centerPosition) {
 function createWheelCardArcStyle(distance) {
   const clampedDistance = Math.max(-WHEEL_ARC_MAX_DISTANCE, Math.min(WHEEL_ARC_MAX_DISTANCE, distance));
   const absoluteDistance = Math.abs(clampedDistance);
-  const diagonalLift = clampedDistance * -31;
-  const wheelSag = absoluteDistance * absoluteDistance * 2.6;
-  const translateY = Math.round(18 + diagonalLift + wheelSag);
+  const diagonalLift = clampedDistance * -48;
+  const wheelSag = absoluteDistance * absoluteDistance * 2.3;
+  const translateY = Math.round(26 + diagonalLift + wheelSag);
   const rotation = clampedDistance * 5.2;
   const scale = Math.max(0.72, 1.08 - absoluteDistance * 0.045);
   const opacity = Math.max(0.45, 1 - absoluteDistance * 0.055);

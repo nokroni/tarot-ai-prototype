@@ -382,7 +382,7 @@
 
 .wheel-stage {
   position: absolute;
-  top: 126rpx;
+  top: 96rpx;
   right: 0;
   bottom: 104rpx;
   left: 0;
@@ -392,8 +392,8 @@
 .wheel-stage::before,
 .wheel-stage::after {
   position: absolute;
-  left: -470rpx;
-  bottom: -920rpx;
+  left: -500rpx;
+  bottom: -950rpx;
   z-index: 0;
   width: 1520rpx;
   height: 1520rpx;
@@ -404,8 +404,8 @@
 }
 
 .wheel-stage::after {
-  left: -336rpx;
-  bottom: -786rpx;
+  left: -366rpx;
+  bottom: -816rpx;
   width: 1252rpx;
   height: 1252rpx;
   border-color: rgba(255, 250, 240, 0.1);
