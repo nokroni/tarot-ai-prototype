@@ -123,8 +123,7 @@
       bindtouchend="onWheelTouchEnd"
       bindtouchcancel="onWheelTouchEnd"
     >
-      <view class="wheel-arrow"></view>
-      <view class="wheel-ring" style="transform: rotate({{wheel.rotationDeg}}deg);">
+      <view class="wheel-ring">
         <view
           wx:for="{{wheelCards}}"
           wx:key="id"

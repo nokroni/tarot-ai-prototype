@@ -43,6 +43,7 @@ const cardFaceFileOverrides = {
 const WHEEL_CARD_BACK_SRC = "/images/card-back.png";
 const WHEEL_RADIUS_RPX = 1500;
 const WHEEL_ACTIVE_ANGLE_DEG = -43;
+const WHEEL_VISUAL_STEP_DEG = 10;
 const WHEEL_DRAG_PX_PER_CARD = 24;
 const WHEEL_VISIBLE_NEIGHBORS = 3;
 const WHEEL_STICKY_THRESHOLD = 0.16;
@@ -587,7 +588,7 @@ Page({
     oauthSession: null,
     oauthStatus: cloudAIEnabled ? "已连接混元" : "未连接",
     backendStatus: formatBackendStatus(),
-    buildLabel: "0.6.5 紫色斜弧",
+    buildLabel: "0.6.6 宽距斜弧",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""
@@ -671,7 +672,7 @@ Page({
     }
 
     this.setData({
-      wheelCards: updateWheelCardVisibility(this.data.wheelCards, activeIndex),
+      wheelCards: updateWheelCardVisibility(this.data.wheelCards, activeIndex, rotationDeg),
       wheel: Object.assign({}, this.data.wheel, {
         rotationDeg,
         activeIndex,
@@ -694,14 +695,15 @@ Page({
     }
 
     const activeIndex = findNearestAvailableIndex(this.data.wheelCards, this.data.wheel.activeIndex);
+    const rotationDeg = -activeIndex * WHEEL_STEP_DEG;
 
     this._wheelDidDrag = false;
     this._wheelIgnoreNextTap = didDrag;
 
     this.setData({
-      wheelCards: updateWheelCardVisibility(this.data.wheelCards, activeIndex),
+      wheelCards: updateWheelCardVisibility(this.data.wheelCards, activeIndex, rotationDeg),
       wheel: Object.assign({}, this.data.wheel, {
-        rotationDeg: -activeIndex * WHEEL_STEP_DEG,
+        rotationDeg,
         activeIndex,
         selectedIndex: -1,
         phase: "choosing",
@@ -724,9 +726,12 @@ Page({
     const selectedIndex = this.data.wheel.selectedIndex;
 
     if (selectedIndex !== activeIndex) {
+      const rotationDeg = -activeIndex * WHEEL_STEP_DEG;
+
       this.setData({
+        wheelCards: updateWheelCardVisibility(this.data.wheelCards, activeIndex, rotationDeg),
         wheel: Object.assign({}, this.data.wheel, {
-          rotationDeg: -activeIndex * WHEEL_STEP_DEG,
+          rotationDeg,
           activeIndex,
           selectedIndex: activeIndex,
           phase: "popped",
@@ -1111,15 +1116,19 @@ function createWheelCards() {
       orientationLabel: formatOrientation(orientation),
       keywords,
       drawn: false,
-      style: createWheelCardStyle(index)
+      style: createWheelCardStyle(index, 0, 0)
     };
   });
 
-  return updateWheelCardVisibility(wheelCards, 0);
+  return updateWheelCardVisibility(wheelCards, 0, 0);
 }
 
-function createWheelCardStyle(index) {
-  return `transform: translate(-50%, -50%) rotate(${WHEEL_ACTIVE_ANGLE_DEG + index * WHEEL_STEP_DEG}deg) translateY(-${WHEEL_RADIUS_RPX}rpx);`;
+function createWheelCardStyle(index, activeIndex, rotationDeg) {
+  const signedDistance = getSignedWheelIndexDistance(index, activeIndex);
+  const scrollOffset = getWheelScrollOffset(rotationDeg, activeIndex);
+  const visualAngle = WHEEL_ACTIVE_ANGLE_DEG + (signedDistance - scrollOffset) * WHEEL_VISUAL_STEP_DEG;
+
+  return `transform: translate(-50%, -50%) rotate(${visualAngle}deg) translateY(-${WHEEL_RADIUS_RPX}rpx);`;
 }
 
 function applyWheelStickyRotation(rotationDeg) {
@@ -1148,13 +1157,14 @@ function confirmWheelCard(page, index) {
   const isComplete = nextDrawnCards.length >= page.data.wheel.requiredCount;
   const markedWheelCards = markWheelCardDrawn(page.data.wheelCards, index);
   const nextActiveIndex = isComplete ? index : findNearestAvailableIndex(markedWheelCards, index + 1);
-  const wheelCards = updateWheelCardVisibility(markedWheelCards, nextActiveIndex);
+  const rotationDeg = -nextActiveIndex * WHEEL_STEP_DEG;
+  const wheelCards = updateWheelCardVisibility(markedWheelCards, nextActiveIndex, rotationDeg);
 
   page.setData({
     drawnCards: nextDrawnCards,
     wheelCards,
     wheel: Object.assign({}, page.data.wheel, {
-      rotationDeg: -nextActiveIndex * WHEEL_STEP_DEG,
+      rotationDeg,
       activeIndex: nextActiveIndex,
       selectedIndex: index,
       phase: "revealing",
@@ -1241,25 +1251,43 @@ function findNearestAvailableIndex(wheelCards, targetIndex) {
   return normalizedTarget;
 }
 
-function updateWheelCardVisibility(wheelCards, activeIndex) {
+function updateWheelCardVisibility(wheelCards, activeIndex, rotationDeg) {
   return wheelCards.map((slot, index) => {
-    const visible = getWheelIndexDistance(index, activeIndex) <= WHEEL_VISIBLE_NEIGHBORS;
+    const visible = Math.abs(getSignedWheelIndexDistance(index, activeIndex)) <= WHEEL_VISIBLE_NEIGHBORS;
+    const style = createWheelCardStyle(index, activeIndex, rotationDeg);
 
-    if (slot.visible === visible) {
+    if (slot.visible === visible && slot.style === style) {
       return slot;
     }
 
     return Object.assign({}, slot, {
-      visible
+      visible,
+      style
     });
   });
 }
 
-function getWheelIndexDistance(firstIndex, secondIndex) {
+function getSignedWheelIndexDistance(index, activeIndex) {
   const count = tarotDeck.length;
-  const distance = Math.abs(normalizeWheelIndex(firstIndex) - normalizeWheelIndex(secondIndex));
+  let distance = normalizeWheelIndex(index) - normalizeWheelIndex(activeIndex);
 
-  return Math.min(distance, count - distance);
+  if (distance > count / 2) {
+    distance -= count;
+  }
+
+  if (distance < -count / 2) {
+    distance += count;
+  }
+
+  return distance;
+}
+
+function getWheelScrollOffset(rotationDeg, activeIndex) {
+  const count = tarotDeck.length;
+  const scrollPosition = -rotationDeg / WHEEL_STEP_DEG;
+  const activeCyclePosition = activeIndex + Math.round((scrollPosition - activeIndex) / count) * count;
+
+  return scrollPosition - activeCyclePosition;
 }
 
 function normalizeWheelIndex(index) {

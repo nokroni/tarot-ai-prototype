@@ -39,13 +39,18 @@ const context = {
 pageDefinition.drawCards.call(context);
 
 assert.strictEqual(context.data.wheel.isOpen, true, "Wheel should open when drawing starts.");
-assert.strictEqual(context.data.buildLabel, "0.6.5 紫色斜弧", "Build label should identify the purple diagonal arc build.");
+assert.strictEqual(context.data.buildLabel, "0.6.6 宽距斜弧", "Build label should identify the wide-spaced diagonal arc build.");
 assert.strictEqual(context.data.wheel.requiredCount, 3, "Three-card spread should require three selections.");
 assert.strictEqual(context.data.wheelCards.length, 78, "Wheel should contain the complete 78-card deck.");
 assert.strictEqual(context.data.wheel.cardBackSrc, "/images/card-back.png", "Wheel should use the shared card back.");
 assert(
   context.data.wheelCards[0].style.includes("rotate(-43deg)"),
   "Wheel layout should start from the diagonal arrow arc angle."
+);
+assert(
+  context.data.wheelCards[75].style.includes("rotate(-73deg)") &&
+    context.data.wheelCards[3].style.includes("rotate(-13deg)"),
+  "Visible wheel cards should use widened visual spacing across the arc."
 );
 assert.strictEqual(
   context.data.wheelCards.filter((slot) => slot.visible).length,
@@ -61,7 +66,7 @@ pageDefinition.onWheelTouchMove.call(context, {
 });
 pageDefinition.onWheelTouchEnd.call(context);
 
-assert(vibrationCount > 0, "Wheel should vibrate when a card sweeps over the indicator.");
+assert(vibrationCount > 0, "Wheel should vibrate when a card crosses the active selection highlight.");
 assert.strictEqual(
   context.data.wheelCards.filter((slot) => slot.visible).length,
   7,
