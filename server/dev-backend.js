@@ -14,6 +14,7 @@ const WECHAT_APPSECRET = process.env.WECHAT_APPSECRET || "";
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 const OPENAI_BASE_URL = normalizeBaseUrl(process.env.OPENAI_BASE_URL || "https://api.openai.com/v1");
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5.4-mini";
+const OPENAI_API_MODE = process.env.OPENAI_API_MODE || (OPENAI_BASE_URL.includes("api.openai.com") ? "responses" : "chat_completions");
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
 const TOKEN_TTL_SECONDS = 60 * 60;
 
@@ -35,6 +36,7 @@ const server = http.createServer(async (request, response) => {
         ok: true,
         appid: WECHAT_APPID,
         model: OPENAI_MODEL,
+        aiMode: OPENAI_API_MODE,
         openaiConfigured: Boolean(OPENAI_API_KEY),
         wechatConfigured: Boolean(WECHAT_APPSECRET)
       });
@@ -139,6 +141,10 @@ async function authenticateWechat(loginCode) {
 }
 
 async function generateOpenAIReading({ readingRequest, responseFormat }) {
+  if (OPENAI_API_MODE === "chat_completions") {
+    return generateChatCompletionReading({ readingRequest, responseFormat });
+  }
+
   const response = await fetch(`${OPENAI_BASE_URL}/responses`, {
     method: "POST",
     headers: {
@@ -176,6 +182,69 @@ async function generateOpenAIReading({ readingRequest, responseFormat }) {
     return JSON.parse(outputText);
   } catch (error) {
     throw publicError(502, "OpenAI response was not valid JSON.");
+  }
+}
+
+async function generateChatCompletionReading({ readingRequest, responseFormat }) {
+  const response = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: OPENAI_MODEL,
+      messages: [
+        {
+          role: "system",
+          content: [
+            "You write reflective tarot readings for a mobile Mini Program.",
+            "Return exactly one valid JSON object and no markdown, prose, or code fences.",
+            "The JSON must match the supplied schema.",
+            "Use sourceLabel \"GPT-5.4 mini via Codex\".",
+            "The app has already drawn the cards. Do not replace, redraw, or invent cards.",
+            "Keep the tone grounded, concise, and useful. Avoid certainty, fortune telling, or professional advice."
+          ].join(" ")
+        },
+        {
+          role: "user",
+          content: [
+            "JSON schema:",
+            JSON.stringify(responseFormat.schema || responseFormat, null, 2),
+            "Reading request:",
+            JSON.stringify(readingRequest, null, 2)
+          ].join("\n")
+        }
+      ],
+      max_tokens: 1800
+    })
+  });
+  const data = await response.json();
+
+  if (!response.ok || data.error) {
+    const message = data.error && data.error.message ? data.error.message : "AI reading generation failed.";
+    throw publicError(502, message);
+  }
+
+  const outputText =
+    data.choices &&
+    data.choices[0] &&
+    data.choices[0].message &&
+    typeof data.choices[0].message.content === "string"
+      ? data.choices[0].message.content
+      : "";
+
+  if (!outputText) {
+    throw publicError(502, "AI response did not include JSON output text.");
+  }
+
+  try {
+    return {
+      ...JSON.parse(extractJsonObject(outputText)),
+      sourceLabel: "GPT-5.4 mini via Codex"
+    };
+  } catch (error) {
+    throw publicError(502, "AI response was not valid JSON.");
   }
 }
 
@@ -270,6 +339,28 @@ function extractOutputText(data) {
     .map((content) => content.text || "")
     .join("")
     .trim();
+}
+
+function extractJsonObject(text) {
+  const trimmed = String(text || "").trim();
+
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    return trimmed;
+  }
+
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced && fenced[1]) {
+    return extractJsonObject(fenced[1]);
+  }
+
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+
+  if (start !== -1 && end > start) {
+    return trimmed.slice(start, end + 1);
+  }
+
+  return trimmed;
 }
 
 function readJson(request) {

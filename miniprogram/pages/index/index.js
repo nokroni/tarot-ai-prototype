@@ -193,7 +193,7 @@ Page({
     oauthSession: null,
     oauthStatus: "Not connected",
     backendStatus: appConfig.oauth.readingEndpoint.replace(/\/readings$/, ""),
-    buildLabel: "0.5.3 GPT-5.4 mini",
+    buildLabel: "0.5.4 OpenClaw",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""

@@ -36,11 +36,24 @@ cp .env.example .env.local
 npm run backend
 ```
 
-Set `WECHAT_APPSECRET`, `OPENAI_API_KEY`, and `SESSION_SECRET` in `.env.local` for real WeChat auth and AI readings. The backend defaults to `OPENAI_MODEL=gpt-5.4-mini` and `OPENAI_BASE_URL=https://api.openai.com/v1`.
+Set `WECHAT_APPSECRET`, `OPENAI_API_KEY`, and `SESSION_SECRET` in `.env.local` for real WeChat auth and AI readings. The backend defaults to `OPENAI_MODEL=gpt-5.4-mini`, `OPENAI_BASE_URL=https://api.openai.com/v1`, and `OPENAI_API_MODE=responses`.
 
-`OPENAI_API_KEY` is the bearer token used by the model provider. For direct OpenAI Platform usage, set it to an OpenAI API key. For an internal OpenAI-compatible gateway, such as an OpenClaw Gateway kept on loopback, set `OPENAI_BASE_URL` to that gateway's `/v1` URL and set `OPENAI_API_KEY` to the gateway bearer token. Without a bearer token, the backend still supports WeChat login but returns a configuration error for readings so the Mini Program can show a structured local fallback instead of pretending a model response was generated.
+`OPENAI_API_KEY` is the bearer token used by the model provider. For direct OpenAI Platform usage, set it to an OpenAI API key. For an internal OpenAI-compatible gateway, such as an OpenClaw Gateway kept on loopback, set `OPENAI_BASE_URL` to that gateway's `/v1` URL, set `OPENAI_API_KEY` to the gateway bearer token, and use `OPENAI_API_MODE=chat_completions` when the gateway does not support the Responses API `text.format` parameter. Without a bearer token, the backend still supports WeChat login but returns a configuration error for readings so the Mini Program can show a structured local fallback instead of pretending a model response was generated.
 
 OpenClaw/Codex OAuth should be treated as a server-side gateway credential, not as a per-phone-user OAuth flow. Keep the OpenClaw Gateway private, for example on `127.0.0.1`, and let this backend be the only public HTTPS surface exposed to WeChat.
+
+The current beta VPS route is:
+
+```text
+WeChat Mini Program -> https://muse-ai.cloud -> tarot-backend.service -> 127.0.0.1:18789 OpenClaw Gateway -> Codex OAuth GPT-5.4 mini
+```
+
+On the Ubuntu backend, `openclaw-gateway.service` is loopback-only. The backend uses `OPENAI_BASE_URL=http://127.0.0.1:18789/v1`, `OPENAI_API_MODE=chat_completions`, and `OPENAI_MODEL=openclaw/default`; OpenClaw maps that default agent to `openai-codex/gpt-5.4-mini`. Because the VPS cannot currently reach OpenAI directly, beta testing also depends on a local SSH reverse tunnel that exposes this machine's proxy to the VPS loopback:
+
+```sh
+ssh -fN -o ExitOnForwardFailure=yes -o ServerAliveInterval=30 -o ServerAliveCountMax=3 \
+  -R 127.0.0.1:7897:127.0.0.1:7897 tarot-backend
+```
 
 By default `miniprogram/config.js` points at the Ubuntu-hosted HTTPS test backend:
 
