@@ -415,7 +415,7 @@
 }
 
 .wheel-spacer-end {
-  width: 425rpx;
+  width: 650rpx;
 }
 
 .wheel-card-slot {

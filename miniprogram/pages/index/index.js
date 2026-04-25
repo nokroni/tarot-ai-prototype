@@ -584,7 +584,7 @@ Page({
     oauthSession: null,
     oauthStatus: cloudAIEnabled ? "已连接混元" : "未连接",
     backendStatus: formatBackendStatus(),
-    buildLabel: "0.6.14 陡角轮盘",
+    buildLabel: "0.6.15 稳定轮盘",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""
@@ -1205,8 +1205,8 @@ function handleWheelNativeScroll(page, scrollLeft) {
   page._wheelScrollLeft = nextScrollLeft;
   clearWheelScrollSettleTimer(page);
 
-  const scrollPosition = nextScrollLeft / getWheelStridePx(page);
-  const activeIndex = findNearestAvailableIndex(page.data.wheelCards, Math.round(scrollPosition));
+  const targetIndex = getWheelIndexFromScrollLeft(page, nextScrollLeft);
+  const activeIndex = findNearestAvailableIndex(page.data.wheelCards, targetIndex);
   const now = Date.now();
   const shouldUpdatePresentation =
     activeIndex !== page.data.wheel.activeIndex ||
@@ -1216,7 +1216,7 @@ function handleWheelNativeScroll(page, scrollLeft) {
 
   if (shouldUpdatePresentation) {
     page._lastWheelPresentationAt = now;
-    updates.wheelCards = updateWheelCardPresentation(page.data.wheelCards, scrollPosition);
+    updates.wheelCards = updateWheelCardPresentation(page.data.wheelCards, activeIndex);
   }
 
   if (activeIndex !== page.data.wheel.activeIndex) {
@@ -1242,7 +1242,7 @@ function settleWheelNativeScroll(page) {
   clearWheelScrollSettleTimer(page);
 
   const scrollLeft = Number.isFinite(page._wheelScrollLeft) ? page._wheelScrollLeft : page.data.wheel.scrollLeft;
-  const activeIndex = findNearestAvailableIndex(page.data.wheelCards, Math.round(scrollLeft / getWheelStridePx(page)));
+  const activeIndex = findNearestAvailableIndex(page.data.wheelCards, getWheelIndexFromScrollLeft(page, scrollLeft));
 
   snapWheelToIndex(page, activeIndex);
 }
@@ -1287,7 +1287,22 @@ function clearWheelScrollSettleTimer(page) {
 }
 
 function getWheelScrollLeftForIndex(index, page) {
-  return Math.max(0, normalizeWheelIndex(index) * getWheelStridePx(page));
+  const count = page && page.data && page.data.wheelCards && page.data.wheelCards.length
+    ? page.data.wheelCards.length
+    : tarotDeck.length;
+  const boundedIndex = Math.max(0, Math.min(count - 1, Number(index) || 0));
+
+  return boundedIndex * getWheelStridePx(page);
+}
+
+function getWheelIndexFromScrollLeft(page, scrollLeft) {
+  const count = page && page.data && page.data.wheelCards && page.data.wheelCards.length
+    ? page.data.wheelCards.length
+    : tarotDeck.length;
+  const stridePx = getWheelStridePx(page);
+  const rawIndex = stridePx > 0 ? Math.round(scrollLeft / stridePx) : 0;
+
+  return Math.max(0, Math.min(count - 1, rawIndex));
 }
 
 function getWheelStridePx(page) {

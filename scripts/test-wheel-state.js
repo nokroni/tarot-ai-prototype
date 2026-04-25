@@ -4,6 +4,7 @@ const sharp = require("sharp");
 let pageDefinition = null;
 const originalSetTimeout = global.setTimeout;
 const WHEEL_TEST_SCROLL_LEFT = 66;
+const WHEEL_LAST_SCROLL_LEFT = 1694;
 let vibrationCount = 0;
 
 global.Page = (definition) => {
@@ -50,7 +51,7 @@ const context = {
 pageDefinition.drawCards.call(context);
 
 assert.strictEqual(context.data.wheel.isOpen, true, "Wheel should open when drawing starts.");
-assert.strictEqual(context.data.buildLabel, "0.6.14 陡角轮盘", "Build label should identify the steep diagonal wheel build.");
+assert.strictEqual(context.data.buildLabel, "0.6.15 稳定轮盘", "Build label should identify the stable diagonal wheel build.");
 assert.strictEqual(context.data.wheel.requiredCount, 3, "Three-card spread should require three selections.");
 assert.strictEqual(context.data.wheel.scrollLeft, 0, "Wheel should start at the first preassigned slot.");
 assert.strictEqual(context.data.wheel.activeIndex, 0, "Wheel should start with the first slot highlighted.");
@@ -80,6 +81,28 @@ assert(
     context.data.wheelCards[6].arcStyle.includes("translateY(-187rpx)"),
   "Wheel presentation should recenter its steeper diagonal fan after native scrolling."
 );
+
+pageDefinition.onWheelNativeScroll.call(context, {
+  detail: {
+    scrollLeft: WHEEL_LAST_SCROLL_LEFT
+  }
+});
+pageDefinition.onWheelNativeScrollEnd.call(context);
+
+assert.strictEqual(context.data.wheel.activeIndex, 77, "Wheel should allow snapping to the final deck slot.");
+assert.strictEqual(context.data.wheel.scrollLeft, WHEEL_LAST_SCROLL_LEFT, "Final deck slot should be reachable by native scroll.");
+assert(
+  context.data.wheelCards[77].arcStyle.includes("rotate(0.0deg)") &&
+    context.data.wheelCards[76].arcStyle.includes("translateY(107rpx)"),
+  "Final deck slot should own the centered visual curve."
+);
+
+pageDefinition.onWheelNativeScroll.call(context, {
+  detail: {
+    scrollLeft: WHEEL_TEST_SCROLL_LEFT
+  }
+});
+pageDefinition.onWheelNativeScrollEnd.call(context);
 
 const uniqueCards = new Set(context.data.wheelCards.map((slot) => slot.cardId));
 assert.strictEqual(uniqueCards.size, 78, "Wheel slots should map to unique card faces.");
