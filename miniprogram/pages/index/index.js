@@ -192,6 +192,8 @@ Page({
     interpretation: null,
     oauthSession: null,
     oauthStatus: "Not connected",
+    backendStatus: appConfig.oauth.readingEndpoint.replace(/\/readings$/, ""),
+    buildLabel: "0.5.1 HTTPS",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""

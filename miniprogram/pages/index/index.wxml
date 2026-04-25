@@ -24,6 +24,7 @@
     <view>
       <text class="label compact">AI Backend</text>
       <text class="oauth-status">{{oauthStatus}}</text>
+      <text class="backend-status">{{buildLabel}} · {{backendStatus}}</text>
     </view>
     <view class="oauth-actions">
       <button wx:if="{{!oauthSession}}" class="oauth-button" loading="{{isConnecting}}" bindtap="connectChatGPT">

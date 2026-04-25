@@ -93,6 +93,15 @@
   font-weight: 850;
 }
 
+.backend-status {
+  display: block;
+  max-width: 420rpx;
+  color: #70685d;
+  font-size: 20rpx;
+  line-height: 1.25;
+  word-break: break-all;
+}
+
 .oauth-actions {
   flex: 0 0 auto;
 }
