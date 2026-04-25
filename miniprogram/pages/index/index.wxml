@@ -138,14 +138,16 @@
             data-index="{{index}}"
             bindtap="onWheelCardTap"
           >
-            <view class="wheel-card-shell">
-              <image
-                wx:if="{{wheel.phase === 'revealing' && index === wheel.selectedIndex && wheel.revealedCard}}"
-                class="wheel-card-face {{wheel.revealedCard.orientation === 'reversed' ? 'reversed' : ''}}"
-                src="{{wheel.revealedCard.card.imageSrc}}"
-                mode="aspectFit"
-              />
-              <image wx:else class="wheel-card-back" src="{{wheel.cardBackSrc}}" mode="aspectFit" />
+            <view class="wheel-card-arc" style="{{item.arcStyle}}">
+              <view class="wheel-card-shell">
+                <image
+                  wx:if="{{wheel.phase === 'revealing' && index === wheel.selectedIndex && wheel.revealedCard}}"
+                  class="wheel-card-face {{wheel.revealedCard.orientation === 'reversed' ? 'reversed' : ''}}"
+                  src="{{wheel.revealedCard.card.imageSrc}}"
+                  mode="aspectFit"
+                />
+                <image wx:else class="wheel-card-back" src="{{wheel.cardBackSrc}}" mode="aspectFit" />
+              </view>
             </view>
           </view>
           <view class="wheel-spacer wheel-spacer-end"></view>

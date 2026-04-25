@@ -3,7 +3,7 @@ const sharp = require("sharp");
 
 let pageDefinition = null;
 const originalSetTimeout = global.setTimeout;
-const WHEEL_TEST_SCROLL_LEFT = 78;
+const WHEEL_TEST_SCROLL_LEFT = 66;
 let vibrationCount = 0;
 
 global.Page = (definition) => {
@@ -50,12 +50,17 @@ const context = {
 pageDefinition.drawCards.call(context);
 
 assert.strictEqual(context.data.wheel.isOpen, true, "Wheel should open when drawing starts.");
-assert.strictEqual(context.data.buildLabel, "0.6.9 原生滚轮", "Build label should identify the native wheel build.");
+assert.strictEqual(context.data.buildLabel, "0.6.10 弧形轮盘", "Build label should identify the curved native wheel build.");
 assert.strictEqual(context.data.wheel.requiredCount, 3, "Three-card spread should require three selections.");
 assert.strictEqual(context.data.wheel.scrollLeft, 0, "Wheel should start at the first preassigned slot.");
 assert.strictEqual(context.data.wheel.activeIndex, 0, "Wheel should start with the first slot highlighted.");
 assert.strictEqual(context.data.wheelCards.length, 78, "Wheel should contain the complete 78-card deck.");
 assert.strictEqual(context.data.wheel.cardBackSrc, "/images/card-back.png", "Wheel should use the shared card back.");
+assert(
+  context.data.wheelCards[0].arcStyle.includes("rotate(0.0deg)") &&
+    context.data.wheelCards[7].arcStyle.includes("rotate(43.4deg)"),
+  "Wheel cards should be presented as a curved fan around the active slot."
+);
 
 pageDefinition.onWheelNativeScroll.call(context, {
   detail: {
@@ -68,6 +73,12 @@ assert(vibrationCount > 0, "Wheel should vibrate when a card crosses the active 
 assert.strictEqual(context.data.wheel.activeIndex, 3, "Native scroll position should map to the centered highlighted slot.");
 assert.strictEqual(context.data.wheel.scrollLeft, WHEEL_TEST_SCROLL_LEFT, "Wheel should snap to the nearest native scroll slot.");
 assert.strictEqual(context.data.wheel.selectedIndex, -1, "Scrolling should keep the wheel in choosing mode.");
+assert(
+  context.data.wheelCards[3].arcStyle.includes("rotate(0.0deg)") &&
+    context.data.wheelCards[0].arcStyle.includes("rotate(-18.6deg)") &&
+    context.data.wheelCards[6].arcStyle.includes("rotate(18.6deg)"),
+  "Wheel presentation should recenter its curved fan after native scrolling."
+);
 
 const uniqueCards = new Set(context.data.wheelCards.map((slot) => slot.cardId));
 assert.strictEqual(uniqueCards.size, 78, "Wheel slots should map to unique card faces.");

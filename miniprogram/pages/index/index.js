@@ -41,7 +41,9 @@ const cardFaceFileOverrides = {
   strength: "/images/thestrength.jpeg"
 };
 const WHEEL_CARD_BACK_SRC = "/images/card-back.png";
-const WHEEL_CARD_STRIDE_RPX = 52;
+const WHEEL_CARD_STRIDE_RPX = 44;
+const WHEEL_ARC_MAX_DISTANCE = 7;
+const WHEEL_PRESENTATION_THROTTLE_MS = 32;
 const WHEEL_SCROLL_SETTLE_MS = 120;
 const WHEEL_REVEAL_DELAY_MS = 560;
 const WHEEL_VIBRATE_THROTTLE_MS = 55;
@@ -581,7 +583,7 @@ Page({
     oauthSession: null,
     oauthStatus: cloudAIEnabled ? "已连接混元" : "未连接",
     backendStatus: formatBackendStatus(),
-    buildLabel: "0.6.9 原生滚轮",
+    buildLabel: "0.6.10 弧形轮盘",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""
@@ -1022,7 +1024,7 @@ function createWheelCards() {
     };
   });
 
-  return wheelCards;
+  return updateWheelCardPresentation(wheelCards, 0);
 }
 
 function handleWheelActiveCardTap(page) {
@@ -1059,14 +1061,18 @@ function confirmWheelCard(page, index) {
   const isComplete = nextDrawnCards.length >= page.data.wheel.requiredCount;
   const markedWheelCards = markWheelCardDrawn(page.data.wheelCards, index);
   const nextActiveIndex = isComplete ? index : findNearestAvailableIndex(markedWheelCards, index + 1);
-  const scrollLeft = getWheelScrollLeftForIndex(nextActiveIndex, page);
+  const revealScrollLeft = getWheelScrollLeftForIndex(index, page);
+  const nextScrollLeft = getWheelScrollLeftForIndex(nextActiveIndex, page);
+  const revealingWheelCards = updateWheelCardPresentation(markedWheelCards, index);
+
+  page._wheelScrollLeft = revealScrollLeft;
 
   page.setData({
     drawnCards: nextDrawnCards,
-    wheelCards: markedWheelCards,
+    wheelCards: revealingWheelCards,
     wheel: Object.assign({}, page.data.wheel, {
-      scrollLeft,
-      activeIndex: nextActiveIndex,
+      scrollLeft: revealScrollLeft,
+      activeIndex: index,
       selectedIndex: index,
       phase: "revealing",
       drawnCount: nextDrawnCards.length,
@@ -1084,9 +1090,13 @@ function confirmWheelCard(page, index) {
       return;
     }
 
+    page._wheelScrollLeft = nextScrollLeft;
+
     page.setData({
+      wheelCards: updateWheelCardPresentation(markedWheelCards, nextActiveIndex),
       wheel: Object.assign({}, page.data.wheel, {
-        scrollLeft,
+        scrollLeft: nextScrollLeft,
+        activeIndex: nextActiveIndex,
         selectedIndex: -1,
         phase: "choosing",
         currentDrawNumber: nextDrawnCards.length + 1,
@@ -1153,6 +1163,31 @@ function findNearestAvailableIndex(wheelCards, targetIndex) {
   return normalizedTarget;
 }
 
+function updateWheelCardPresentation(wheelCards, centerPosition) {
+  return wheelCards.map((slot, index) => {
+    const arcStyle = createWheelCardArcStyle(index - centerPosition);
+
+    if (slot.arcStyle === arcStyle) {
+      return slot;
+    }
+
+    return Object.assign({}, slot, {
+      arcStyle
+    });
+  });
+}
+
+function createWheelCardArcStyle(distance) {
+  const clampedDistance = Math.max(-WHEEL_ARC_MAX_DISTANCE, Math.min(WHEEL_ARC_MAX_DISTANCE, distance));
+  const absoluteDistance = Math.abs(clampedDistance);
+  const translateY = Math.round(-22 + absoluteDistance * 8 + absoluteDistance * absoluteDistance * 3.4);
+  const rotation = clampedDistance * 6.2;
+  const scale = Math.max(0.66, 1.14 - absoluteDistance * 0.064);
+  const opacity = Math.max(0.42, 1 - absoluteDistance * 0.065);
+
+  return `transform: translateY(${translateY}rpx) rotate(${rotation.toFixed(1)}deg) scale(${scale.toFixed(3)}); opacity: ${opacity.toFixed(2)};`;
+}
+
 function handleWheelNativeScroll(page, scrollLeft) {
   const nextScrollLeft = Number(scrollLeft);
 
@@ -1163,15 +1198,30 @@ function handleWheelNativeScroll(page, scrollLeft) {
   page._wheelScrollLeft = nextScrollLeft;
   clearWheelScrollSettleTimer(page);
 
-  const activeIndex = findNearestAvailableIndex(page.data.wheelCards, Math.round(nextScrollLeft / getWheelStridePx(page)));
+  const scrollPosition = nextScrollLeft / getWheelStridePx(page);
+  const activeIndex = findNearestAvailableIndex(page.data.wheelCards, Math.round(scrollPosition));
+  const now = Date.now();
+  const shouldUpdatePresentation =
+    activeIndex !== page.data.wheel.activeIndex ||
+    !page._lastWheelPresentationAt ||
+    now - page._lastWheelPresentationAt >= WHEEL_PRESENTATION_THROTTLE_MS;
+  const updates = {};
+
+  if (shouldUpdatePresentation) {
+    page._lastWheelPresentationAt = now;
+    updates.wheelCards = updateWheelCardPresentation(page.data.wheelCards, scrollPosition);
+  }
+
   if (activeIndex !== page.data.wheel.activeIndex) {
     vibrateWheelStep(page);
-    page.setData({
-      "wheel.activeIndex": activeIndex,
-      "wheel.selectedIndex": -1,
-      "wheel.phase": "choosing",
-      "wheel.revealedCard": null
-    });
+    updates["wheel.activeIndex"] = activeIndex;
+    updates["wheel.selectedIndex"] = -1;
+    updates["wheel.phase"] = "choosing";
+    updates["wheel.revealedCard"] = null;
+  }
+
+  if (Object.keys(updates).length) {
+    page.setData(updates);
   }
 
   page._wheelScrollSettleTimer = setTimeout(() => {
@@ -1195,14 +1245,17 @@ function settleWheelNativeScroll(page) {
 function snapWheelToIndex(page, index, wheelOverrides) {
   const activeIndex = findNearestAvailableIndex(page.data.wheelCards, index);
   const scrollLeft = getWheelScrollLeftForIndex(activeIndex, page);
+  const wheelCards = updateWheelCardPresentation(page.data.wheelCards, activeIndex);
 
   page._wheelScrollLeft = scrollLeft;
+  page._lastWheelPresentationAt = Date.now();
 
   if (activeIndex !== page.data.wheel.activeIndex) {
     vibrateWheelStep(page);
   }
 
   page.setData({
+    wheelCards,
     wheel: Object.assign({}, page.data.wheel, {
       scrollLeft,
       activeIndex,
