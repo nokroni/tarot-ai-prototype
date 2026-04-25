@@ -41,8 +41,8 @@ const cardFaceFileOverrides = {
   strength: "/images/thestrength.jpeg"
 };
 const WHEEL_CARD_BACK_SRC = "/images/card-back.png";
-const WHEEL_RADIUS_RPX = 860;
-const WHEEL_ACTIVE_ANGLE_DEG = -20;
+const WHEEL_RADIUS_RPX = 1500;
+const WHEEL_ACTIVE_ANGLE_DEG = -43;
 const WHEEL_DRAG_PX_PER_CARD = 24;
 const WHEEL_STICKY_THRESHOLD = 0.16;
 const WHEEL_STICKY_STRENGTH = 0.62;
@@ -586,7 +586,7 @@ Page({
     oauthSession: null,
     oauthStatus: cloudAIEnabled ? "已连接混元" : "未连接",
     backendStatus: formatBackendStatus(),
-    buildLabel: "0.6.3 指示弧轮",
+    buildLabel: "0.6.4 箭头斜弧",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""

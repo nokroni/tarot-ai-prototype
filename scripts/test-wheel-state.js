@@ -39,13 +39,13 @@ const context = {
 pageDefinition.drawCards.call(context);
 
 assert.strictEqual(context.data.wheel.isOpen, true, "Wheel should open when drawing starts.");
-assert.strictEqual(context.data.buildLabel, "0.6.3 指示弧轮", "Build label should identify the indicator arc wheel build.");
+assert.strictEqual(context.data.buildLabel, "0.6.4 箭头斜弧", "Build label should identify the arrow diagonal arc build.");
 assert.strictEqual(context.data.wheel.requiredCount, 3, "Three-card spread should require three selections.");
 assert.strictEqual(context.data.wheelCards.length, 78, "Wheel should contain the complete 78-card deck.");
 assert.strictEqual(context.data.wheel.cardBackSrc, "/images/card-back.png", "Wheel should use the shared card back.");
 assert(
-  context.data.wheelCards[0].style.includes("rotate(-20deg)"),
-  "Wheel layout should start from the shallow indicator arc angle."
+  context.data.wheelCards[0].style.includes("rotate(-43deg)"),
+  "Wheel layout should start from the diagonal arrow arc angle."
 );
 
 pageDefinition.onWheelTouchStart.call(context, {

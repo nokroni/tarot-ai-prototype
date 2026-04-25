@@ -125,11 +125,7 @@
       bindtouchend="onWheelTouchEnd"
       bindtouchcancel="onWheelTouchEnd"
     >
-      <view class="wheel-marker"></view>
-      <view class="wheel-indicator">
-        <view class="wheel-indicator-line"></view>
-        <view class="wheel-indicator-gem"></view>
-      </view>
+      <view class="wheel-arrow"></view>
       <view class="wheel-ring" style="transform: rotate({{wheel.rotationDeg}}deg);">
         <view
           wx:for="{{wheelCards}}"
