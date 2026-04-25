@@ -1,4 +1,5 @@
 <view class="page">
+  <view wx:if="{{!wheel.isOpen}}" class="main-flow">
   <view class="hero">
     <view>
       <text class="eyebrow">原型解读</text>
@@ -108,5 +109,49 @@
   <view class="provider-footer">
     <text class="provider-status">{{oauthStatus}}</text>
     <text class="provider-build">{{buildLabel}}</text>
+  </view>
+  </view>
+
+  <view wx:if="{{wheel.isOpen}}" class="wheel-overlay" catchtouchmove="noopTouchMove">
+    <view class="wheel-status">
+      <text class="wheel-eyebrow">{{selectedSpread.title}}</text>
+      <text class="wheel-title">抽取第 {{wheel.currentDrawNumber}} / {{wheel.requiredCount}} 张</text>
+    </view>
+
+    <view
+      class="wheel-stage"
+      bindtouchstart="onWheelTouchStart"
+      bindtouchmove="onWheelTouchMove"
+      bindtouchend="onWheelTouchEnd"
+      bindtouchcancel="onWheelTouchEnd"
+    >
+      <view class="wheel-marker"></view>
+      <view class="wheel-ring" style="transform: rotate({{wheel.rotationDeg}}deg);">
+        <view
+          wx:for="{{wheelCards}}"
+          wx:key="id"
+          class="wheel-card-slot {{index === wheel.activeIndex ? 'active' : ''}} {{index === wheel.selectedIndex ? 'popped' : ''}} {{item.drawn ? 'drawn' : ''}}"
+          style="{{item.style}}"
+        >
+          <image class="wheel-card-back" src="{{wheel.cardBackSrc}}" mode="aspectFit" />
+        </view>
+      </view>
+
+      <view class="wheel-focus {{wheel.selectedIndex !== -1 ? 'popped' : ''}} {{wheel.phase === 'revealing' ? 'revealing' : ''}}" bindtap="onWheelFocusTap">
+        <image
+          wx:if="{{wheel.phase === 'revealing' && wheel.revealedCard}}"
+          class="wheel-focus-face {{wheel.revealedCard.orientation === 'reversed' ? 'reversed' : ''}}"
+          src="{{wheel.revealedCard.card.imageSrc}}"
+          mode="aspectFit"
+        />
+        <image wx:else class="wheel-focus-back" src="{{wheel.cardBackSrc}}" mode="aspectFit" />
+      </view>
+    </view>
+
+    <view class="wheel-copy">
+      <text wx:if="{{wheel.phase === 'popped'}}">再次轻触，抽出这张牌</text>
+      <text wx:elif="{{wheel.phase === 'revealing'}}">{{wheel.revealedCard.position}} · {{wheel.revealedCard.card.name}}</text>
+      <text wx:else>滑动轮盘，轻触中央牌背</text>
+    </view>
   </view>
 </view>

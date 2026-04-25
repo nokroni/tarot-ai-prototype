@@ -29,5 +29,8 @@ jobs:
       - name: Validate Mini Program
         run: npm run validate:mp
 
+      - name: Test wheel draw state
+        run: npm run test:wheel
+
       - name: Check backend syntax
         run: npm run backend:check

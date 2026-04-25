@@ -55,4 +55,11 @@ if (cardImageFiles.length < 78) {
   process.exit(1);
 }
 
+const cardBackPath = path.join("miniprogram", "images", "card-back.png");
+
+if (!fs.existsSync(cardBackPath)) {
+  console.error("Mini Program card image bundle must include card-back.png.");
+  process.exit(1);
+}
+
 console.log("Mini Program structure is valid.");

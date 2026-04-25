@@ -5,6 +5,8 @@ const sharp = require("sharp");
 
 const sourceDir = path.resolve("images");
 const outputDir = path.resolve("miniprogram/images");
+const cardBackSource = path.join(sourceDir, "card-back-source.png");
+const cardBackOutput = path.join(outputDir, "card-back.png");
 
 async function main() {
   fs.mkdirSync(outputDir, {
@@ -35,7 +37,23 @@ async function main() {
       .toFile(path.join(outputDir, file));
   }
 
-  console.log(`Built ${sourceFiles.length} Mini Program card images.`);
+  if (fs.existsSync(cardBackSource)) {
+    await sharp(cardBackSource)
+      .ensureAlpha()
+      .resize({
+        width: 260,
+        height: 454,
+        fit: "fill"
+      })
+      .png({
+        compressionLevel: 9,
+        palette: true
+      })
+      .toFile(cardBackOutput);
+  }
+
+  console.log(`Built ${sourceFiles.length} Mini Program card face images.`);
+  console.log(`Built Mini Program card back: ${fs.existsSync(cardBackOutput) ? "yes" : "no"}.`);
 }
 
 main().catch((error) => {

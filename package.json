@@ -7,6 +7,7 @@
     "backend": "node server/dev-backend.js",
     "backend:check": "node --check server/dev-backend.js",
     "build:card-images": "node scripts/build-card-images.js",
+    "test:wheel": "node scripts/test-wheel-state.js",
     "validate:mp": "node scripts/validate-miniprogram.js",
     "preview:mp": "node scripts/wechat-upload.js preview",
     "upload:mp": "node scripts/wechat-upload.js upload"

@@ -40,6 +40,11 @@ const cardFaceFileOverrides = {
   the_lovers: "/images/TheLovers.jpg",
   strength: "/images/thestrength.jpeg"
 };
+const WHEEL_CARD_BACK_SRC = "/images/card-back.png";
+const WHEEL_RADIUS_RPX = 470;
+const WHEEL_DRAG_PX_PER_CARD = 24;
+const WHEEL_REVEAL_DELAY_MS = 560;
+const WHEEL_VIBRATE_THROTTLE_MS = 55;
 
 const tarotDeck = [
   {
@@ -563,6 +568,8 @@ function getCardInfo(cardId) {
 
 localizeTarotDeck(tarotDeck);
 
+const WHEEL_STEP_DEG = 360 / tarotDeck.length;
+
 Page({
   data: {
     question: "",
@@ -570,11 +577,13 @@ Page({
     selectedSpreadId: "threeCard",
     selectedSpread: spreads[1],
     drawnCards: [],
+    wheelCards: [],
+    wheel: createClosedWheelState(),
     interpretation: null,
     oauthSession: null,
     oauthStatus: cloudAIEnabled ? "已连接混元" : "未连接",
     backendStatus: formatBackendStatus(),
-    buildLabel: "0.5.15 牌面",
+    buildLabel: "0.6 轮盘",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""
@@ -604,14 +613,117 @@ Page({
   },
 
   drawCards() {
-    const drawnCards = drawCards(this.data.selectedSpread);
+    const wheelCards = createWheelCards();
+    const wheel = createOpenWheelState(this.data.selectedSpread, wheelCards);
 
     this.setData({
-      drawnCards,
+      drawnCards: [],
+      wheelCards,
+      wheel,
       interpretation: null,
       errorMessage: ""
     });
   },
+
+  onWheelTouchStart(event) {
+    if (!this.data.wheel.isOpen || this.data.wheel.phase === "revealing") {
+      return;
+    }
+
+    const touch = event.touches && event.touches[0];
+
+    if (!touch) {
+      return;
+    }
+
+    this._wheelTouchStartX = touch.clientX;
+    this._wheelStartRotationDeg = this.data.wheel.rotationDeg;
+    this._wheelDidDrag = false;
+  },
+
+  onWheelTouchMove(event) {
+    if (!this.data.wheel.isOpen || this.data.wheel.phase === "revealing") {
+      return;
+    }
+
+    const touch = event.touches && event.touches[0];
+
+    if (!touch || typeof this._wheelTouchStartX !== "number") {
+      return;
+    }
+
+    const deltaX = touch.clientX - this._wheelTouchStartX;
+    const rotationDeg = this._wheelStartRotationDeg + (deltaX / WHEEL_DRAG_PX_PER_CARD) * WHEEL_STEP_DEG;
+    const activeIndex = normalizeWheelIndex(Math.round(-rotationDeg / WHEEL_STEP_DEG));
+    const selectedIndex = Math.abs(deltaX) > 3 ? -1 : this.data.wheel.selectedIndex;
+
+    if (Math.abs(deltaX) > 3) {
+      this._wheelDidDrag = true;
+    }
+
+    if (activeIndex !== this.data.wheel.activeIndex) {
+      vibrateWheelStep(this);
+    }
+
+    this.setData({
+      wheel: Object.assign({}, this.data.wheel, {
+        rotationDeg,
+        activeIndex,
+        selectedIndex,
+        phase: "choosing",
+        revealedCard: null
+      })
+    });
+  },
+
+  onWheelTouchEnd() {
+    if (!this.data.wheel.isOpen || this.data.wheel.phase === "revealing") {
+      return;
+    }
+
+    const activeIndex = findNearestAvailableIndex(this.data.wheelCards, this.data.wheel.activeIndex);
+
+    this.setData({
+      wheel: Object.assign({}, this.data.wheel, {
+        rotationDeg: -activeIndex * WHEEL_STEP_DEG,
+        activeIndex,
+        selectedIndex: -1,
+        phase: "choosing",
+        revealedCard: null
+      })
+    });
+  },
+
+  onWheelFocusTap() {
+    if (!this.data.wheel.isOpen || this.data.wheel.phase === "revealing") {
+      return;
+    }
+
+    if (this._wheelDidDrag) {
+      this._wheelDidDrag = false;
+      return;
+    }
+
+    const activeIndex = findNearestAvailableIndex(this.data.wheelCards, this.data.wheel.activeIndex);
+    const selectedIndex = this.data.wheel.selectedIndex;
+
+    if (selectedIndex !== activeIndex) {
+      this.setData({
+        wheel: Object.assign({}, this.data.wheel, {
+          rotationDeg: -activeIndex * WHEEL_STEP_DEG,
+          activeIndex,
+          selectedIndex: activeIndex,
+          phase: "popped",
+          revealedCard: null
+        })
+      });
+      return;
+    }
+
+    confirmWheelCard(this, activeIndex);
+  },
+
+  noopTouchMove() {},
 
   interpretReading() {
     if (!this.data.drawnCards.length) {
@@ -936,6 +1048,190 @@ function createRequestId() {
   return `reading-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function createClosedWheelState() {
+  return {
+    isOpen: false,
+    rotationDeg: 0,
+    activeIndex: 0,
+    selectedIndex: -1,
+    phase: "idle",
+    requiredCount: 0,
+    drawnCount: 0,
+    currentDrawNumber: 0,
+    cardBackSrc: WHEEL_CARD_BACK_SRC,
+    revealedCard: null
+  };
+}
+
+function createOpenWheelState(spread) {
+  return {
+    isOpen: true,
+    rotationDeg: 0,
+    activeIndex: 0,
+    selectedIndex: -1,
+    phase: "choosing",
+    requiredCount: spread.positions.length,
+    drawnCount: 0,
+    currentDrawNumber: 1,
+    cardBackSrc: WHEEL_CARD_BACK_SRC,
+    revealedCard: null
+  };
+}
+
+function createWheelCards() {
+  return shuffle(tarotDeck.slice()).map((card, index) => {
+    const orientation = Math.random() >= 0.5 ? "upright" : "reversed";
+    const keywords = orientation === "upright" ? card.uprightMeanings : card.reversedMeanings;
+
+    return {
+      id: `wheel-${index}-${card.id}`,
+      cardId: card.id,
+      name: card.name,
+      arcana: card.arcana,
+      imageSrc: getCardFacePath(card.id),
+      uprightMeanings: card.uprightMeanings,
+      reversedMeanings: card.reversedMeanings,
+      orientation,
+      orientationLabel: formatOrientation(orientation),
+      keywords,
+      drawn: false,
+      style: createWheelCardStyle(index)
+    };
+  });
+}
+
+function createWheelCardStyle(index) {
+  return `transform: translate(-50%, -50%) rotate(${index * WHEEL_STEP_DEG}deg) translateY(-${WHEEL_RADIUS_RPX}rpx);`;
+}
+
+function confirmWheelCard(page, index) {
+  const slot = page.data.wheelCards[index];
+
+  if (!slot || slot.drawn) {
+    return;
+  }
+
+  const drawnCards = page.data.drawnCards.slice();
+  const position = page.data.selectedSpread.positions[drawnCards.length];
+  const drawnCard = createDrawnCardFromWheelSlot(slot, position);
+  const wheelCards = markWheelCardDrawn(page.data.wheelCards, index);
+  const nextDrawnCards = drawnCards.concat(drawnCard);
+  const isComplete = nextDrawnCards.length >= page.data.wheel.requiredCount;
+  const nextActiveIndex = isComplete ? index : findNearestAvailableIndex(wheelCards, index + 1);
+
+  page.setData({
+    drawnCards: nextDrawnCards,
+    wheelCards,
+    wheel: Object.assign({}, page.data.wheel, {
+      rotationDeg: -nextActiveIndex * WHEEL_STEP_DEG,
+      activeIndex: nextActiveIndex,
+      selectedIndex: index,
+      phase: "revealing",
+      drawnCount: nextDrawnCards.length,
+      currentDrawNumber: Math.min(nextDrawnCards.length, page.data.wheel.requiredCount),
+      revealedCard: drawnCard
+    })
+  });
+
+  setTimeout(() => {
+    if (isComplete) {
+      page.setData({
+        wheel: createClosedWheelState()
+      });
+      page.interpretReading();
+      return;
+    }
+
+    page.setData({
+      wheel: Object.assign({}, page.data.wheel, {
+        selectedIndex: -1,
+        phase: "choosing",
+        currentDrawNumber: nextDrawnCards.length + 1,
+        revealedCard: null
+      })
+    });
+  }, WHEEL_REVEAL_DELAY_MS);
+}
+
+function createDrawnCardFromWheelSlot(slot, position) {
+  return {
+    id: `${slot.cardId}-${position}`,
+    card: {
+      id: slot.cardId,
+      name: slot.name,
+      arcana: slot.arcana,
+      uprightMeanings: slot.uprightMeanings,
+      reversedMeanings: slot.reversedMeanings,
+      imageSrc: slot.imageSrc
+    },
+    position,
+    orientation: slot.orientation,
+    orientationLabel: slot.orientationLabel,
+    keywords: slot.keywords
+  };
+}
+
+function markWheelCardDrawn(wheelCards, index) {
+  return wheelCards.map((slot, slotIndex) => {
+    if (slotIndex !== index) {
+      return slot;
+    }
+
+    return Object.assign({}, slot, {
+      drawn: true
+    });
+  });
+}
+
+function findNearestAvailableIndex(wheelCards, targetIndex) {
+  if (!wheelCards.length) {
+    return 0;
+  }
+
+  const normalizedTarget = normalizeWheelIndex(targetIndex);
+
+  if (wheelCards[normalizedTarget] && !wheelCards[normalizedTarget].drawn) {
+    return normalizedTarget;
+  }
+
+  for (let distance = 1; distance < wheelCards.length; distance += 1) {
+    const forward = normalizeWheelIndex(normalizedTarget + distance);
+    const backward = normalizeWheelIndex(normalizedTarget - distance);
+
+    if (wheelCards[forward] && !wheelCards[forward].drawn) {
+      return forward;
+    }
+
+    if (wheelCards[backward] && !wheelCards[backward].drawn) {
+      return backward;
+    }
+  }
+
+  return normalizedTarget;
+}
+
+function normalizeWheelIndex(index) {
+  const count = tarotDeck.length;
+  return ((index % count) + count) % count;
+}
+
+function vibrateWheelStep(page) {
+  const now = Date.now();
+
+  if (page._lastWheelVibrateAt && now - page._lastWheelVibrateAt < WHEEL_VIBRATE_THROTTLE_MS) {
+    return;
+  }
+
+  page._lastWheelVibrateAt = now;
+
+  if (typeof wx !== "undefined" && wx.vibrateShort) {
+    wx.vibrateShort({
+      type: "light",
+      fail() {}
+    });
+  }
+}
+
 function formatOAuthStatus(session) {
   if (cloudAIEnabled) {
     return canUseBackend(session) ? "已连接混元 · 备用后端已就绪" : "已连接混元";
@@ -976,27 +1272,6 @@ function formatProviderError(error) {
   }
 
   return "无法生成 AI 解读。";
-}
-
-function drawCards(spread) {
-  const deck = shuffle(tarotDeck.slice());
-
-  return spread.positions.map((position, index) => {
-    const card = deck[index];
-    const orientation = Math.random() >= 0.5 ? "upright" : "reversed";
-    const keywords = orientation === "upright" ? card.uprightMeanings : card.reversedMeanings;
-
-    return {
-      id: `${card.id}-${position}`,
-      card: Object.assign({}, card, {
-        imageSrc: getCardFacePath(card.id)
-      }),
-      position,
-      orientation,
-      orientationLabel: formatOrientation(orientation),
-      keywords
-    };
-  });
 }
 
 function formatOrientation(orientation) {
