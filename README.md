@@ -36,7 +36,7 @@ cp .env.example .env.local
 npm run backend
 ```
 
-Set `WECHAT_APPSECRET`, `OPENAI_API_KEY`, and `SESSION_SECRET` in `.env.local` for real WeChat auth and AI readings. The backend defaults to `OPENAI_MODEL=gpt-5.4-mini`, `OPENAI_BASE_URL=https://api.openai.com/v1`, and `OPENAI_API_MODE=responses`.
+Set `WECHAT_APPSECRET`, `OPENAI_API_KEY`, and `SESSION_SECRET` in `.env.local` for real WeChat auth and AI readings. The backend defaults to `OPENAI_MODEL=gpt-5.4-mini`, `OPENAI_BASE_URL=https://api.openai.com/v1`, `OPENAI_API_MODE=responses`, and `OPENAI_REASONING_EFFORT=low`.
 
 `OPENAI_API_KEY` is the bearer token used by the model provider. For direct OpenAI Platform usage, set it to an OpenAI API key. For an internal OpenAI-compatible gateway, such as an OpenClaw Gateway kept on loopback, set `OPENAI_BASE_URL` to that gateway's `/v1` URL, set `OPENAI_API_KEY` to the gateway bearer token, and use `OPENAI_API_MODE=chat_completions` when the gateway does not support the Responses API `text.format` parameter. Without a bearer token, the backend still supports WeChat login but returns a configuration error for readings so the Mini Program can show a structured local fallback instead of pretending a model response was generated.
 

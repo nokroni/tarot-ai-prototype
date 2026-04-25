@@ -15,12 +15,15 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 const OPENAI_BASE_URL = normalizeBaseUrl(process.env.OPENAI_BASE_URL || "https://api.openai.com/v1");
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5.4-mini";
 const OPENAI_API_MODE = process.env.OPENAI_API_MODE || (OPENAI_BASE_URL.includes("api.openai.com") ? "responses" : "chat_completions");
+const OPENAI_REASONING_EFFORT = process.env.OPENAI_REASONING_EFFORT || "low";
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
 const TOKEN_TTL_SECONDS = 60 * 60;
 const READING_RESPONSE_CACHE_TTL_MS = 5 * 60 * 1000;
+const READING_JOB_TTL_MS = 10 * 60 * 1000;
 
 const inFlightReadings = new Map();
 const readingResponseCache = new Map();
+const readingJobs = new Map();
 
 const server = http.createServer(async (request, response) => {
   try {
@@ -41,6 +44,7 @@ const server = http.createServer(async (request, response) => {
         appid: WECHAT_APPID,
         model: OPENAI_MODEL,
         aiMode: OPENAI_API_MODE,
+        reasoningEffort: OPENAI_REASONING_EFFORT,
         openaiConfigured: Boolean(OPENAI_API_KEY),
         wechatConfigured: Boolean(WECHAT_APPSECRET)
       });
@@ -75,6 +79,9 @@ const server = http.createServer(async (request, response) => {
       const requestId = String(request.headers["x-request-id"] || crypto.randomUUID());
       const startedAt = Date.now();
       const session = verifyAuthorization(request.headers.authorization || "");
+      const asyncRequested =
+        String(request.headers.prefer || "").includes("respond-async") ||
+        request.headers["x-reading-mode"] === "async";
       const cachedResponse = getCachedReadingResponse(requestId);
 
       if (cachedResponse) {
@@ -88,6 +95,18 @@ const server = http.createServer(async (request, response) => {
 
       if (!OPENAI_API_KEY) {
         throw publicError(503, "AI provider bearer token is not configured on the reading backend.");
+      }
+
+      if (asyncRequested) {
+        startReadingJob({
+          requestId,
+          session,
+          readingRequest,
+          responseFormat: body.responseFormat || readingJsonSchema()
+        });
+        sendReadingPending(response, requestId);
+        console.log(`${new Date().toISOString()} POST /readings ${requestId} accepted ${Date.now() - startedAt}ms`);
+        return;
       }
 
       let responseBody;
@@ -113,6 +132,43 @@ const server = http.createServer(async (request, response) => {
 
       sendJson(response, 200, responseBody);
       console.log(`${new Date().toISOString()} POST /readings ${requestId} complete ${Date.now() - startedAt}ms`);
+      return;
+    }
+
+    if (request.method === "GET" && url.pathname === "/readings/status") {
+      verifyAuthorization(request.headers.authorization || "");
+      const requestId = String(url.searchParams.get("requestId") || "");
+      const startedAt = Date.now();
+
+      if (!requestId) {
+        throw publicError(400, "Missing reading request id.");
+      }
+
+      const cachedResponse = getCachedReadingResponse(requestId);
+
+      if (cachedResponse) {
+        sendJson(response, 200, cachedResponse);
+        console.log(`${new Date().toISOString()} GET /readings/status ${requestId} cached ${Date.now() - startedAt}ms`);
+        return;
+      }
+
+      const job = getReadingJob(requestId);
+
+      if (!job) {
+        throw publicError(404, "Reading is not ready yet.");
+      }
+
+      if (job.status === "failed") {
+        throw publicError(job.statusCode || 502, job.error || "AI reading generation failed.");
+      }
+
+      if (job.status === "completed" && job.responseBody) {
+        sendJson(response, 200, job.responseBody);
+        console.log(`${new Date().toISOString()} GET /readings/status ${requestId} complete ${Date.now() - startedAt}ms`);
+        return;
+      }
+
+      sendReadingPending(response, requestId);
       return;
     }
 
@@ -203,6 +259,9 @@ async function generateOpenAIReading({ readingRequest, responseFormat }) {
       text: {
         format: responseFormat
       },
+      reasoning: {
+        effort: OPENAI_REASONING_EFFORT
+      },
       max_output_tokens: 1400
     })
   });
@@ -256,6 +315,7 @@ async function generateChatCompletionReading({ readingRequest, responseFormat })
           ].join("\n")
         }
       ],
+      reasoning_effort: OPENAI_REASONING_EFFORT,
       max_tokens: 1800
     })
   });
@@ -403,6 +463,78 @@ function extractJsonObject(text) {
   return trimmed;
 }
 
+function startReadingJob({ requestId, session, readingRequest, responseFormat }) {
+  sweepReadingJobs();
+
+  const existingJob = getReadingJob(requestId);
+
+  if (existingJob) {
+    return existingJob;
+  }
+
+  const job = {
+    status: "pending",
+    expiresAt: Date.now() + READING_JOB_TTL_MS
+  };
+
+  readingJobs.set(requestId, job);
+
+  createReadingResponse({
+    session,
+    readingRequest,
+    responseFormat
+  })
+    .then((responseBody) => {
+      job.status = "completed";
+      job.responseBody = responseBody;
+      job.expiresAt = Date.now() + READING_JOB_TTL_MS;
+      cacheReadingResponse(requestId, responseBody);
+      console.log(`${new Date().toISOString()} JOB /readings ${requestId} complete`);
+    })
+    .catch((error) => {
+      job.status = "failed";
+      job.statusCode = error.statusCode || 502;
+      job.error = error.publicMessage || error.message || "AI reading generation failed.";
+      job.expiresAt = Date.now() + READING_JOB_TTL_MS;
+      console.log(`${new Date().toISOString()} JOB /readings ${requestId} failed ${job.error}`);
+    });
+
+  return job;
+}
+
+function getReadingJob(requestId) {
+  const job = readingJobs.get(requestId);
+
+  if (!job) {
+    return null;
+  }
+
+  if (job.expiresAt <= Date.now()) {
+    readingJobs.delete(requestId);
+    return null;
+  }
+
+  return job;
+}
+
+function sweepReadingJobs() {
+  const now = Date.now();
+
+  for (const [requestId, job] of readingJobs.entries()) {
+    if (job.expiresAt <= now) {
+      readingJobs.delete(requestId);
+    }
+  }
+}
+
+function sendReadingPending(response, requestId) {
+  sendJson(response, 202, {
+    status: "pending",
+    requestId,
+    retryAfterMs: 1500
+  });
+}
+
 function getCachedReadingResponse(requestId) {
   const cached = readingResponseCache.get(requestId);
 
@@ -466,7 +598,7 @@ function sendJson(response, statusCode, body) {
 
   response.writeHead(statusCode, {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Request-Id, Prefer, X-Reading-Mode",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Content-Type": "application/json; charset=utf-8",
     "Content-Length": Buffer.byteLength(payload)
@@ -477,7 +609,7 @@ function sendJson(response, statusCode, body) {
 function sendEmpty(response, statusCode) {
   response.writeHead(statusCode, {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Request-Id, Prefer, X-Reading-Mode",
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
   });
   response.end();

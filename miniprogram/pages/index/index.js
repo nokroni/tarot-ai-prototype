@@ -25,9 +25,11 @@ const spreads = [
   }
 ];
 
-const READING_REQUEST_ATTEMPTS = 2;
-const READING_REQUEST_TIMEOUT_MS = 120000;
+const READING_START_ATTEMPTS = 2;
+const READING_REQUEST_TIMEOUT_MS = 30000;
+const READING_POLL_TIMEOUT_MS = 180000;
 const READING_RETRY_DELAY_MS = 900;
+const READING_POLL_DELAY_MS = 1500;
 
 const tarotDeck = [
   {
@@ -197,7 +199,7 @@ Page({
     oauthSession: null,
     oauthStatus: "Not connected",
     backendStatus: appConfig.oauth.readingEndpoint.replace(/\/readings$/, ""),
-    buildLabel: "0.5.5 retry",
+    buildLabel: "0.5.6 wait",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""
@@ -266,12 +268,15 @@ Page({
       errorMessage: ""
     });
 
-    requestReadingWithRetry({
+    const requestId = createRequestId();
+
+    requestReadingWithPolling({
       url: appConfig.oauth.readingEndpoint,
+      statusUrl: createReadingStatusUrl(appConfig.oauth.readingEndpoint, requestId),
       header: {
         Authorization: `${this.data.oauthSession.tokenType || "Bearer"} ${this.data.oauthSession.accessToken}`,
         "Content-Type": "application/json",
-        "X-Request-Id": createRequestId()
+        "X-Request-Id": requestId
       },
       data: {
         request: createReadingRequest({
@@ -283,7 +288,12 @@ Page({
       },
       onRetry: () => {
         this.setData({
-          errorMessage: "The reading connection closed; retrying once."
+          errorMessage: "The reading connection closed; starting the wait again."
+        });
+      },
+      onWaiting: () => {
+        this.setData({
+          errorMessage: "Waiting for the AI reading."
         });
       }
     })
@@ -364,37 +374,103 @@ Page({
   }
 });
 
-function requestReadingWithRetry(options) {
-  return new Promise((resolve, reject) => {
-    runReadingRequest(options, READING_REQUEST_ATTEMPTS, resolve, reject);
+function requestReadingWithPolling(options) {
+  const startedAt = Date.now();
+
+  return startReadingRequest(options, READING_START_ATTEMPTS).then((response) => {
+    if (response.statusCode === 202) {
+      if (typeof options.onWaiting === "function") {
+        options.onWaiting();
+      }
+
+      return pollReadingStatus(options, startedAt, getRetryDelay(response));
+    }
+
+    return response;
+  }).catch(() => {
+    if (typeof options.onWaiting === "function") {
+      options.onWaiting();
+    }
+
+    return pollReadingStatus(options, startedAt, READING_POLL_DELAY_MS);
   });
 }
 
-function runReadingRequest(options, attemptsRemaining, resolve, reject) {
-  wx.request({
-    url: options.url,
-    method: "POST",
-    timeout: READING_REQUEST_TIMEOUT_MS,
-    header: options.header,
-    data: options.data,
-    success: (response) => {
-      resolve(response);
-    },
-    fail: (error) => {
-      if (attemptsRemaining > 1) {
-        if (typeof options.onRetry === "function") {
-          options.onRetry(error);
+function startReadingRequest(options, attemptsRemaining) {
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: options.url,
+      method: "POST",
+      timeout: READING_REQUEST_TIMEOUT_MS,
+      header: Object.assign({}, options.header, {
+        Prefer: "respond-async",
+        "X-Reading-Mode": "async"
+      }),
+      data: options.data,
+      success: resolve,
+      fail: (error) => {
+        if (attemptsRemaining > 1) {
+          if (typeof options.onRetry === "function") {
+            options.onRetry(error);
+          }
+
+          setTimeout(() => {
+            startReadingRequest(options, attemptsRemaining - 1).then(resolve).catch(reject);
+          }, READING_RETRY_DELAY_MS);
+          return;
         }
 
-        setTimeout(() => {
-          runReadingRequest(options, attemptsRemaining - 1, resolve, reject);
-        }, READING_RETRY_DELAY_MS);
+        reject(error);
+      }
+    });
+  });
+}
+
+function pollReadingStatus(options, startedAt, delayMs) {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      if (Date.now() - startedAt > READING_POLL_TIMEOUT_MS) {
+        reject({
+          errMsg: "timed out waiting for reading response"
+        });
         return;
       }
 
-      reject(error);
-    }
+      wx.request({
+        url: options.statusUrl,
+        method: "GET",
+        timeout: READING_REQUEST_TIMEOUT_MS,
+        header: {
+          Authorization: options.header.Authorization
+        },
+        success: (response) => {
+          if (response.statusCode === 202 || response.statusCode === 404) {
+            if (typeof options.onWaiting === "function") {
+              options.onWaiting();
+            }
+
+            pollReadingStatus(options, startedAt, getRetryDelay(response)).then(resolve).catch(reject);
+            return;
+          }
+
+          resolve(response);
+        },
+        fail: () => {
+          pollReadingStatus(options, startedAt, READING_POLL_DELAY_MS).then(resolve).catch(reject);
+        }
+      });
+    }, delayMs);
   });
+}
+
+function getRetryDelay(response) {
+  const retryAfterMs = response && response.data && Number(response.data.retryAfterMs);
+
+  return Number.isFinite(retryAfterMs) && retryAfterMs > 0 ? retryAfterMs : READING_POLL_DELAY_MS;
+}
+
+function createReadingStatusUrl(readingEndpoint, requestId) {
+  return `${readingEndpoint.replace(/\/readings$/, "/readings/status")}?requestId=${encodeURIComponent(requestId)}`;
 }
 
 function createRequestId() {
