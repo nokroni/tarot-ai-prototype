@@ -26,6 +26,7 @@ const spreads = [
 ];
 
 const READING_START_ATTEMPTS = 2;
+const READING_START_RECOVERY_ATTEMPTS = 4;
 const READING_REQUEST_TIMEOUT_MS = 30000;
 const READING_POLL_TIMEOUT_MS = 180000;
 const READING_RETRY_DELAY_MS = 900;
@@ -199,7 +200,7 @@ Page({
     oauthSession: null,
     oauthStatus: "Not connected",
     backendStatus: appConfig.oauth.readingEndpoint.replace(/\/readings$/, ""),
-    buildLabel: "0.5.6 wait",
+    buildLabel: "0.5.7 wait",
     isConnecting: false,
     isInterpreting: false,
     errorMessage: ""
@@ -272,6 +273,7 @@ Page({
 
     requestReadingWithPolling({
       url: appConfig.oauth.readingEndpoint,
+      startUrl: createAsyncReadingUrl(appConfig.oauth.readingEndpoint),
       statusUrl: createReadingStatusUrl(appConfig.oauth.readingEndpoint, requestId),
       header: {
         Authorization: `${this.data.oauthSession.tokenType || "Bearer"} ${this.data.oauthSession.accessToken}`,
@@ -383,7 +385,7 @@ function requestReadingWithPolling(options) {
         options.onWaiting();
       }
 
-      return pollReadingStatus(options, startedAt, getRetryDelay(response));
+      return pollReadingStatus(options, startedAt, getRetryDelay(response), READING_START_RECOVERY_ATTEMPTS);
     }
 
     return response;
@@ -392,20 +394,17 @@ function requestReadingWithPolling(options) {
       options.onWaiting();
     }
 
-    return pollReadingStatus(options, startedAt, READING_POLL_DELAY_MS);
+    return pollReadingStatus(options, startedAt, READING_POLL_DELAY_MS, READING_START_RECOVERY_ATTEMPTS);
   });
 }
 
 function startReadingRequest(options, attemptsRemaining) {
   return new Promise((resolve, reject) => {
     wx.request({
-      url: options.url,
+      url: options.startUrl || options.url,
       method: "POST",
       timeout: READING_REQUEST_TIMEOUT_MS,
-      header: Object.assign({}, options.header, {
-        Prefer: "respond-async",
-        "X-Reading-Mode": "async"
-      }),
+      header: options.header,
       data: options.data,
       success: resolve,
       fail: (error) => {
@@ -426,7 +425,7 @@ function startReadingRequest(options, attemptsRemaining) {
   });
 }
 
-function pollReadingStatus(options, startedAt, delayMs) {
+function pollReadingStatus(options, startedAt, delayMs, recoveryStartsRemaining) {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       if (Date.now() - startedAt > READING_POLL_TIMEOUT_MS) {
@@ -444,19 +443,43 @@ function pollReadingStatus(options, startedAt, delayMs) {
           Authorization: options.header.Authorization
         },
         success: (response) => {
-          if (response.statusCode === 202 || response.statusCode === 404) {
+          if (response.statusCode === 202) {
             if (typeof options.onWaiting === "function") {
               options.onWaiting();
             }
 
-            pollReadingStatus(options, startedAt, getRetryDelay(response)).then(resolve).catch(reject);
+            pollReadingStatus(options, startedAt, getRetryDelay(response), recoveryStartsRemaining).then(resolve).catch(reject);
+            return;
+          }
+
+          if (response.statusCode === 404 && recoveryStartsRemaining > 0) {
+            if (typeof options.onRetry === "function") {
+              options.onRetry(response);
+            }
+
+            startReadingRequest(options, 1)
+              .then((startResponse) => {
+                if (startResponse.statusCode !== 202) {
+                  resolve(startResponse);
+                  return;
+                }
+
+                pollReadingStatus(options, startedAt, getRetryDelay(startResponse), recoveryStartsRemaining - 1)
+                  .then(resolve)
+                  .catch(reject);
+              })
+              .catch(() => {
+                pollReadingStatus(options, startedAt, READING_POLL_DELAY_MS, recoveryStartsRemaining - 1)
+                  .then(resolve)
+                  .catch(reject);
+              });
             return;
           }
 
           resolve(response);
         },
         fail: () => {
-          pollReadingStatus(options, startedAt, READING_POLL_DELAY_MS).then(resolve).catch(reject);
+          pollReadingStatus(options, startedAt, READING_POLL_DELAY_MS, recoveryStartsRemaining).then(resolve).catch(reject);
         }
       });
     }, delayMs);
@@ -467,6 +490,12 @@ function getRetryDelay(response) {
   const retryAfterMs = response && response.data && Number(response.data.retryAfterMs);
 
   return Number.isFinite(retryAfterMs) && retryAfterMs > 0 ? retryAfterMs : READING_POLL_DELAY_MS;
+}
+
+function createAsyncReadingUrl(readingEndpoint) {
+  const separator = readingEndpoint.indexOf("?") === -1 ? "?" : "&";
+
+  return `${readingEndpoint}${separator}async=1`;
 }
 
 function createReadingStatusUrl(readingEndpoint, requestId) {

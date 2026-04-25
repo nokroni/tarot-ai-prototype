@@ -80,6 +80,7 @@ const server = http.createServer(async (request, response) => {
       const startedAt = Date.now();
       const session = verifyAuthorization(request.headers.authorization || "");
       const asyncRequested =
+        url.searchParams.get("async") === "1" ||
         String(request.headers.prefer || "").includes("respond-async") ||
         request.headers["x-reading-mode"] === "async";
       const cachedResponse = getCachedReadingResponse(requestId);
@@ -155,10 +156,12 @@ const server = http.createServer(async (request, response) => {
       const job = getReadingJob(requestId);
 
       if (!job) {
+        console.log(`${new Date().toISOString()} GET /readings/status ${requestId} missing ${Date.now() - startedAt}ms`);
         throw publicError(404, "Reading is not ready yet.");
       }
 
       if (job.status === "failed") {
+        console.log(`${new Date().toISOString()} GET /readings/status ${requestId} failed ${Date.now() - startedAt}ms`);
         throw publicError(job.statusCode || 502, job.error || "AI reading generation failed.");
       }
 
@@ -169,6 +172,7 @@ const server = http.createServer(async (request, response) => {
       }
 
       sendReadingPending(response, requestId);
+      console.log(`${new Date().toISOString()} GET /readings/status ${requestId} pending ${Date.now() - startedAt}ms`);
       return;
     }
 
