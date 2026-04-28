@@ -575,6 +575,8 @@ assert(
     pageScript.includes("saveLatestReadingResult") &&
     pageScript.includes("openReadingResult({ interpretation, question, notice })") &&
     pageScript.includes('url: "/pages/reading/reading"') &&
+    pageScript.includes("createWheelFlightCaption(drawnCard)") &&
+    pageMarkup.includes("{{wheel.flightCard.caption}}") &&
     pageMarkup.includes('class="message {{isInterpreting ? \'waiting\' : \'error\'}}"') &&
     !pageMarkup.includes('wx:if="{{interpretation}}" class="reading"') &&
     !pageMarkup.includes('class="reading-card"') &&
@@ -582,12 +584,15 @@ assert(
     !pageStyles.includes(".reading-card") &&
     readingScript.includes("loadLatestReadingResult") &&
     readingScript.includes("createDisplayCards") &&
+    readingScript.includes('isReversed: orientation === "reversed"') &&
     readingScript.includes("wx.navigateBack") &&
     readingScript.includes('url: "/pages/index/index"') &&
-    readingMarkup.includes('class="drawn-card-image"') &&
+    readingMarkup.includes('class="drawn-card-image {{item.isReversed ? \'reversed\' : \'\'}}"') &&
     readingMarkup.includes('wx:for="{{cards}}"') &&
     readingMarkup.includes('bindtap="returnHome"') &&
     readingMarkup.includes("{{interpretation.summary}}") &&
+    readingStyles.includes(".drawn-card-image.reversed") &&
+    readingStyles.includes("transform: rotate(180deg);") &&
     readingStyles.includes("grid-template-columns: 128rpx minmax(0, 1fr);") &&
     readingStyles.includes("max-width: 420rpx;"),
   "Finished readings should leave the draw page and render drawn cards on a dedicated reading page."
@@ -906,6 +911,10 @@ assert(
   "Drawn-card flight should use a two-step pop-and-move followed by a delayed flip reveal."
 );
 
+context.data.wheelCards[context.data.wheel.activeIndex] = Object.assign({}, context.data.wheelCards[context.data.wheel.activeIndex], {
+  orientation: "reversed",
+  orientationLabel: "逆位"
+});
 const totalDraws = context.data.wheel.requiredCount;
 
 for (let drawIndex = 0; drawIndex < totalDraws; drawIndex += 1) {
@@ -939,6 +948,14 @@ for (let drawIndex = 0; drawIndex < totalDraws; drawIndex += 1) {
   );
   assert(context.data.wheel.flightCard, "Confirmed card should be represented by a flight overlay.");
   assert.strictEqual(context.data.wheel.flightCard.card.id, activeSlot.cardId, "Flight overlay should reveal the selected card face.");
+  assert.strictEqual(context.data.wheel.flightCard.orientation, activeSlot.orientation, "Flight overlay should keep the selected card orientation.");
+  if (activeSlot.orientation === "reversed") {
+    assert.strictEqual(
+      context.data.wheel.flightCard.caption,
+      `${context.data.selectedSpread.positions[drawIndex]} · ${activeSlot.name} · ${activeSlot.orientationLabel}`,
+      "Draw-flight caption should explicitly name reversed cards."
+    );
+  }
   assert.strictEqual(
     context.data.drawnCards[drawIndex].card.id,
     activeSlot.cardId,

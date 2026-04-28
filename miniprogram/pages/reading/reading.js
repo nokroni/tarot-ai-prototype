@@ -114,12 +114,14 @@ function createDisplayCards(readingCards, drawnCards, language) {
         : [];
 
     const orientationText = readingCard.orientationText || formatOrientationText(matched.orientation, language);
+    const orientation = readingCard.orientation || matched.orientation || "upright";
     const keywordsText = readingCard.keywordsText || keywords.join(languageConfig.keywordJoiner);
 
     return {
       id: readingCard.id || matched.id || `reading-card-${index}`,
       position: readingCard.position || matched.position || "",
       name: readingCard.name || cardFace.name || "",
+      isReversed: orientation === "reversed",
       orientationText,
       keywordsText,
       metaLine: keywordsText ? `${orientationText} · ${keywordsText}` : orientationText,

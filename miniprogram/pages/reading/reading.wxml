@@ -20,7 +20,7 @@
       <text class="section-label">{{ui.cardsTitle}}</text>
       <view class="drawn-list">
         <view wx:for="{{cards}}" wx:key="id" class="drawn-card">
-          <image wx:if="{{item.imageSrc}}" class="drawn-card-image" src="{{item.imageSrc}}" mode="aspectFill"></image>
+          <image wx:if="{{item.imageSrc}}" class="drawn-card-image {{item.isReversed ? 'reversed' : ''}}" src="{{item.imageSrc}}" mode="aspectFill"></image>
           <view class="drawn-card-copy">
             <text class="drawn-card-title">{{item.position}} · {{item.name}}</text>
             <text class="drawn-card-meta">{{item.metaLine}}</text>

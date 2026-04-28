@@ -160,7 +160,7 @@
 
         <view wx:if="{{wheel.isOpen}}" class="wheel-copy">
           <text wx:if="{{wheel.phase === 'popped'}}">{{ui.wheelTapAgain}}</text>
-          <text wx:elif="{{wheel.phase === 'drawing' && wheel.flightCard}}">{{wheel.flightCard.position}} · {{wheel.flightCard.card.name}}</text>
+          <text wx:elif="{{wheel.phase === 'drawing' && wheel.flightCard}}">{{wheel.flightCard.caption}}</text>
           <text wx:elif="{{wheel.phase === 'closing'}}">{{ui.wheelComplete}}</text>
           <text wx:else>{{ui.wheelHint}}</text>
         </view>

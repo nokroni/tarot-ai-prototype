@@ -2132,8 +2132,19 @@ function createWheelFlightCard(drawnCard, slotIndex) {
     position: drawnCard.position,
     orientation: drawnCard.orientation,
     orientationLabel: drawnCard.orientationLabel,
+    caption: createWheelFlightCaption(drawnCard),
     card: drawnCard.card
   };
+}
+
+function createWheelFlightCaption(drawnCard) {
+  const parts = [drawnCard.position, drawnCard.card.name];
+
+  if (drawnCard.orientation === "reversed") {
+    parts.push(drawnCard.orientationLabel);
+  }
+
+  return parts.filter(Boolean).join(" · ");
 }
 
 function createDrawnCardFromWheelSlot(slot, position) {

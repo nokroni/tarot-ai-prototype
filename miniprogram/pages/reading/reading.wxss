@@ -100,6 +100,11 @@
   border-radius: 10rpx;
   background: #d8c5e8;
   box-shadow: 0 10rpx 24rpx rgba(38, 35, 31, 0.16);
+  transform-origin: center;
+}
+
+.drawn-card-image.reversed {
+  transform: rotate(180deg);
 }
 
 .drawn-card-copy {
