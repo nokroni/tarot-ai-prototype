@@ -343,8 +343,8 @@ assert.strictEqual(context.data.wheel.activeIndex, 0, "Wheel should start with t
 assert.strictEqual(context.data.wheel.motion, "spreading", "Wheel should directly expand from the partial idle arc.");
 assert.strictEqual(context.data.wheel.currentDrawPosition, "指引", "Wheel caption should include the single-card guidance position.");
 assert.strictEqual(context._rainDismissed, true, "Starting a draw should dismiss the intro rain bed.");
-assert(pendingTimers.some((timer) => timer.delay === 120), "Starting a draw should schedule a gentle rain fade.");
-const initialRainVolume = activeRainAudio.volume;
+assert.strictEqual(activeRainAudio.destroyed, true, "Starting a draw should stop the intro rain immediately instead of letting it loop under the wheel.");
+assert(!pendingTimers.some((timer) => timer.delay === 120), "Starting a draw should not leave a rain fade timer running after the wheel opens.");
 assert.strictEqual(context.data.wheelCards.length, 78, "Wheel should contain the complete 78-card deck.");
 assert.strictEqual(context.data.wheel.cardBackSrc, `${REMOTE_ASSET_BASE_URL}/cards/card-back.png`, "Wheel should use the remote card back.");
 assert.deepStrictEqual(
@@ -403,9 +403,6 @@ assert(
     context.data.wheelCards[7].arcStyle.includes("rotate(57.0deg)"),
   "Spreading cards should target the exposed upper-left 60-degree circle arc."
 );
-runNextTimerByDelay(120);
-assert(activeRainAudio.volume < initialRainVolume, "Intro rain fade should step the volume down before stopping.");
-
 runNextTimerByDelay(1120);
 
 assert.strictEqual(context.data.wheel.motion, "arc", "Wheel should become interactive after the spread animation.");
@@ -712,9 +709,10 @@ assert(
     pageScript.includes("startIntroRain(this)") &&
     pageScript.includes("resumeIntroRainOnHome(this)") &&
     pageScript.includes("const INTRO_RAIN_VOLUME = 0.34;") &&
-    pageScript.includes("fadeIntroRain(this)") &&
+    pageScript.includes("dismissIntroRainForDraw(this)") &&
+    !pageScript.includes("fadeIntroRain(this)") &&
     pageScript.includes("audio.onEnded"),
-  "Miniapp should expose a top music toggle, loop intro into intro_bar, recover local audio on remote errors, and fade intro rain on draw."
+  "Miniapp should expose a top music toggle, loop intro into intro_bar, recover local audio on remote errors, and stop intro rain when the wheel opens."
 );
 assert(
   fs.existsSync("miniprogram/images/card-back-fallback.png") &&
@@ -1005,13 +1003,15 @@ assert(
     context.data.wheelCards[77].slotStyle.includes("z-index: 1"),
   "Closed wheel should restore the same tight idle wheel deck."
 );
-const rainPlayCountBeforeReturn = activeRainAudio.playCount;
+const rainContextCountBeforeReturn = audioContexts.length;
 
 assert.strictEqual(context._rainDismissed, true, "Completed draw should keep rain dismissed while the reading page is active.");
 pageDefinition.onShow.call(context);
+assert.strictEqual(audioContexts.length, rainContextCountBeforeReturn + 1, "Returning from the reading page should create a fresh intro rain session.");
+activeRainAudio = audioContexts[audioContexts.length - 1];
 assert.strictEqual(context._rainDismissed, false, "Returning to the closed home page should allow intro rain to resume.");
 assert.strictEqual(activeRainAudio.volume, 0.34, "Resumed intro rain should use the doubled ambient volume.");
-assert(activeRainAudio.playCount > rainPlayCountBeforeReturn, "Returning from the reading page should restart the intro rain bed.");
+assert(activeRainAudio.playCount >= 1, "Returning from the reading page should restart the intro rain bed.");
 
 pageDefinition.onUnload.call(context);
 assert.strictEqual(activeMusicAudio.destroyed, true, "Page unload should destroy the active background music context.");

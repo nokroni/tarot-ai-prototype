@@ -171,8 +171,6 @@ const MUSIC_TRACK_NEXT = {
 };
 const INTRO_RAIN_TRACK_PATH = createRemoteAssetUrl("music", "sfx_intro_rain.m4a");
 const INTRO_RAIN_VOLUME = 0.34;
-const INTRO_RAIN_FADE_MS = 1080;
-const INTRO_RAIN_FADE_STEPS = 9;
 
 const tarotDeck = [
   {
@@ -1348,7 +1346,7 @@ Page({
     });
 
     startWheelIntroAnimation(this);
-    fadeIntroRain(this);
+    dismissIntroRainForDraw(this);
   },
 
   onWheelNativeScroll(event) {
@@ -3407,36 +3405,10 @@ function stopIntroRain(page) {
   }
 }
 
-function fadeIntroRain(page) {
+function dismissIntroRainForDraw(page) {
   page._rainDismissed = true;
   page._rainPendingPlay = false;
-  clearIntroRainFadeTimer(page);
-
-  const audio = page._rainAudioContext;
-
-  if (!audio) {
-    return;
-  }
-
-  const initialVolume = typeof audio.volume === "number" ? audio.volume : INTRO_RAIN_VOLUME;
-  const fadeStepMs = Math.round(INTRO_RAIN_FADE_MS / INTRO_RAIN_FADE_STEPS);
-  let step = 0;
-
-  const fadeNextStep = () => {
-    step += 1;
-    audio.volume = Math.max(0, initialVolume * (1 - step / INTRO_RAIN_FADE_STEPS));
-
-    if (step < INTRO_RAIN_FADE_STEPS) {
-      page._rainFadeTimer = setTimeout(fadeNextStep, fadeStepMs);
-      return;
-    }
-
-    audio.stop();
-    audio.volume = INTRO_RAIN_VOLUME;
-    page._rainFadeTimer = null;
-  };
-
-  page._rainFadeTimer = setTimeout(fadeNextStep, fadeStepMs);
+  stopIntroRain(page);
 }
 
 function destroyMusic(page) {
