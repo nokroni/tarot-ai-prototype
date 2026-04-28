@@ -28,10 +28,13 @@ Page({
       spreadLabel: "牌阵",
       readerLabel: "读牌人",
       spreadGuideTitle: "适合这样问",
-      rahdueHandDrawnLabel: "Complete handdrawn",
+      rahdueHandDrawnLabel: "完整手选",
       rahdueHandDrawnHint: "手动选择完整 78 张牌。过程会很长，默认会自动完成完整牌组。",
-      rahdueHandDrawnConfirmTitle: "Are you really sure?",
-      rahdueHandDrawnConfirmCopy: "Complete handdrawn mode means you will choose all 78 cards one by one before the reading starts.",
+      rahdueLongNotice: "拉杜之轮会使用完整 78 张牌并分区生成解读，等待时间可能明显长于普通牌阵。",
+      rahdueHandDrawnConfirmTitle: "真的确定吗？",
+      rahdueHandDrawnConfirmCopy: "完整手选模式需要在解读前一张一张选完全部 78 张牌，过程会很长。",
+      rahdueHandDrawnConfirmYes: "确定",
+      rahdueHandDrawnConfirmCancel: "取消",
       apply: "确认"
     },
     spreads: createPageSpreadOptions(),
@@ -96,8 +99,8 @@ Page({
     wx.showModal({
       title: this.data.ui.rahdueHandDrawnConfirmTitle,
       content: this.data.ui.rahdueHandDrawnConfirmCopy,
-      confirmText: "Yes",
-      cancelText: "Cancel",
+      confirmText: this.data.ui.rahdueHandDrawnConfirmYes,
+      cancelText: this.data.ui.rahdueHandDrawnConfirmCancel,
       success: (result) => {
         this.setData({
           rahdueHandDrawn: Boolean(result && result.confirm)

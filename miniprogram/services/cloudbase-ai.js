@@ -14,6 +14,7 @@ const {
 } = require("../prompts/system-prompt");
 
 const RAHDUE_SEQUENTIAL_ATTEMPTS = 2;
+const RAHDUE_SECTION_CONCURRENCY = 3;
 const RAHDUE_SCHEMA_LABEL_PATTERN = /\b(schemaVersion|sourceLabel|summary|overallMessage|practicalReflection|journalQuestion|caveat|cards|sections|drawnCards)\s*[:：]/i;
 const RAHDUE_ACTION_PATTERN = /(行动提醒|实践提醒|小仪式|今晚|明天|下一步|小行动|关掉顶灯|点一盏|点灯|写下|喝[一半]?口|喝[一半]?杯|温水|呼吸|放下手机|练习)|\b(tonight|tomorrow|today|ritual|homework|next step|write down|journal|drink water|breathe|light a candle|put the phone down)\b/i;
 const RAHDUE_LEANING_PATTERN = /(我会.{0,12}偏向|偏向于是|偏向不是|lean yes|lean no|would lean)/i;
@@ -84,34 +85,16 @@ async function createCloudBaseRahdueSequentialReading({ cloudAIConfig, readingRe
   const model = wx.cloud.extend.AI.createModel(cloudAIConfig.provider);
   const modelName = resolveCloudAIModel(cloudAIConfig, readingRequest);
   const sourceLabel = resolveCloudAISourceLabel(cloudAIConfig, readingRequest);
-  const completedSections = [];
-  const completedCards = [];
-
-  for (let index = 0; index < sections.length; index += 1) {
-    const section = sections[index];
-    const sectionCards = getRahdueSectionCards(readingRequest, section);
-
-    emitRahdueProgress(onProgress, {
-      phase: "section",
-      current: index + 1,
-      total: sections.length + 1,
-      sectionTitle: section.title
-    });
-
-    const sectionResult = await requestRahdueSectionAttempt({
-      model,
-      modelName,
-      sourceLabel,
-      readingRequest,
-      section,
-      sectionCards,
-      previousSections: completedSections,
-      attemptNumber: 1
-    });
-
-    completedSections.push(sectionResult.section);
-    completedCards.push(...sectionResult.cards);
-  }
+  const sectionResults = await requestRahdueSectionsInParallel({
+    model,
+    modelName,
+    sourceLabel,
+    readingRequest,
+    sections,
+    onProgress
+  });
+  const completedSections = sectionResults.map((result) => result.section);
+  const completedCards = sectionResults.reduce((cards, result) => cards.concat(result.cards), []);
 
   emitRahdueProgress(onProgress, {
     phase: "synthesis",
@@ -169,6 +152,52 @@ async function requestRahdueSectionAttempt(options) {
       attemptNumber: options.attemptNumber + 1
     }));
   }
+}
+
+async function requestRahdueSectionsInParallel(options) {
+  const sections = options.sections || [];
+  const sectionResults = new Array(sections.length);
+  const workerCount = Math.min(RAHDUE_SECTION_CONCURRENCY, sections.length);
+  let nextIndex = 0;
+  let completedCount = 0;
+
+  async function requestNextSection() {
+    const index = nextIndex;
+
+    nextIndex += 1;
+
+    if (index >= sections.length) {
+      return;
+    }
+
+    const section = sections[index];
+    const sectionCards = getRahdueSectionCards(options.readingRequest, section);
+    const sectionResult = await requestRahdueSectionAttempt({
+      model: options.model,
+      modelName: options.modelName,
+      sourceLabel: options.sourceLabel,
+      readingRequest: options.readingRequest,
+      section,
+      sectionCards,
+      previousSections: [],
+      attemptNumber: 1
+    });
+
+    sectionResults[index] = sectionResult;
+    completedCount += 1;
+    emitRahdueProgress(options.onProgress, {
+      phase: "section",
+      current: completedCount,
+      total: sections.length + 1,
+      sectionTitle: section.title
+    });
+
+    return requestNextSection();
+  }
+
+  await Promise.all(Array.from({ length: workerCount }, () => requestNextSection()));
+
+  return sectionResults;
 }
 
 async function requestRahdueSynthesisAttempt(options) {

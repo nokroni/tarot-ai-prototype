@@ -78,8 +78,8 @@ function buildRahdueSectionMessages({ sourceLabel, readingRequest, section, sect
   const previous = Array.isArray(previousSections) ? previousSections : [];
   const systemSegments = [
     languageCode === "en"
-      ? "You are reading one sequential section of Rahdue's Wheel for a WeChat mini program."
-      : "你正在为微信小程序按顺序解读拉杜之轮的一个分区。",
+      ? "You are reading one section of Rahdue's Wheel for a WeChat mini program."
+      : "你正在为微信小程序解读拉杜之轮的一个分区。",
     "只返回一个有效 JSON 对象，不要输出 markdown、解释文字或代码块。",
     "JSON 顶层必须只包含 section 与 cards。",
     "section 必须包含 id、title、interpretation、keyCards。cards 数组每项只输出 id 与 interpretation。",
@@ -104,6 +104,9 @@ function buildRahdueSectionMessages({ sourceLabel, readingRequest, section, sect
     languageCode === "en"
       ? "section.interpretation should be two or three complete sentences about this section's symbolic layer. cards[].interpretation should be one complete sentence per card."
       : "section.interpretation 写两到三句完整中文，只解释本分区的象征层；cards[].interpretation 每张牌只写一句完整提示。",
+    languageCode === "en"
+      ? "Sections may be generated in parallel, so do not rely on earlier sections being present. The final synthesis will restore the complete wheel order."
+      : "分区可能并行生成，所以不要依赖前序分区一定存在；最终综合会恢复完整轮盘顺序。",
     languageCode === "en"
       ? "This is symbolic past-life insight and inner wisdom, not certain past-life fact or professional advice."
       : "这是象征性的前世洞见与内在智慧探索，不是确定前世事实或专业建议。",

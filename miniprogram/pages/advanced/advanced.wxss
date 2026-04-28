@@ -163,6 +163,17 @@
   line-height: 1.38;
 }
 
+.rahdue-mode-notice {
+  display: block;
+  margin-top: 14rpx;
+  padding-top: 14rpx;
+  border-top: 1rpx solid rgba(151, 73, 56, 0.16);
+  color: #974938;
+  font-size: 22rpx;
+  font-weight: 800;
+  line-height: 1.42;
+}
+
 .reader-guide,
 .spread-guide-list {
   display: grid;

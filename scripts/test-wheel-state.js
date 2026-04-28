@@ -94,9 +94,9 @@ global.clearTimeout = (id) => {
 require("../miniprogram/pages/index/index.js");
 
 assert(pageDefinition, "Page definition should be registered.");
-assert.strictEqual(releasePackageJson.version, "0.9.2", "Package version should be bumped for this update.");
-assert.strictEqual(releasePackageLock.version, "0.9.2", "Package lock top-level version should match the release.");
-assert.strictEqual(releasePackageLock.packages[""].version, "0.9.2", "Package lock root package version should match the release.");
+assert.strictEqual(releasePackageJson.version, "0.9.3", "Package version should be bumped for this update.");
+assert.strictEqual(releasePackageLock.version, "0.9.3", "Package lock top-level version should match the release.");
+assert.strictEqual(releasePackageLock.packages[""].version, "0.9.3", "Package lock root package version should match the release.");
 assert.strictEqual(typeof createCloudBaseRahdueSequentialReading, "function", "Rahdue sequential CloudBase reader should be exported.");
 assert.strictEqual(pageDefinition.data.language, "zh", "Miniapp should default to Chinese.");
 assert.deepStrictEqual(
@@ -479,7 +479,7 @@ assert.strictEqual(context.data.ui.title, "塔罗牌", "Chinese UI copy should r
 const idleWheelCardIds = context.data.wheelCards.map((slot) => slot.id).join("|");
 pageDefinition.tapDeckStage.call(context);
 
-assert.strictEqual(context.data.buildLabel, "0.9.2 双语版本", "Build label should identify the 0.9.2 bilingual build.");
+assert.strictEqual(context.data.buildLabel, "0.9.3 双语版本", "Build label should identify the 0.9.3 bilingual build.");
 assert.strictEqual(context.data.wheel.isOpen, true, "Tapping the closed pile should mount the wheel like the submit button.");
 assert.strictEqual(
   context.data.wheelCards.map((slot) => slot.id).join("|"),
@@ -756,7 +756,13 @@ assert(
     advancedStyles.includes("max-width: 100%;") &&
     advancedStyles.includes("text-overflow: ellipsis;") &&
     advancedScript.includes("saveAdvancedReadingSelection") &&
-    advancedScript.includes('rahdueHandDrawnConfirmTitle: "Are you really sure?"') &&
+    advancedScript.includes('rahdueHandDrawnLabel: "完整手选"') &&
+    advancedScript.includes('rahdueLongNotice: "拉杜之轮会使用完整 78 张牌并分区生成解读，等待时间可能明显长于普通牌阵。"') &&
+    advancedScript.includes('rahdueHandDrawnConfirmTitle: "真的确定吗？"') &&
+    advancedScript.includes('rahdueHandDrawnConfirmYes: "确定"') &&
+    advancedScript.includes('rahdueHandDrawnConfirmCancel: "取消"') &&
+    advancedMarkup.includes("{{ui.rahdueLongNotice}}") &&
+    advancedStyles.includes(".rahdue-mode-notice") &&
     advancedScript.includes("toggleRahdueHandDrawn(event)") &&
     advancedScript.includes("wx.showModal") &&
     readingOptionsScript.includes("rahdueHandDrawn") &&
@@ -783,13 +789,16 @@ assert(
     pageMarkup.includes("{{rahdueProgress.percent}}%") &&
     pageStyles.includes(".rahdue-progress-fill") &&
     cloudBaseScript.includes("createCloudBaseRahdueSequentialReading") &&
-    cloudBaseScript.includes("for (let index = 0; index < sections.length; index += 1)") &&
+    cloudBaseScript.includes("RAHDUE_SECTION_CONCURRENCY = 3") &&
+    cloudBaseScript.includes("requestRahdueSectionsInParallel") &&
+    cloudBaseScript.includes("Promise.all(Array.from({ length: workerCount }") &&
     cloudBaseScript.includes("buildRahdueSectionMessages") &&
     cloudBaseScript.includes("buildRahdueSynthesisMessages") &&
-    cloudBaseScript.includes("completedSections.push") &&
-    cloudBaseScript.includes("completedCards.push") &&
+    cloudBaseScript.includes("sectionResults.map") &&
+    cloudBaseScript.includes("previousSections: []") &&
     systemPromptScript.includes("buildRahdueSectionMessages") &&
     systemPromptScript.includes("buildRahdueSynthesisMessages") &&
+    systemPromptScript.includes("分区可能并行生成") &&
     systemPromptScript.includes("不要把 schema 标签写进面向用户文字") &&
     systemPromptScript.includes("不要套用普通读牌人的输出结构") &&
     cloudBaseScript.includes("RAHDUE_SCHEMA_LABEL_PATTERN") &&
@@ -1540,26 +1549,30 @@ async function assertRahdueSequentialReader() {
       }
     });
 
-    assert.strictEqual(streamCalls.length, initialRahdueSpread.sections.length + 2, "Sequential Rahdue reader should retry a section that leaks schema or action-reminder text.");
+    assert.strictEqual(streamCalls.length, initialRahdueSpread.sections.length + 2, "Parallel Rahdue reader should retry a section that leaks schema or action-reminder text.");
     assert.deepStrictEqual(
       progressEvents.map((event) => event.phase),
       initialRahdueSpread.sections.map(() => "section").concat("synthesis"),
-      "Sequential Rahdue progress should report each section before synthesis."
+      "Parallel Rahdue progress should report each section before synthesis."
     );
     assert.deepStrictEqual(
       progressEvents.map((event) => event.current),
       initialRahdueSpread.sections.map((section, index) => index + 1).concat(initialRahdueSpread.sections.length + 1),
-      "Sequential Rahdue progress should advance monotonically through the true pipeline."
+      "Parallel Rahdue progress should advance monotonically by completed section count."
     );
-    assert.strictEqual(progressEvents[0].sectionTitle, initialRahdueSpread.sections[0].title, "First Rahdue progress event should name the first section.");
     assert.strictEqual(progressEvents[progressEvents.length - 1].total, initialRahdueSpread.sections.length + 1, "Rahdue progress should include synthesis in the total.");
+    assert.deepStrictEqual(
+      progressEvents.slice(0, -1).map((event) => event.sectionTitle).sort(),
+      initialRahdueSpread.sections.map((section) => section.title).sort(),
+      "Parallel Rahdue progress should eventually report every section title."
+    );
 
     const secondSectionPayload = streamCalls
       .map((call) => parsePromptPayload(call.messages[1].content))
       .find((payload) => payload.currentSection && payload.currentSection.id === "solidifier1");
     const synthesisPayload = parsePromptPayload(streamCalls[streamCalls.length - 1].messages[1].content);
 
-    assert.strictEqual(secondSectionPayload.previousSections.length, 1, "Sequential Rahdue section prompts should carry completed prior sections.");
+    assert.strictEqual(secondSectionPayload.previousSections.length, 0, "Parallel Rahdue section prompts should not depend on completed prior sections.");
     assert.strictEqual(synthesisPayload.sections.length, initialRahdueSpread.sections.length, "Rahdue synthesis prompt should receive every completed section.");
     assert.strictEqual(reading.sections.length, initialRahdueSpread.sections.length, "Sequential Rahdue reading should return every section.");
     assert.strictEqual(reading.cards.length, rahduePromptRequest.drawnCards.length, "Sequential Rahdue reading should return all 78 card interpretations.");

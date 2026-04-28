@@ -28,6 +28,7 @@
           </view>
         </label>
       </checkbox-group>
+      <text class="rahdue-mode-notice">{{ui.rahdueLongNotice}}</text>
     </view>
   </view>
 
