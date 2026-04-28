@@ -10,6 +10,7 @@ const {
   getLanguageConfig,
   normalizeLanguageCode
 } = require("./language");
+const { RAHDUE_SPREAD_ID } = require("./reading-options");
 const { createReaderSourceLabel } = require("../prompts/reader-prompts");
 const { createSpreadGuidance } = require("../prompts/spread-guidance");
 
@@ -20,6 +21,10 @@ function normalizeReading(rawReading, fallbackReading, language) {
   const sourceCards = Array.isArray(reading.cards) && reading.cards.length
     ? reading.cards
     : fallbackCards;
+  const fallbackSections = Array.isArray(fallback.sections) ? fallback.sections : [];
+  const sourceSections = Array.isArray(reading.sections) && reading.sections.length
+    ? reading.sections
+    : fallbackSections;
   const languageCode = normalizeLanguageCode(
     language ||
       reading.language ||
@@ -35,6 +40,9 @@ function normalizeReading(rawReading, fallbackReading, language) {
     cards: sourceCards.map((card, index) =>
       mergeCardWithMetadata(card, fallbackCards, index, languageCode, languageConfig)
     ),
+    sections: sourceSections.map((section, index) =>
+      mergeSectionWithMetadata(section, fallbackSections, index)
+    ),
     overallMessage: textOr(reading.overallMessage, fallback.overallMessage),
     practicalReflection: textOr(reading.practicalReflection, fallback.practicalReflection),
     journalQuestion: textOr(reading.journalQuestion, fallback.journalQuestion),
@@ -43,6 +51,26 @@ function normalizeReading(rawReading, fallbackReading, language) {
       fallback.caveat ||
         languageConfig.fullCaveat
     )
+  };
+}
+
+function mergeSectionWithMetadata(section, fallbackSections, index) {
+  const safeSection = section && typeof section === "object" ? section : {};
+  const matched = safeSection.id
+    ? fallbackSections.find((fallbackSection) => fallbackSection && fallbackSection.id === safeSection.id)
+    : null;
+  const meta = matched || fallbackSections[index] || {};
+  const keyCards = Array.isArray(safeSection.keyCards)
+    ? safeSection.keyCards
+    : Array.isArray(meta.keyCards)
+      ? meta.keyCards
+      : [];
+
+  return {
+    id: textOr(safeSection.id, textOr(meta.id, `section-${index}`)),
+    title: textOr(safeSection.title, textOr(meta.title, "")),
+    interpretation: textOr(safeSection.interpretation, textOr(meta.interpretation, "")),
+    keyCards
   };
 }
 
@@ -105,6 +133,7 @@ function createFallbackReading({ question, spread, drawnCards, sourceLabel, read
       keywords: drawn.keywords,
       interpretation: createFallbackCardInterpretation(drawn, readerProfileRequest, languageCode)
     })),
+    sections: createFallbackSections(spread, drawnCards, languageCode),
     overallMessage:
       directionalFallback.overallMessage ||
       createGeneralFallbackOverall(primaryThemes, readerProfileRequest, languageCode),
@@ -136,7 +165,12 @@ function createReadingRequest({ question, spread, drawnCards, readerProfile, dec
     spread: {
       id: spread.id,
       title: spread.title,
-      positions: spread.positions
+      positions: spread.positions,
+      sections: spread.sections,
+      experimental: Boolean(spread.experimental),
+      unstable: Boolean(spread.unstable),
+      drawMode: spread.drawMode || "",
+      warning: spread.warning || ""
     },
     decisionOptions: decisionOptionRequest,
     spreadGuidance: createSpreadGuidance(
@@ -465,6 +499,33 @@ function createDirectionalFallback({
   }
 
   return {};
+}
+
+function createFallbackSections(spread, drawnCards, language) {
+  if (!isRahdueSpread(spread) || !Array.isArray(spread.sections)) {
+    return [];
+  }
+
+  const languageCode = normalizeLanguageCode(language);
+
+  return spread.sections.map((section) => {
+    const sectionCards = drawnCards.slice(section.start - 1, section.end);
+    const keyCards = sectionCards.slice(0, 3).map((drawn) => drawn.card.name);
+    const themeWords = sectionCards
+      .slice(0, 4)
+      .map((drawn) => drawn.keywords[0])
+      .filter(Boolean)
+      .join(getLanguageConfig(languageCode).keywordJoiner);
+
+    return {
+      id: section.id,
+      title: section.title,
+      interpretation: languageCode === "en"
+        ? `${section.title} is read as one experimental layer of the full-deck wheel. Its first signals cluster around ${themeWords || "the drawn cards"}, so treat this as a section-level reflection rather than a fixed doctrine.`
+        : `${section.title}作为完整牌组轮盘中的一层实验性观察来读。前几张牌的主题集中在${themeWords || "这些牌"}，请把它当作分区反思，而不是固定教义。`,
+      keyCards
+    };
+  });
 }
 
 function createFallbackCardInterpretation(drawn, readerProfile, language) {
@@ -972,10 +1033,65 @@ function getReadingValidationError(reading, expectedRequest) {
     }
   }
 
+  if (isRahdueRequest(expectedRequest)) {
+    const sectionValidationError = getRahdueSectionsValidationError(reading.sections, expectedRequest);
+
+    if (sectionValidationError) {
+      return sectionValidationError;
+    }
+  }
+
   const styleValidationError = getReadingStyleValidationError(reading, expectedRequest);
 
   if (styleValidationError) {
     return styleValidationError;
+  }
+
+  return "";
+}
+
+function getRahdueSectionsValidationError(sections, expectedRequest) {
+  const expectedSections = expectedRequest &&
+    expectedRequest.spread &&
+    Array.isArray(expectedRequest.spread.sections)
+    ? expectedRequest.spread.sections
+    : [];
+
+  if (!Array.isArray(sections)) {
+    return "Rahdue sections 必须是数组";
+  }
+
+  if (expectedSections.length && sections.length !== expectedSections.length) {
+    return "Rahdue sections 数量必须与分区数量一致";
+  }
+
+  for (let index = 0; index < sections.length; index += 1) {
+    const section = sections[index];
+    const expectedSection = expectedSections[index];
+
+    if (!section || typeof section !== "object" || Array.isArray(section)) {
+      return `sections[${index}] 必须是 JSON object`;
+    }
+
+    if (!isNonEmptyString(section.id)) {
+      return `sections[${index}].id 必须是非空字符串`;
+    }
+
+    if (expectedSection && section.id !== expectedSection.id) {
+      return `sections[${index}].id 必须与 Rahdue 分区一致`;
+    }
+
+    if (!isNonEmptyString(section.title)) {
+      return `sections[${index}].title 必须是非空字符串`;
+    }
+
+    if (!isNonEmptyString(section.interpretation)) {
+      return `sections[${index}].interpretation 必须是非空字符串`;
+    }
+
+    if (!Array.isArray(section.keyCards)) {
+      return `sections[${index}].keyCards 必须是数组`;
+    }
   }
 
   return "";
@@ -1103,6 +1219,15 @@ function collectUserFacingReadingText(reading) {
     });
   }
 
+  if (Array.isArray(reading.sections)) {
+    reading.sections.forEach((section, index) => {
+      fields.push({
+        name: `sections[${index}].interpretation`,
+        text: section && section.interpretation
+      });
+    });
+  }
+
   return fields.map((field) => ({
     name: field.name,
     text: String(field.text || "")
@@ -1181,6 +1306,31 @@ function readingJsonSchema() {
             }
           }
         },
+        sections: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["id", "title", "interpretation", "keyCards"],
+            properties: {
+              id: {
+                type: "string"
+              },
+              title: {
+                type: "string"
+              },
+              interpretation: {
+                type: "string"
+              },
+              keyCards: {
+                type: "array",
+                items: {
+                  type: "string"
+                }
+              }
+            }
+          }
+        },
         overallMessage: {
           type: "string"
         },
@@ -1208,6 +1358,18 @@ function isNonEmptyString(value) {
 
 function formatOrientation(orientation, language) {
   return formatOrientationText(orientation, language);
+}
+
+function isRahdueSpread(spread) {
+  return Boolean(spread && spread.id === RAHDUE_SPREAD_ID);
+}
+
+function isRahdueRequest(expectedRequest) {
+  return Boolean(
+    expectedRequest &&
+      expectedRequest.spread &&
+      expectedRequest.spread.id === RAHDUE_SPREAD_ID
+  );
 }
 
 module.exports = {

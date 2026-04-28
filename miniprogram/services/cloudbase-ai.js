@@ -21,11 +21,13 @@ async function createCloudBaseReading({ cloudAIConfig, readingRequest }) {
   }
 
   const model = wx.cloud.extend.AI.createModel(cloudAIConfig.provider);
+  const modelName = resolveCloudAIModel(cloudAIConfig, readingRequest);
+  const sourceLabel = resolveCloudAISourceLabel(cloudAIConfig, readingRequest);
   const result = await model.streamText({
     data: {
-      model: cloudAIConfig.model,
+      model: modelName,
       messages: buildReadingMessages({
-        sourceLabel: cloudAIConfig.sourceLabel || "HY",
+        sourceLabel,
         readingRequest
       })
     }
@@ -115,7 +117,33 @@ function extractJsonObject(text) {
   return trimmed;
 }
 
+function resolveCloudAIModel(cloudAIConfig, readingRequest) {
+  const spreadId = getReadingSpreadId(readingRequest);
+  const overrides = cloudAIConfig && cloudAIConfig.modelOverrides;
+
+  return overrides && overrides[spreadId]
+    ? overrides[spreadId]
+    : cloudAIConfig.model;
+}
+
+function resolveCloudAISourceLabel(cloudAIConfig, readingRequest) {
+  const spreadId = getReadingSpreadId(readingRequest);
+  const overrides = cloudAIConfig && cloudAIConfig.sourceLabelOverrides;
+
+  return overrides && overrides[spreadId]
+    ? overrides[spreadId]
+    : (cloudAIConfig.sourceLabel || "HY");
+}
+
+function getReadingSpreadId(readingRequest) {
+  return readingRequest &&
+    readingRequest.spread &&
+    readingRequest.spread.id;
+}
+
 module.exports = {
   createCloudBaseReading,
-  hasCloudBaseAI
+  hasCloudBaseAI,
+  resolveCloudAIModel,
+  resolveCloudAISourceLabel
 };

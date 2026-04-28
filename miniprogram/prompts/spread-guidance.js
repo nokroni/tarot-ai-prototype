@@ -41,6 +41,21 @@ function createSpreadGuidance(question, spread, decisionOptions, questionFocus, 
         : "practicalReflection 必须给一个小而可验证、可撤回的行动。语气像熟人提醒，不要像官方建议。"
   };
 
+  if (spreadId === "rahdueWheel") {
+    const sections = spread && Array.isArray(spread.sections) ? spread.sections : [];
+
+    return {
+      kind: "rahdue_wheel_full_deck",
+      title: "拉杜之轮",
+      positions,
+      sections,
+      ...baseGuidance,
+      experimentalNotice: "这是高度实验且不稳定的数字化改编，不是 Connolly 体系的权威复刻；不要写成确定预言、前世事实或专业建议。",
+      answerShape: "采用 Layered Summary：summary 先给完整牌组的主线；sections[] 写分区层级总结；cards[] 保持 78 张完整顺序，但每张只给一条极短提示。",
+      cardRoles: sections.map((section) => `${section.title}：把第 ${section.start}-${section.end} 张合并成一层主题，挑少量关键牌即可，不要逐张长篇展开。`)
+    };
+  }
+
   if (spreadId === "oneCard") {
     const singleAnswerShape = answer && answer.kind === "single_yes_no"
       ? "用一张牌直接回答此刻最重要的方向。只能把整体称为“这张牌”或“单牌”，不要写“三张牌”。这是是/否式问题，先说倾向，再解释这张牌的多个相关关键词如何共同落到问题上。如果牌面信号不是强烈的是或否，必须说明把它强行当成确定答案的风险。"
@@ -158,6 +173,21 @@ function createEnglishSpreadGuidance(question, spread, decisionOptions, question
         ? "practicalReflection should be one philosophical echo or question worth carrying. It does not need to be practical advice."
         : "practicalReflection must give one small, testable, reversible action in a close-friend tone rather than official advice."
   };
+
+  if (spreadId === "rahdueWheel") {
+    const sections = spread && Array.isArray(spread.sections) ? spread.sections : [];
+
+    return {
+      kind: "rahdue_wheel_full_deck",
+      title: "Rahdue’s Wheel",
+      positions,
+      sections,
+      ...baseGuidance,
+      experimentalNotice: "This is a highly experimental and unstable digital adaptation, not an authoritative reproduction of Connolly's system; do not write it as certain prediction, past-life fact, or professional advice.",
+      answerShape: "Use Layered Summary: summary gives the full-deck main line; sections[] gives section-level interpretation; cards[] keeps all 78 cards in order, but each card gets only one very short line.",
+      cardRoles: sections.map((section) => `${section.title}: combine cards ${section.start}-${section.end} into one layer and name only a few key cards rather than expanding every card at length.`)
+    };
+  }
 
   if (spreadId === "oneCard") {
     const singleAnswerShape = answer && answer.kind === "single_yes_no"

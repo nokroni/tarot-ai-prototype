@@ -1,6 +1,15 @@
 const assert = require("assert");
 const fs = require("fs");
 const sharp = require("sharp");
+const appConfig = require("../miniprogram/config");
+const {
+  RAHDUE_SPREAD_ID,
+  createSpreads
+} = require("../miniprogram/services/reading-options");
+const {
+  resolveCloudAIModel,
+  resolveCloudAISourceLabel
+} = require("../miniprogram/services/cloudbase-ai");
 const {
   assertValidReading,
   createFallbackReading,
@@ -87,17 +96,30 @@ assert.deepStrictEqual(
   [["zh", "中文"], ["en", "English"]],
   "Language selector should expose readable Chinese and English options."
 );
-assert.strictEqual(pageDefinition.data.spreads.length, 4, "Miniapp should still know every complete spread option.");
+assert.strictEqual(pageDefinition.data.spreads.length, 5, "Miniapp should still know every complete spread option.");
 assert.deepStrictEqual(
   pageDefinition.data.spreads.map((spread) => [spread.id, spread.insight]),
   [
     ["oneCard", "- Light another candle"],
     ["threeCard", "- Everything in its right place"],
     ["timeFlow", "- Yesterday I woke up sucking a lemon"],
-    ["decisionPair", "- There are two colours in my head"]
+    ["decisionPair", "- There are two colours in my head"],
+    ["rahdueWheel", "- Highly experimental full-deck wheel"]
   ],
   "Each spread should expose the requested insight quote."
 );
+const initialRahdueSpread = pageDefinition.data.spreads.find((spread) => spread.id === RAHDUE_SPREAD_ID);
+assert(initialRahdueSpread, "Rahdue's Wheel should be registered as an advanced spread.");
+assert.strictEqual(initialRahdueSpread.positions.length, 78, "Rahdue's Wheel should draw all 78 cards.");
+assert.strictEqual(initialRahdueSpread.sections.length, 13, "Rahdue's Wheel should expose the known section map.");
+assert.strictEqual(initialRahdueSpread.sections.reduce((sum, section) => sum + section.count, 0), 78, "Rahdue sections should cover the full deck exactly once.");
+assert.strictEqual(initialRahdueSpread.drawMode, "fullDeckAuto", "Rahdue's Wheel should use the full-deck automatic draw path.");
+assert.strictEqual(initialRahdueSpread.experimental, true, "Rahdue's Wheel should be marked experimental.");
+assert.strictEqual(initialRahdueSpread.unstable, true, "Rahdue's Wheel should be marked unstable.");
+assert.strictEqual(initialRahdueSpread.warning, "高度实验 / 不稳定", "Rahdue's Wheel should expose the Chinese instability warning.");
+const englishRahdueSpread = createSpreads("en").find((spread) => spread.id === RAHDUE_SPREAD_ID);
+assert.strictEqual(englishRahdueSpread.title, "Rahdue’s Wheel", "Rahdue's Wheel should keep the requested English display spelling.");
+assert.strictEqual(englishRahdueSpread.warning, "Highly experimental / unstable", "Rahdue's Wheel should expose the English instability warning.");
 assert.deepStrictEqual(
   pageDefinition.data.spreads.find((spread) => spread.id === "timeFlow"),
   {
@@ -138,6 +160,64 @@ assert(
     pageDefinition.data.wheelCards[77].arcStyle.includes("rotate(4.8deg)"),
   "Idle deck should be the wheel deck itself, tightly piled and rising toward the right."
 );
+const rahdueContext = {
+  data: clone(pageDefinition.data),
+  _interpreted: false,
+  setData(update) {
+    const nextData = clone(this.data);
+
+    Object.keys(update).forEach((key) => {
+      setDataPath(nextData, key, clone(update[key]));
+    });
+
+    this.data = nextData;
+  },
+  interpretReading() {
+    this._interpreted = true;
+  }
+};
+const rahdueActiveIndex = 7;
+
+rahdueContext.setData({
+  selectedSpreadId: RAHDUE_SPREAD_ID,
+  selectedSpread: initialRahdueSpread,
+  readingMode: "advanced",
+  modeSummary: "拉杜之轮 · Misty",
+  "assets.ready": true
+});
+pageDefinition.drawCards.call(rahdueContext);
+rahdueContext.setData({
+  "wheel.motion": "arc",
+  "wheel.activeIndex": rahdueActiveIndex
+});
+pageDefinition.onWheelCardTap.call(rahdueContext, {
+  currentTarget: {
+    dataset: {
+      index: rahdueActiveIndex
+    }
+  }
+});
+assert.strictEqual(rahdueContext.data.drawnCards.length, 78, "Rahdue's Wheel should draw the complete deck on the first card tap.");
+assert.strictEqual(rahdueContext.data.wheel.requiredCount, 78, "Rahdue's Wheel should require the full deck.");
+assert.strictEqual(rahdueContext.data.wheel.drawnCount, 78, "Rahdue's Wheel should report the full-deck draw count immediately.");
+assert.strictEqual(rahdueContext.data.wheel.currentDrawNumber, 78, "Rahdue's Wheel should skip manual one-by-one draw numbering.");
+assert.strictEqual(rahdueContext.data.wheel.currentDrawPosition, initialRahdueSpread.positions[rahdueActiveIndex], "Rahdue's Wheel should caption the chosen wheel entry.");
+assert.strictEqual(rahdueContext.data.wheel.phase, "drawing", "Rahdue's Wheel should reuse the draw-flight phase after auto-selecting the full deck.");
+assert.strictEqual(rahdueContext.data.wheel.selectedIndex, -1, "Rahdue's Wheel should not require a second confirmation tap.");
+assert.strictEqual(rahdueContext.data.wheel.flightCard.card.id, rahdueContext.data.drawnCards[rahdueActiveIndex].card.id, "Rahdue's Wheel should reveal the tapped card in the flight overlay.");
+assert.strictEqual(rahdueContext.data.wheelCards.every((slot) => slot.drawn), true, "Rahdue's Wheel should mark every wheel slot drawn for the finish animation.");
+runNextTimerByDelay(1120);
+runNextTimerByDelay(280);
+runNextTimerByDelay(660);
+assert.strictEqual(rahdueContext.data.wheel.showDrawnSummary, true, "Rahdue's Wheel should show the temporary drawn-card summary before reading navigation.");
+assert.strictEqual(rahdueContext.data.drawnSummarySections.length, 13, "Rahdue's Wheel summary should be grouped into the section map.");
+assert.strictEqual(
+  rahdueContext.data.drawnSummarySections.reduce((sum, section) => sum + section.cards.length, 0),
+  78,
+  "Rahdue's Wheel summary sections should contain all 78 drawn cards."
+);
+assert.strictEqual(rahdueContext._interpreted, true, "Rahdue's Wheel should start interpretation after the sectioned summary is visible.");
+const rahdueDrawnCardsForPrompt = clone(rahdueContext.data.drawnCards);
 assert.deepStrictEqual(
   pageDefinition.data.readerProfiles.map((reader) => reader.id),
   ["misty", "johnny", "donovan"],
@@ -642,11 +722,14 @@ assert(
     pageMarkup.includes("wheel-overlay-idle") &&
     pageMarkup.includes('wx:if="{{wheel.showDrawnSummary}}"') &&
     pageMarkup.includes('class="wheel-drawn-summary"') &&
-    pageMarkup.includes('class="wheel-drawn-summary-image {{item.orientation === \'reversed\' ? \'reversed\' : \'\'}}"') &&
-    pageMarkup.includes('src="{{item.card.imageSrc}}"') &&
+    pageMarkup.includes('wx:for="{{drawnSummarySections}}"') &&
+    pageMarkup.includes('wx:for="{{item.cards}}"') &&
+    pageMarkup.includes('wx:for-item="card"') &&
+    pageMarkup.includes('class="wheel-drawn-summary-image {{card.orientation === \'reversed\' ? \'reversed\' : \'\'}}"') &&
+    pageMarkup.includes('src="{{card.card.imageSrc}}"') &&
     pageMarkup.includes('class="wheel-drawn-summary-name"') &&
-    pageMarkup.includes("{{item.card.name}}") &&
-    pageMarkup.includes("{{item.orientationLabel}}") &&
+    pageMarkup.includes("{{card.card.name}}") &&
+    pageMarkup.includes("{{card.orientationLabel}}") &&
     pageMarkup.includes('wx:for="{{wheelCards}}"') &&
     pageMarkup.includes('style="{{item.slotStyle}}"') &&
     pageMarkup.includes('style="{{item.arcStyle}}"') &&
@@ -891,6 +974,91 @@ assert(
   "Prompt user payload should stay slim while preserving card reading metadata."
 );
 
+const rahduePromptRequest = createReadingRequest({
+  question: "我需要看见长期生命模式里的主线是什么？",
+  spread: initialRahdueSpread,
+  drawnCards: rahdueDrawnCardsForPrompt,
+  readerProfile: "misty",
+  decisionOptions: null,
+  language: "zh"
+});
+const rahdueSourceLabel = resolveCloudAISourceLabel(appConfig.cloudAI, rahduePromptRequest);
+const rahdueFallback = createFallbackReading({
+  question: "我需要看见长期生命模式里的主线是什么？",
+  spread: initialRahdueSpread,
+  drawnCards: rahdueDrawnCardsForPrompt,
+  sourceLabel: rahdueSourceLabel,
+  readerProfile: "misty",
+  language: "zh"
+});
+const rahdueSlimReading = {
+  schemaVersion: "tarot.reading.v1",
+  sourceLabel: `${rahdueSourceLabel} · Misty`,
+  summary: "完整牌组先显示出一条长期模式：行动冲动、情绪回流与现实责任彼此拉扯。",
+  sections: initialRahdueSpread.sections.map((section) => ({
+    id: section.id,
+    title: section.title,
+    interpretation: `${section.title}显示这一层需要被合并阅读，先看少数关键牌如何牵动整体主题。`,
+    keyCards: rahdueDrawnCardsForPrompt
+      .slice(section.start - 1, Math.min(section.end, section.start + 1))
+      .map((drawn) => drawn.card.name)
+  })),
+  cards: rahduePromptRequest.drawnCards.map((drawn) => ({
+    id: drawn.id,
+    interpretation: `${drawn.position}给出一条短提示。`
+  })),
+  overallMessage: "整体讯息是把这次完整牌组当作地图，而不是把每张牌都写成确定答案。",
+  practicalReflection: "今天只挑一个反复出现的主题，写下一个可撤回的小行动。",
+  journalQuestion: "哪一层主题最像我最近反复绕回来的问题？",
+  caveat: "AI生成内容，仅供娱乐和自我反思。"
+};
+const rahdueMessages = buildReadingMessages({
+  sourceLabel: rahdueSourceLabel,
+  readingRequest: rahduePromptRequest
+});
+const serializedRahduePayload = JSON.parse(rahdueMessages[1].content.slice(rahdueMessages[1].content.indexOf("{")));
+
+assert.strictEqual(
+  resolveCloudAIModel(appConfig.cloudAI, rahduePromptRequest),
+  "hunyuan-2.0-thinking-20251109",
+  "Rahdue's Wheel should use the configured thinking model override."
+);
+assert.strictEqual(
+  rahdueSourceLabel,
+  "AI生成内容，仅供娱乐和自我反思 · Rahdue实验",
+  "Rahdue's Wheel should use the configured experimental source label override."
+);
+assert.strictEqual(rahduePromptRequest.drawnCards.length, 78, "Rahdue prompt requests should include all 78 drawn cards.");
+assert.strictEqual(rahduePromptRequest.spread.sections.length, 13, "Rahdue prompt requests should include the section map.");
+assert.strictEqual(rahduePromptRequest.spread.drawMode, "fullDeckAuto", "Rahdue prompt requests should preserve the full-deck draw mode.");
+assert.strictEqual(rahduePromptRequest.spreadGuidance.kind, "rahdue_wheel_full_deck", "Rahdue spread guidance should identify the layered full-deck behavior.");
+assert.doesNotThrow(() => {
+  assertValidReading(rahdueSlimReading, rahduePromptRequest);
+}, "Rahdue readings should validate with section summaries and slim 78-card entries.");
+assert.throws(() => {
+  assertValidReading(Object.assign({}, rahdueSlimReading, {
+    sections: []
+  }), rahduePromptRequest);
+}, /Rahdue sections/, "Rahdue readings should require one section result per section map entry.");
+const normalizedRahdueReading = normalizeReading(rahdueSlimReading, rahdueFallback, "zh");
+assert.strictEqual(normalizedRahdueReading.sections.length, 13, "Normalized Rahdue readings should retain all section summaries.");
+assert.strictEqual(normalizedRahdueReading.sections[0].title, "内轮", "Normalized Rahdue sections should preserve localized section titles.");
+assert.strictEqual(normalizedRahdueReading.cards.length, 78, "Normalized Rahdue readings should retain all 78 card entries.");
+assert.deepStrictEqual(
+  readingJsonSchema().schema.properties.sections.items.required,
+  ["id", "title", "interpretation", "keyCards"],
+  "JSON schema should define Rahdue section output shape for compatible providers."
+);
+assert(
+  rahdueMessages[0].content.includes("sections[]") &&
+    rahdueMessages[0].content.includes("cards[] 必须覆盖全部 78 张") &&
+    rahdueMessages[0].content.includes("Rahdue实验 · Misty") &&
+    serializedRahduePayload.spread.sections.length === 13 &&
+    serializedRahduePayload.drawnCards.length === 78 &&
+    !Object.prototype.hasOwnProperty.call(serializedRahduePayload, "questionFocus"),
+  "Rahdue prompt messages should require layered summaries while keeping the user payload slim."
+);
+
 assert(
   pageMarkup.includes('class="page {{wheel.isOpen ? \'page-wheel-active\' : \'\'}}"') &&
     pageMarkup.includes('class="wheel-aperture-ring"') &&
@@ -922,7 +1090,7 @@ assert(
     wheelSummaryStageStyle[0].includes("left: -250rpx;") &&
     wheelDrawnSummaryStyle &&
     wheelDrawnSummaryStyle[0].includes("left: 258rpx;") &&
-    wheelDrawnSummaryStyle[0].includes("pointer-events: none;") &&
+    wheelDrawnSummaryStyle[0].includes("pointer-events: auto;") &&
     pageStyles.includes(".wheel-drawn-summary-image") &&
     pageStyles.includes("width: 54rpx;") &&
     pageStyles.includes("height: 94rpx;") &&

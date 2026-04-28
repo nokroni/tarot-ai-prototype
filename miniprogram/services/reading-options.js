@@ -9,6 +9,114 @@ const ADVANCED_READING_SELECTION_STORAGE_KEY = "tarot_advanced_reading_selection
 const SIMPLE_SPREAD_ID = "oneCard";
 const SIMPLE_READER_ID = DEFAULT_READER_PROFILE_ID;
 const DEFAULT_ADVANCED_SPREAD_ID = "threeCard";
+const RAHDUE_SPREAD_ID = "rahdueWheel";
+
+const rahdueSectionTemplates = [
+  {
+    id: "innerWheel",
+    title: {
+      zh: "内轮",
+      en: "Inner Wheel"
+    },
+    count: 12
+  },
+  {
+    id: "solidifier1",
+    title: {
+      zh: "第一固化牌",
+      en: "Solidifier 1"
+    },
+    count: 1
+  },
+  {
+    id: "centerWheel",
+    title: {
+      zh: "中心轮",
+      en: "Center Wheel"
+    },
+    count: 12
+  },
+  {
+    id: "solidifier2",
+    title: {
+      zh: "第二固化牌",
+      en: "Solidifier 2"
+    },
+    count: 1
+  },
+  {
+    id: "outerWheel",
+    title: {
+      zh: "外轮",
+      en: "Outer Wheel"
+    },
+    count: 12
+  },
+  {
+    id: "solidifier3",
+    title: {
+      zh: "第三固化牌",
+      en: "Solidifier 3"
+    },
+    count: 1
+  },
+  {
+    id: "dagimBlock",
+    title: {
+      zh: "Dagim 区块",
+      en: "Dagim Block"
+    },
+    count: 9
+  },
+  {
+    id: "solidifier4",
+    title: {
+      zh: "第四固化牌",
+      en: "Solidifier 4"
+    },
+    count: 1
+  },
+  {
+    id: "talehPillar",
+    title: {
+      zh: "Taleh 支柱",
+      en: "Taleh Pillar"
+    },
+    count: 8
+  },
+  {
+    id: "solidifier5",
+    title: {
+      zh: "第五固化牌",
+      en: "Solidifier 5"
+    },
+    count: 1
+  },
+  {
+    id: "shorPillar",
+    title: {
+      zh: "Shor 支柱",
+      en: "Shor Pillar"
+    },
+    count: 8
+  },
+  {
+    id: "solidifier6",
+    title: {
+      zh: "第六固化牌",
+      en: "Solidifier 6"
+    },
+    count: 1
+  },
+  {
+    id: "malkuthBlock",
+    title: {
+      zh: "Malkuth 区块",
+      en: "Malkuth Block"
+    },
+    count: 11
+  }
+];
 
 const spreadTemplates = [
   {
@@ -58,25 +166,44 @@ const spreadTemplates = [
       en: ["Plan A", "Plan B"]
     },
     insight: "- There are two colours in my head"
+  },
+  {
+    id: RAHDUE_SPREAD_ID,
+    title: {
+      zh: "拉杜之轮",
+      en: "Rahdue’s Wheel"
+    },
+    positions: {
+      zh: createRahduePositions("zh"),
+      en: createRahduePositions("en")
+    },
+    sections: {
+      zh: createRahdueSections("zh"),
+      en: createRahdueSections("en")
+    },
+    insight: "- Highly experimental full-deck wheel",
+    guide: {
+      zh: "适合问：需要用完整牌组观察长期模式、灵魂主题或复杂人生结构时。",
+      en: "Ask when you want a full-deck experimental view of long patterns, soul themes, or complex life structure."
+    },
+    warning: {
+      zh: "高度实验 / 不稳定",
+      en: "Highly experimental / unstable"
+    },
+    experimental: true,
+    unstable: true,
+    drawMode: "fullDeckAuto"
   }
 ];
 
 function createSpreads(language) {
   const languageCode = normalizeLanguageCode(language);
 
-  return spreadTemplates.map((spread) => ({
-    id: spread.id,
-    title: spread.title[languageCode] || spread.title.zh,
-    positions: spread.positions[languageCode] || spread.positions.zh,
-    insight: spread.insight
-  }));
+  return spreadTemplates.map((spread) => normalizeSpreadTemplate(spread, languageCode));
 }
 
 function createAdvancedSpreadOptions(language) {
-  return createSpreads(language).map((spread) => ({
-    id: spread.id,
-    title: spread.title
-  }));
+  return createSpreads(language).map((spread) => normalizeAdvancedSpreadOption(spread));
 }
 
 function createReaderOptions() {
@@ -165,10 +292,89 @@ function createSimpleModeSelection() {
   };
 }
 
+function normalizeSpreadTemplate(spread, languageCode) {
+  const normalizedSpread = {
+    id: spread.id,
+    title: spread.title[languageCode] || spread.title.zh,
+    positions: spread.positions[languageCode] || spread.positions.zh,
+    insight: spread.insight
+  };
+
+  if (spread.sections) {
+    normalizedSpread.sections = spread.sections[languageCode] || spread.sections.zh;
+  }
+
+  if (spread.guide) {
+    normalizedSpread.guide = spread.guide[languageCode] || spread.guide.zh;
+  }
+
+  if (spread.warning) {
+    normalizedSpread.warning = spread.warning[languageCode] || spread.warning.zh;
+  }
+
+  if (spread.experimental) {
+    normalizedSpread.experimental = true;
+  }
+
+  if (spread.unstable) {
+    normalizedSpread.unstable = true;
+  }
+
+  if (spread.drawMode) {
+    normalizedSpread.drawMode = spread.drawMode;
+  }
+
+  return normalizedSpread;
+}
+
+function normalizeAdvancedSpreadOption(spread) {
+  return {
+    id: spread.id,
+    title: spread.title,
+    guide: spread.guide,
+    warning: spread.warning,
+    experimental: spread.experimental,
+    unstable: spread.unstable,
+    drawMode: spread.drawMode
+  };
+}
+
+function createRahdueSections(language) {
+  const languageCode = normalizeLanguageCode(language);
+  let cursor = 1;
+
+  return rahdueSectionTemplates.map((section) => {
+    const start = cursor;
+    const end = cursor + section.count - 1;
+
+    cursor = end + 1;
+
+    return {
+      id: section.id,
+      title: section.title[languageCode] || section.title.zh,
+      start,
+      end,
+      count: section.count
+    };
+  });
+}
+
+function createRahduePositions(language) {
+  return createRahdueSections(language).reduce((positions, section) => {
+    for (let positionNumber = section.start; positionNumber <= section.end; positionNumber += 1) {
+      positions.push(`${section.title} ${String(positionNumber).padStart(2, "0")}`);
+    }
+
+    return positions;
+  }, []);
+}
+
 module.exports = {
+  RAHDUE_SPREAD_ID,
   SIMPLE_READER_ID,
   SIMPLE_SPREAD_ID,
   createAdvancedSpreadOptions,
+  createRahdueSections,
   createReaderOptions,
   createSpreads,
   getSpreadById,

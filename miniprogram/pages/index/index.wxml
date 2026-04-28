@@ -137,23 +137,26 @@
           </scroll-view>
         </view>
 
-        <view wx:if="{{wheel.showDrawnSummary}}" class="wheel-drawn-summary">
-          <view wx:for="{{drawnCards}}" wx:key="id" class="wheel-drawn-summary-item">
-            <image
-              wx:if="{{item.card.imageSrc}}"
-              class="wheel-drawn-summary-image {{item.orientation === 'reversed' ? 'reversed' : ''}}"
-              src="{{item.card.imageSrc}}"
-              mode="aspectFit"
-            />
-            <view class="wheel-drawn-summary-copy">
-              <text class="wheel-drawn-summary-position">{{item.position}}</text>
-              <view class="wheel-drawn-summary-main">
-                <text class="wheel-drawn-summary-name">{{item.card.name}}</text>
-                <text class="wheel-drawn-summary-direction">{{item.orientationLabel}}</text>
+        <scroll-view wx:if="{{wheel.showDrawnSummary}}" class="wheel-drawn-summary" scroll-y="{{true}}" show-scrollbar="{{false}}">
+          <view wx:for="{{drawnSummarySections}}" wx:key="id" class="wheel-drawn-summary-section">
+            <text wx:if="{{item.title}}" class="wheel-drawn-summary-section-title">{{item.title}}</text>
+            <view wx:for="{{item.cards}}" wx:for-item="card" wx:key="id" class="wheel-drawn-summary-item">
+              <image
+                wx:if="{{card.card.imageSrc}}"
+                class="wheel-drawn-summary-image {{card.orientation === 'reversed' ? 'reversed' : ''}}"
+                src="{{card.card.imageSrc}}"
+                mode="aspectFit"
+              />
+              <view class="wheel-drawn-summary-copy">
+                <text class="wheel-drawn-summary-position">{{card.position}}</text>
+                <view class="wheel-drawn-summary-main">
+                  <text class="wheel-drawn-summary-name">{{card.card.name}}</text>
+                  <text class="wheel-drawn-summary-direction">{{card.orientationLabel}}</text>
+                </view>
               </view>
             </view>
           </view>
-        </view>
+        </scroll-view>
 
         <view wx:if="{{wheel.flightCard}}" class="wheel-flight-card">
           <view class="wheel-flight-card-plane">
@@ -200,7 +203,7 @@
   </view>
 
   <view
-    wx:if="{{isInterpreting}}"
+    wx:if="{{isInterpreting && !wheel.showDrawnSummary}}"
     class="motion-block"
     catchtap="blockPendingInteraction"
     catchtouchmove="blockPendingInteraction"

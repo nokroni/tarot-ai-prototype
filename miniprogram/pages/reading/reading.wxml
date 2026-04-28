@@ -16,15 +16,35 @@
 
     <text class="summary-text">{{interpretation.summary}}</text>
 
+    <view wx:if="{{sections.length}}" class="section-summary-list">
+      <view wx:for="{{sections}}" wx:key="id" class="section-summary-item">
+        <text class="section-summary-title">{{item.title}}</text>
+        <text class="section-summary-copy">{{item.interpretation}}</text>
+      </view>
+    </view>
+
     <view class="drawn-section">
       <text class="section-label">{{ui.cardsTitle}}</text>
-      <view class="drawn-list">
+      <view wx:if="{{!sections.length}}" class="drawn-list">
         <view wx:for="{{cards}}" wx:key="id" class="drawn-card">
           <image wx:if="{{item.imageSrc}}" class="drawn-card-image {{item.isReversed ? 'reversed' : ''}}" src="{{item.imageSrc}}" mode="aspectFill"></image>
           <view class="drawn-card-copy">
             <text class="drawn-card-title">{{item.position}} · {{item.name}}</text>
             <text class="drawn-card-meta">{{item.metaLine}}</text>
             <text class="drawn-card-reading">{{item.interpretation}}</text>
+          </view>
+        </view>
+      </view>
+      <view wx:else class="rahdue-card-sections">
+        <view wx:for="{{sections}}" wx:key="id" class="rahdue-card-section">
+          <text class="rahdue-card-section-title">{{item.title}}</text>
+          <view class="rahdue-card-grid">
+            <view wx:for="{{item.cards}}" wx:for-item="card" wx:key="id" class="rahdue-card">
+              <image wx:if="{{card.imageSrc}}" class="rahdue-card-image {{card.isReversed ? 'reversed' : ''}}" src="{{card.imageSrc}}" mode="aspectFill"></image>
+              <text class="rahdue-card-name">{{card.name}}</text>
+              <text class="rahdue-card-meta">{{card.position}} · {{card.orientationText}}</text>
+              <text class="rahdue-card-reading">{{card.interpretation}}</text>
+            </view>
           </view>
         </view>
       </view>

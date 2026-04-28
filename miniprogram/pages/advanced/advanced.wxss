@@ -72,9 +72,10 @@
   max-width: 100%;
   min-height: 82rpx;
   align-items: center;
+  flex-direction: column;
   justify-content: center;
   margin: 0;
-  padding: 0 14rpx;
+  padding: 10rpx 14rpx;
   border-radius: 14rpx;
   background: transparent;
   box-sizing: border-box;
@@ -92,6 +93,22 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.option-button.experimental {
+  border: 2rpx solid rgba(151, 73, 56, 0.22);
+}
+
+.option-title {
+  width: 100%;
+}
+
+.option-warning {
+  width: 100%;
+  margin-top: 6rpx;
+  color: #974938;
+  font-size: 19rpx;
+  font-weight: 900;
 }
 
 .option-button::after {

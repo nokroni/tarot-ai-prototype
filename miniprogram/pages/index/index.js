@@ -1,7 +1,8 @@
 const appConfig = require("../../config");
 const {
   createCloudBaseReading,
-  hasCloudBaseAI
+  hasCloudBaseAI,
+  resolveCloudAISourceLabel
 } = require("../../services/cloudbase-ai");
 const {
   assertValidReading,
@@ -1091,6 +1092,7 @@ Page({
     readingMode: "simple",
     modeSummary: getUiCopy(initialLanguage).modeSimple,
     drawnCards: [],
+    drawnSummarySections: [],
     wheelCards: initialWheelCards,
     wheel: createClosedWheelState(),
     interpretation: null,
@@ -1219,6 +1221,7 @@ Page({
       selectedSpread,
       modeSummary: createModeSummary(selectedSpread, this.data.selectedReader, this.data.readingMode, this.data.language),
       drawnCards: [],
+      drawnSummarySections: [],
       interpretation: null,
       errorMessage: ""
     });
@@ -1252,6 +1255,7 @@ Page({
       selectedSpread,
       modeSummary: createModeSummary(selectedSpread, this.data.selectedReader, this.data.readingMode, language),
       drawnCards: localizedDrawnCards,
+      drawnSummarySections: createDrawnSummarySections(selectedSpread, localizedDrawnCards),
       wheelCards: localizedWheelCards,
       interpretation: null,
       errorMessage: "",
@@ -1317,6 +1321,7 @@ Page({
             planB: ""
           },
       drawnCards: [],
+      drawnSummarySections: [],
       wheelCards: prepareWheelCardsForIdle(this.data.wheelCards, this._assetPaths, this.data.language),
       wheel: createClosedWheelState(this._assetPaths),
       interpretation: null,
@@ -1340,6 +1345,7 @@ Page({
 
     this.setData({
       drawnCards: [],
+      drawnSummarySections: [],
       wheelCards,
       wheel,
       interpretation: null,
@@ -1394,18 +1400,6 @@ Page({
       decisionOptions: this.data.decisionOptions,
       language: this.data.language
     });
-    const fallbackReading = createFallbackReading({
-      question: readingQuestion,
-      spread: this.data.selectedSpread,
-      drawnCards: this.data.drawnCards,
-      readerProfile: this.data.selectedReader,
-      language: this.data.language,
-      sourceLabel: cloudAIEnabled
-        ? appConfig.cloudAI.sourceLabel
-        : this.data.oauthSession
-          ? this.data.oauthSession.label
-          : pageText(this, "localDemo")
-    });
     const readingRequest = createReadingRequest({
       question: readingQuestion,
       spread: this.data.selectedSpread,
@@ -1413,6 +1407,18 @@ Page({
       readerProfile: this.data.selectedReader,
       decisionOptions: this.data.decisionOptions,
       language: this.data.language
+    });
+    const fallbackReading = createFallbackReading({
+      question: readingQuestion,
+      spread: this.data.selectedSpread,
+      drawnCards: this.data.drawnCards,
+      readerProfile: this.data.selectedReader,
+      language: this.data.language,
+      sourceLabel: cloudAIEnabled
+        ? resolveCloudAISourceLabel(appConfig.cloudAI, readingRequest)
+        : this.data.oauthSession
+          ? this.data.oauthSession.label
+          : pageText(this, "localDemo")
     });
 
     if (!cloudAIEnabled && !canUseBackend(this.data.oauthSession)) {
@@ -1485,6 +1491,7 @@ Page({
     this.setData({
       interpretation: null,
       drawnCards: [],
+      drawnSummarySections: [],
       wheelCards: prepareWheelCardsForIdle(this.data.wheelCards, this._assetPaths, this.data.language),
       wheel: createClosedWheelState(this._assetPaths),
       errorMessage: ""
@@ -2041,12 +2048,40 @@ function localizeDrawnCardsForLanguage(drawnCards, spread, language) {
   });
 }
 
+function createDrawnSummarySections(spread, drawnCards) {
+  if (!Array.isArray(drawnCards) || !drawnCards.length) {
+    return [];
+  }
+
+  if (spread && Array.isArray(spread.sections) && spread.sections.length) {
+    return spread.sections.map((section) => ({
+      id: section.id,
+      title: section.title,
+      cards: drawnCards.slice(section.start - 1, section.end)
+    }));
+  }
+
+  return [
+    {
+      id: "drawn",
+      title: "",
+      cards: drawnCards
+    }
+  ];
+}
+
 function handleWheelActiveCardTap(page) {
   if (!canSelectWheelCard(page.data.wheel)) {
     return;
   }
 
   const activeIndex = findNearestAvailableIndex(page.data.wheelCards, page.data.wheel.activeIndex);
+
+  if (isFullDeckAutoSpread(page.data.selectedSpread)) {
+    confirmFullDeckWheel(page, activeIndex);
+    return;
+  }
+
   const selectedIndex = page.data.wheel.selectedIndex;
 
   if (selectedIndex !== activeIndex) {
@@ -2060,6 +2095,52 @@ function handleWheelActiveCardTap(page) {
   }
 
   confirmWheelCard(page, activeIndex);
+}
+
+function confirmFullDeckWheel(page, index) {
+  const selectedSpread = page.data.selectedSpread || {};
+  const wheelCards = page.data.wheelCards || [];
+  const positions = Array.isArray(selectedSpread.positions) ? selectedSpread.positions : [];
+  const slot = wheelCards[index];
+
+  if (!slot) {
+    return;
+  }
+
+  const nextDrawnCards = wheelCards.map((wheelSlot, slotIndex) => (
+    createDrawnCardFromWheelSlot(wheelSlot, positions[slotIndex] || `Card ${slotIndex + 1}`)
+  ));
+  const flightCard = createWheelFlightCard(nextDrawnCards[index], index);
+  const markedWheelCards = markAllWheelCardsDrawn(wheelCards);
+
+  page._lastWheelPresentationPosition = index;
+  clearWheelDrawFlightTimer(page);
+
+  page.setData({
+    drawnCards: nextDrawnCards,
+    wheelCards: updateWheelCardPresentation(markedWheelCards, index),
+    wheel: Object.assign({}, page.data.wheel, {
+      activeIndex: index,
+      selectedIndex: -1,
+      phase: "drawing",
+      motion: "arc",
+      drawnCount: nextDrawnCards.length,
+      currentDrawNumber: nextDrawnCards.length,
+      currentDrawPosition: nextDrawnCards[index].position,
+      revealedCard: null,
+      flightCard
+    })
+  });
+
+  page._wheelDrawFlightTimer = setTimeout(() => {
+    page._wheelDrawFlightTimer = null;
+
+    if (!page.data.wheel.isOpen || !page.data.wheel.flightCard || page.data.wheel.flightCard.id !== flightCard.id) {
+      return;
+    }
+
+    startWheelFinishAnimation(page, page.data.wheelCards, index);
+  }, WHEEL_DRAW_FLIGHT_MS);
 }
 
 function confirmWheelCard(page, index) {
@@ -2187,6 +2268,16 @@ function markWheelCardDrawn(wheelCards, index) {
       drawn: true
     });
   });
+}
+
+function markAllWheelCardsDrawn(wheelCards) {
+  return wheelCards.map((slot) => Object.assign({}, slot, {
+    drawn: true
+  }));
+}
+
+function isFullDeckAutoSpread(spread) {
+  return spread && spread.drawMode === "fullDeckAuto";
 }
 
 function canSpinWheel(wheel) {
@@ -2444,9 +2535,11 @@ function startWheelFinishAnimation(page, wheelCards, centerPosition) {
 
     page._wheelFinishTimer = setTimeout(() => {
       page._wheelFinishTimer = null;
+      const restoredWheelCards = prepareWheelCardsForIdle(page.data.wheelCards, page._assetPaths, page.data.language);
 
       page.setData({
-        wheelCards: prepareWheelCardsForIdle(page.data.wheelCards, page._assetPaths, page.data.language),
+        drawnSummarySections: createDrawnSummarySections(page.data.selectedSpread, page.data.drawnCards),
+        wheelCards: restoredWheelCards,
         wheel: Object.assign({}, page.data.wheel, {
           activeIndex: 0,
           selectedIndex: -1,

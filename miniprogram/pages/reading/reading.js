@@ -34,6 +34,7 @@ Page({
     language: "zh",
     interpretation: null,
     cards: [],
+    sections: [],
     question: "",
     metadataLine: "",
     notice: "",
@@ -61,6 +62,7 @@ Page({
         language,
         interpretation: null,
         cards: [],
+        sections: [],
         question: "",
         metadataLine: "",
         notice: "",
@@ -69,11 +71,14 @@ Page({
       return;
     }
 
+    const cards = createDisplayCards(interpretation.cards, result.drawnCards, language);
+
     this.setData({
       ui: uiCopy[language],
       language,
       interpretation,
-      cards: createDisplayCards(interpretation.cards, result.drawnCards, language),
+      cards,
+      sections: createDisplaySections(interpretation.sections, result.spread, cards),
       question: result.question || "",
       metadataLine: createMetadataLine(result),
       notice: result.notice || "",
@@ -127,6 +132,23 @@ function createDisplayCards(readingCards, drawnCards, language) {
       metaLine: keywordsText ? `${orientationText} · ${keywordsText}` : orientationText,
       interpretation: readingCard.interpretation || "",
       imageSrc: cardFace.imageSrc || matched.imageSrc || ""
+    };
+  });
+}
+
+function createDisplaySections(readingSections, spread, cards) {
+  const sections = Array.isArray(readingSections) ? readingSections : [];
+  const spreadSections = spread && Array.isArray(spread.sections) ? spread.sections : [];
+
+  return spreadSections.map((spreadSection, index) => {
+    const readingSection = sections.find((section) => section && section.id === spreadSection.id) || sections[index] || {};
+
+    return {
+      id: spreadSection.id,
+      title: readingSection.title || spreadSection.title,
+      interpretation: readingSection.interpretation || "",
+      keyCards: Array.isArray(readingSection.keyCards) ? readingSection.keyCards : [],
+      cards: cards.slice(spreadSection.start - 1, spreadSection.end)
     };
   });
 }
