@@ -583,12 +583,12 @@
 
   18% {
     opacity: 1;
-    transform: translate(-42rpx, -34rpx) rotate(-2deg) scale(1.08);
+    transform: translate(-82rpx, -58rpx) rotate(-3deg) scale(1.08);
   }
 
   100% {
     opacity: 1;
-    transform: translate(-172rpx, -34rpx) rotate(-4deg) scale(1.00);
+    transform: translate(-258rpx, -86rpx) rotate(-5deg) scale(1.00);
   }
 }
 

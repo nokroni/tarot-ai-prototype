@@ -953,8 +953,10 @@ assert(
     pageStyles.includes("animation: wheel-card-draw-front-flip 300ms") &&
     pageStyles.includes("820ms forwards") &&
     pageStyles.includes("translate(0, -26rpx) rotate(0deg) scale(1.06)") &&
-    pageStyles.includes("translate(-172rpx, -34rpx) rotate(-4deg) scale(1.00)") &&
+    pageStyles.includes("translate(-82rpx, -58rpx) rotate(-3deg) scale(1.08)") &&
+    pageStyles.includes("translate(-258rpx, -86rpx) rotate(-5deg) scale(1.00)") &&
     pageStyles.includes("rotateX(360deg)") &&
+    !pageStyles.includes("translate(-172rpx, -34rpx)") &&
     !pageStyles.includes("translate(245rpx, 360rpx)") &&
     !pageStyles.includes("translate(215rpx, 316rpx)") &&
     !pageStyles.includes("scale(0.78)") &&
