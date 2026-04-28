@@ -520,6 +520,8 @@ assert(
     advancedScript.includes('title: "所有牌阵"') &&
     advancedScript.includes('copy: "在这里切换完整牌阵和读牌人。"') &&
     advancedScript.includes('apply: "确认"') &&
+    advancedScript.indexOf("const spreadQuestionGuides") < advancedScript.indexOf("Page({") &&
+    advancedScript.indexOf("const readerGuides") < advancedScript.indexOf("Page({") &&
     advancedMarkup.includes('class="option-grid spread-grid"') &&
     advancedMarkup.includes('class="option-grid reader-grid"') &&
     advancedMarkup.includes('class="reader-guide"') &&
