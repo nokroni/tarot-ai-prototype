@@ -1,12 +1,5 @@
-.build/
-.swiftpm/
 .omx/
 artifacts/
-DerivedData/
 private.*.key
 node_modules/
-*.xcuserdata/
 *.swp
-.env
-.env.*
-!.env.example

@@ -1,0 +1,39 @@
+<view class="advanced-page">
+  <view class="advanced-header">
+    <text class="advanced-title">{{ui.title}}</text>
+    <text class="advanced-copy">{{ui.copy}}</text>
+  </view>
+
+  <view class="advanced-panel">
+    <text class="advanced-label">{{ui.spreadLabel}}</text>
+    <view class="option-grid spread-grid">
+      <button
+        wx:for="{{spreads}}"
+        wx:key="id"
+        class="option-button {{selectedSpreadId === item.id ? 'active' : ''}}"
+        data-spread-id="{{item.id}}"
+        bindtap="selectSpread"
+      >
+        <text>{{item.title}}</text>
+      </button>
+    </view>
+  </view>
+
+  <view class="advanced-panel">
+    <text class="advanced-label">{{ui.readerLabel}}</text>
+    <view class="option-grid reader-grid">
+      <button
+        wx:for="{{readers}}"
+        wx:key="id"
+        class="option-button {{selectedReaderId === item.id ? 'active' : ''}}"
+        data-reader-id="{{item.id}}"
+        bindtap="selectReader"
+      >
+        <text>{{item.title}}</text>
+      </button>
+    </view>
+  </view>
+
+  <button class="primary-action" bindtap="applyAdvancedMode">{{ui.apply}}</button>
+  <button class="secondary-action" bindtap="returnSimpleMode">{{ui.simple}}</button>
+</view>

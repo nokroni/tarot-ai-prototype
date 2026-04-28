@@ -1,4 +1,4 @@
-<view class="page">
+<view class="page {{wheel.isOpen ? 'page-wheel-active' : ''}}">
   <view wx:if="{{!assets.ready}}" class="asset-gate">
     <view class="asset-gate-mark">✦</view>
     <text class="asset-gate-title">{{ui.assetGateTitle}}</text>
@@ -10,263 +10,168 @@
     <button wx:if="{{assets.error}}" class="asset-retry" bindtap="retryLoadAssets">{{ui.assetRetry}}</button>
   </view>
 
-  <view wx:else class="main-flow {{wheel.isOpen ? 'main-flow-wheel-open' : ''}}">
-  <view class="hero">
-    <view>
-      <text class="title">{{ui.title}}</text>
-    </view>
-    <view class="hero-tools">
-      <view class="language-toggle" role="group">
+  <view wx:else class="main-flow">
+    <view class="main-header">
+      <text class="app-title">{{ui.title}}</text>
+      <view class="hero-tools compact">
+        <view class="language-toggle" role="group">
+          <view
+            wx:for="{{languages}}"
+            wx:key="id"
+            class="language-option {{language === item.id ? 'active' : ''}}"
+            data-language="{{item.id}}"
+            bindtap="selectLanguage"
+            role="button"
+          >
+            {{item.title}}
+          </view>
+        </view>
         <view
-          wx:for="{{languages}}"
-          wx:key="id"
-          class="language-option {{language === item.id ? 'active' : ''}}"
-          data-language="{{item.id}}"
-          bindtap="selectLanguage"
+          class="music-toggle {{music.enabled ? 'active' : 'muted'}}"
+          bindtap="toggleMusic"
+          aria-label="{{music.enabled ? ui.musicOnLabel : ui.musicOffLabel}}"
           role="button"
         >
-          {{item.title}}
+          <text class="music-toggle-note">♪</text>
         </view>
       </view>
-      <text class="resource-badge">{{assets.resourceLabel}}</text>
-      <view
-        class="music-toggle {{music.enabled ? 'active' : 'muted'}}"
-        bindtap="toggleMusic"
-        aria-label="{{music.enabled ? ui.musicOnLabel : ui.musicOffLabel}}"
-        role="button"
-      >
-        <text class="music-toggle-note">♪</text>
+    </view>
+
+    <view class="question-dock">
+      <view class="mode-row">
+        <text class="mode-summary">{{modeSummary}}</text>
+        <button class="mode-link" bindtap="goAdvancedMode">{{ui.modeChange}}</button>
       </view>
-      <view class="moon"></view>
-    </view>
-  </view>
-
-  <view class="panel question-panel">
-    <block wx:if="{{selectedSpreadId === 'decisionPair'}}">
-      <text class="label">{{ui.decisionInputLabel}}</text>
-      <view class="decision-inputs">
-        <view class="decision-input-card decision-question-card">
-          <text class="decision-option-label">Question</text>
-          <textarea
-            class="question-input decision-option-input decision-question-input"
-            auto-height="{{false}}"
-            maxlength="180"
-            placeholder="{{ui.decisionQuestionPlaceholder}}"
-            placeholder-class="placeholder"
-            value="{{question}}"
-            bindinput="onQuestionInput"
-          />
-        </view>
-        <view class="decision-input-card">
-          <text class="decision-option-label">Plan A</text>
-          <textarea
-            class="question-input decision-option-input"
-            auto-height="{{false}}"
-            maxlength="120"
-            placeholder="{{ui.planAPlaceholder}}"
-            placeholder-class="placeholder"
-            value="{{decisionOptions.planA}}"
-            data-option="planA"
-            bindinput="onDecisionOptionInput"
-          />
-        </view>
-        <view class="decision-input-card">
-          <text class="decision-option-label">Plan B</text>
-          <textarea
-            class="question-input decision-option-input"
-            auto-height="{{false}}"
-            maxlength="120"
-            placeholder="{{ui.planBPlaceholder}}"
-            placeholder-class="placeholder"
-            value="{{decisionOptions.planB}}"
-            data-option="planB"
-            bindinput="onDecisionOptionInput"
-          />
-        </view>
-      </view>
-    </block>
-    <block wx:else>
-      <text class="label">{{ui.questionInputLabel}}</text>
-      <textarea
-        class="question-input"
-        auto-height="{{false}}"
-        maxlength="180"
-        placeholder="{{ui.questionPlaceholder}}"
-        placeholder-class="placeholder"
-        value="{{question}}"
-        bindinput="onQuestionInput"
-      />
-    </block>
-  </view>
-
-  <view class="panel">
-    <text class="label">{{ui.spreadLabel}}</text>
-    <view class="spread-control">
-      <button
-        wx:for="{{spreads}}"
-        wx:key="id"
-        class="spread-option {{selectedSpreadId === item.id ? 'active' : ''}}"
-        data-spread-id="{{item.id}}"
-        bindtap="selectSpread"
-      >
-        {{item.title}}
-      </button>
-    </view>
-    <text class="spread-insight">{{selectedSpread.insight}}</text>
-  </view>
-
-  <view class="panel">
-    <text class="label">{{ui.readerLabel}}</text>
-    <view class="reader-control">
-      <button
-        wx:for="{{readerProfiles}}"
-        wx:key="id"
-        class="reader-option {{selectedReaderId === item.id ? 'active' : ''}}"
-        data-reader-id="{{item.id}}"
-        bindtap="selectReader"
-      >
-        <text class="reader-name">{{item.title}}</text>
-      </button>
-    </view>
-  </view>
-
-  <view class="actions">
-    <button class="action-button draw-button" bindtap="drawCards">
-      <text class="action-icon">✦</text>
-      <text>{{ui.drawButton}}</text>
-    </button>
-    <button
-      class="action-button interpret-button {{drawnCards.length === 0 ? 'disabled' : ''}}"
-      disabled="{{drawnCards.length === 0 || isInterpreting}}"
-      loading="{{isInterpreting}}"
-      bindtap="interpretReading"
-    >
-      <text class="action-icon">✧</text>
-      <text>{{ui.interpretButton}}</text>
-    </button>
-  </view>
-
-  <view wx:if="{{drawnCards.length > 0}}" class="cards-section">
-    <view class="section-heading">
-      <text class="eyebrow">{{ui.drawnEyebrow}}</text>
-      <text class="section-title">{{selectedSpread.title}}</text>
-    </view>
-
-    <view class="cards-grid {{drawnCards.length === 1 ? 'single' : drawnCards.length === 2 ? 'pair' : ''}}">
-      <view wx:for="{{drawnCards}}" wx:key="id" class="card">
-        <view class="position">{{item.position}}</view>
-        <image
-          wx:if="{{item.card.imageSrc}}"
-          class="card-face {{item.orientation === 'reversed' ? 'reversed' : ''}}"
-          src="{{item.card.imageSrc}}"
-          mode="aspectFit"
+      <view class="question-submit-row">
+        <textarea
+          class="question-input compact-question-input"
+          auto-height="{{false}}"
+          maxlength="180"
+          placeholder="{{ui.questionPlaceholder}}"
+          placeholder-class="placeholder"
+          value="{{question}}"
+          bindinput="onQuestionInput"
         />
-        <view wx:else class="sigil">☉</view>
-        <text class="card-name">{{item.card.name}}</text>
-        <text class="orientation {{item.orientation === 'reversed' ? 'reversed' : ''}}">{{item.orientationLabel}}</text>
-      </view>
-    </view>
-  </view>
-
-  <view wx:if="{{errorMessage}}" class="message error">
-    {{errorMessage}}
-  </view>
-
-  <view wx:if="{{interpretation}}" class="reading">
-    <view class="reading-heading">
-      <text class="section-title">{{ui.readingTitle}}</text>
-    </view>
-    <text class="reading-text">{{interpretation.summary}}</text>
-
-    <view class="reading-cards">
-      <view wx:for="{{interpretation.cards}}" wx:key="id" class="reading-card">
-        <text class="reading-card-title">{{item.position}} · {{item.name}}</text>
-        <text class="reading-meta">{{item.orientationText}}</text>
-        <text class="reading-text">{{item.interpretation}}</text>
+        <button class="submit-button" bindtap="drawCards" loading="{{wheel.phase === 'drawing'}}">
+          {{ui.submitButton}}
+        </button>
       </view>
     </view>
 
-    <text class="reading-label">{{ui.overallLabel}}</text>
-    <text class="reading-text">{{interpretation.overallMessage}}</text>
-    <text class="reading-label">{{ui.actionLabel}}</text>
-    <text class="reading-text">{{interpretation.practicalReflection}}</text>
-  </view>
+    <view class="deck-stage {{wheel.isOpen ? 'deck-stage-wheel' : ''}}">
+      <view wx:if="{{!wheel.isOpen}}" class="idle-deck">
+        <view class="idle-card idle-card-3">
+          <image class="idle-card-back" src="{{wheel.cardBackSrc}}" mode="aspectFill" />
+        </view>
+        <view class="idle-card idle-card-2">
+          <image class="idle-card-back" src="{{wheel.cardBackSrc}}" mode="aspectFill" />
+        </view>
+        <view class="idle-card idle-card-1">
+          <image class="idle-card-back" src="{{wheel.cardBackSrc}}" mode="aspectFill" />
+        </view>
+        <text class="idle-deck-caption">{{ui.deckPrompt}}</text>
+      </view>
 
-  <view class="note">
-    <text>{{ui.safetyNote}}</text>
-  </view>
+      <view wx:if="{{wheel.isOpen}}" class="wheel-overlay wheel-motion-{{wheel.motion}}">
+        <view class="wheel-aperture-ring"></view>
+        <view class="wheel-status">
+          <text class="wheel-eyebrow">{{selectedSpread.title}}</text>
+          <text class="wheel-title">{{ui.wheelDrawPrefix}}{{wheel.currentDrawNumber}}{{ui.wheelDrawMiddle}}{{wheel.requiredCount}}{{ui.wheelDrawSuffix}}{{wheel.currentDrawPosition}}</text>
+        </view>
 
-  <view class="provider-footer">
-    <text class="provider-status">{{oauthStatus}}</text>
-    <text class="provider-build">{{buildLabel}}</text>
-  </view>
-  </view>
-
-  <view wx:if="{{assets.ready && wheel.isOpen}}" class="wheel-overlay wheel-motion-{{wheel.motion}}">
-    <view class="wheel-aperture-ring"></view>
-    <view class="wheel-status">
-      <text class="wheel-eyebrow">{{selectedSpread.title}}</text>
-      <text class="wheel-title">{{ui.wheelDrawPrefix}}{{wheel.currentDrawNumber}}{{ui.wheelDrawMiddle}}{{wheel.requiredCount}}{{ui.wheelDrawSuffix}}{{wheel.currentDrawPosition}}</text>
-    </view>
-
-    <view class="wheel-stage">
-      <scroll-view
-        class="wheel-scroll"
-        scroll-x="{{true}}"
-        enhanced="{{true}}"
-        enable-flex="{{true}}"
-        bounces="{{true}}"
-        fast-deceleration="{{false}}"
-        show-scrollbar="{{false}}"
-        scroll-with-animation="{{false}}"
-        bindscroll="onWheelNativeScroll"
-      >
-        <view class="wheel-track">
-          <view class="wheel-spacer wheel-spacer-start"></view>
-          <view
-            wx:for="{{wheelCards}}"
-            wx:key="id"
-            class="wheel-card-slot {{index === wheel.activeIndex ? 'active' : ''}} {{index === wheel.selectedIndex ? 'popped' : ''}} {{item.drawn ? 'drawn' : ''}}"
-            data-index="{{index}}"
-            bindtap="onWheelCardTap"
+        <view class="wheel-stage">
+          <scroll-view
+            class="wheel-scroll"
+            scroll-x="{{true}}"
+            enhanced="{{true}}"
+            enable-flex="{{true}}"
+            bounces="{{true}}"
+            fast-deceleration="{{false}}"
+            show-scrollbar="{{false}}"
+            scroll-with-animation="{{false}}"
+            bindscroll="onWheelNativeScroll"
           >
-            <view class="wheel-card-arc" style="{{item.arcStyle}}">
-              <view class="wheel-card-shell">
-                <image class="wheel-card-back" src="{{wheel.cardBackSrc}}" mode="aspectFill" />
+            <view class="wheel-track">
+              <view class="wheel-spacer wheel-spacer-start"></view>
+              <view
+                wx:for="{{wheelCards}}"
+                wx:key="id"
+                class="wheel-card-slot {{index === wheel.activeIndex ? 'active' : ''}} {{index === wheel.selectedIndex ? 'popped' : ''}} {{item.drawn ? 'drawn' : ''}}"
+                data-index="{{index}}"
+                bindtap="onWheelCardTap"
+              >
+                <view class="wheel-card-arc" style="{{item.arcStyle}}">
+                  <view class="wheel-card-shell">
+                    <image class="wheel-card-back" src="{{wheel.cardBackSrc}}" mode="aspectFill" />
+                  </view>
+                </view>
+              </view>
+              <view class="wheel-spacer wheel-spacer-end"></view>
+            </view>
+          </scroll-view>
+        </view>
+
+        <view wx:if="{{wheel.flightCard}}" class="wheel-flight-card">
+          <view class="wheel-flight-card-plane">
+            <view class="wheel-flight-card-draw">
+              <view class="wheel-flight-card-inner">
+                <view class="wheel-flight-face wheel-flight-back">
+                  <image class="wheel-card-back" src="{{wheel.cardBackSrc}}" mode="aspectFill" />
+                </view>
+                <view class="wheel-flight-face wheel-flight-front">
+                  <image
+                    wx:if="{{wheel.flightCard.card.imageSrc}}"
+                    class="wheel-card-face {{wheel.flightCard.orientation === 'reversed' ? 'reversed' : ''}}"
+                    src="{{wheel.flightCard.card.imageSrc}}"
+                    mode="aspectFit"
+                  />
+                  <view wx:else class="wheel-flight-sigil">☉</view>
+                </view>
               </view>
             </view>
           </view>
-          <view class="wheel-spacer wheel-spacer-end"></view>
         </view>
-      </scroll-view>
-    </view>
 
-    <view wx:if="{{wheel.flightCard}}" class="wheel-flight-card">
-      <view class="wheel-flight-card-plane">
-        <view class="wheel-flight-card-draw">
-          <view class="wheel-flight-card-inner">
-            <view class="wheel-flight-face wheel-flight-back">
-              <image class="wheel-card-back" src="{{wheel.cardBackSrc}}" mode="aspectFill" />
-            </view>
-            <view class="wheel-flight-face wheel-flight-front">
-              <image
-                wx:if="{{wheel.flightCard.card.imageSrc}}"
-                class="wheel-card-face {{wheel.flightCard.orientation === 'reversed' ? 'reversed' : ''}}"
-                src="{{wheel.flightCard.card.imageSrc}}"
-                mode="aspectFit"
-              />
-              <view wx:else class="wheel-flight-sigil">☉</view>
-            </view>
-          </view>
+        <view class="wheel-copy">
+          <text wx:if="{{wheel.phase === 'popped'}}">{{ui.wheelTapAgain}}</text>
+          <text wx:elif="{{wheel.phase === 'drawing' && wheel.flightCard}}">{{wheel.flightCard.position}} · {{wheel.flightCard.card.name}}</text>
+          <text wx:elif="{{wheel.phase === 'closing'}}">{{ui.wheelComplete}}</text>
+          <text wx:else>{{ui.wheelHint}}</text>
         </view>
       </view>
     </view>
 
-    <view class="wheel-copy">
-      <text wx:if="{{wheel.phase === 'popped'}}">{{ui.wheelTapAgain}}</text>
-      <text wx:elif="{{wheel.phase === 'drawing' && wheel.flightCard}}">{{wheel.flightCard.position}} · {{wheel.flightCard.card.name}}</text>
-      <text wx:elif="{{wheel.phase === 'closing'}}">{{ui.wheelComplete}}</text>
-      <text wx:else>{{ui.wheelHint}}</text>
+    <view wx:if="{{errorMessage}}" class="message error">
+      {{errorMessage}}
+    </view>
+
+    <view wx:if="{{interpretation}}" class="reading">
+      <view class="reading-heading">
+        <text class="section-title">{{ui.readingTitle}}</text>
+      </view>
+      <text class="reading-text">{{interpretation.summary}}</text>
+
+      <view class="reading-cards">
+        <view wx:for="{{interpretation.cards}}" wx:key="id" class="reading-card">
+          <text class="reading-card-title">{{item.position}} · {{item.name}}</text>
+          <text class="reading-meta">{{item.orientationText}}</text>
+          <text class="reading-text">{{item.interpretation}}</text>
+        </view>
+      </view>
+
+      <text class="reading-label">{{ui.overallLabel}}</text>
+      <text class="reading-text">{{interpretation.overallMessage}}</text>
+      <text class="reading-label">{{ui.actionLabel}}</text>
+      <text class="reading-text">{{interpretation.practicalReflection}}</text>
+    </view>
+
+    <view class="note">
+      <text>{{ui.safetyNote}}</text>
+    </view>
+
+    <view class="provider-footer">
+      <text class="provider-status">{{oauthStatus}}</text>
+      <text class="provider-build">{{buildLabel}}</text>
     </view>
   </view>
 </view>

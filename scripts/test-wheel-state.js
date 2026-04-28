@@ -14,6 +14,8 @@ let nextTimerId = 1;
 let pendingTimers = [];
 const audioContexts = [];
 let audioOptionConfig = null;
+const wxStorage = {};
+let navigatedToUrl = "";
 
 global.Page = (definition) => {
   pageDefinition = definition;
@@ -36,6 +38,18 @@ global.wx = {
 
     audioContexts.push(audioContext);
     return audioContext;
+  },
+  getStorageSync(key) {
+    return wxStorage[key];
+  },
+  setStorageSync(key, value) {
+    wxStorage[key] = value;
+  },
+  navigateTo(options) {
+    navigatedToUrl = options.url;
+  },
+  redirectTo(options) {
+    navigatedToUrl = options.url;
   }
 };
 
@@ -65,7 +79,7 @@ assert.deepStrictEqual(
   [["zh", "中文"], ["en", "English"]],
   "Language selector should expose readable Chinese and English options."
 );
-assert.strictEqual(pageDefinition.data.spreads.length, 4, "Spread picker should include the new spread options.");
+assert.strictEqual(pageDefinition.data.spreads.length, 4, "Miniapp should still know every complete spread option.");
 assert.deepStrictEqual(
   pageDefinition.data.spreads.map((spread) => [spread.id, spread.insight]),
   [
@@ -98,6 +112,10 @@ assert.deepStrictEqual(
 );
 assert.strictEqual(pageDefinition.data.readerProfiles.length, 3, "Reader picker should include all three personalities.");
 assert.strictEqual(pageDefinition.data.selectedReaderId, "misty", "Misty should be the default reader.");
+assert.strictEqual(pageDefinition.data.selectedSpreadId, "oneCard", "The home page should default to a single-card spread.");
+assert.deepStrictEqual(pageDefinition.data.selectedSpread.positions, ["指引"], "Single-card mode should use one guidance position.");
+assert.strictEqual(pageDefinition.data.readingMode, "simple", "The home page should open in simple mode.");
+assert.strictEqual(pageDefinition.data.modeSummary, "单牌 · Misty", "The compact mode summary should describe the simple home mode.");
 assert.deepStrictEqual(
   pageDefinition.data.readerProfiles.map((reader) => reader.id),
   ["misty", "johnny", "donovan"],
@@ -137,6 +155,9 @@ const context = {
     this._interpreted = true;
   }
 };
+
+pageDefinition.goAdvancedMode.call(context);
+assert.strictEqual(navigatedToUrl, "/pages/advanced/advanced", "Mode change should navigate to the complete spreads/readers page.");
 
 pageDefinition.onReady.call(context);
 assert.strictEqual(context.data.assets.ready, true, "Page ready should activate remote asset paths before opening the app.");
@@ -267,8 +288,8 @@ pageDefinition.selectLanguage.call(context, {
 });
 assert.strictEqual(context.data.language, "en", "Language selector should switch to English.");
 assert.strictEqual(context.data.ui.title, "Tarot", "English UI copy should update the hero title.");
-assert.strictEqual(context.data.selectedSpread.title, "Three Cards", "Selected spread title should localize to English.");
-assert.deepStrictEqual(context.data.selectedSpread.positions, ["Situation", "Challenge", "Advice"], "Selected spread positions should localize to English.");
+assert.strictEqual(context.data.selectedSpread.title, "Single Card", "Selected home spread title should localize to English.");
+assert.deepStrictEqual(context.data.selectedSpread.positions, ["Guidance"], "Selected home spread position should localize to English.");
 assert.strictEqual(context.data.assets.resourceLabel, "High-res", "Resource badge should localize when switching to English.");
 
 pageDefinition.selectLanguage.call(context, {
@@ -285,11 +306,11 @@ pageDefinition.drawCards.call(context);
 
 assert.strictEqual(context.data.wheel.isOpen, true, "Wheel should open when drawing starts.");
 assert.strictEqual(context.data.buildLabel, "0.8.0 双语版本", "Build label should identify the 0.8.0 bilingual build.");
-assert.strictEqual(context.data.wheel.requiredCount, 3, "Three-card spread should require three selections.");
+assert.strictEqual(context.data.wheel.requiredCount, 1, "Simple home mode should require one selection.");
 assert.strictEqual(context.data.wheel.scrollLeft, 0, "Wheel should start at the first preassigned slot.");
 assert.strictEqual(context.data.wheel.activeIndex, 0, "Wheel should start with the first slot highlighted.");
 assert.strictEqual(context.data.wheel.motion, "stack", "Wheel should open as a stacked deck before spreading.");
-assert.strictEqual(context.data.wheel.currentDrawPosition, "现状", "Wheel caption should include the first spread position.");
+assert.strictEqual(context.data.wheel.currentDrawPosition, "指引", "Wheel caption should include the single-card guidance position.");
 assert.strictEqual(context._rainDismissed, true, "Starting a draw should dismiss the intro rain bed.");
 assert(pendingTimers.some((timer) => timer.delay === 120), "Starting a draw should schedule a gentle rain fade.");
 const initialRainVolume = activeRainAudio.volume;
@@ -420,47 +441,33 @@ assert.strictEqual(uniqueCards.size, 78, "Wheel slots should map to unique card 
 const pageStyles = fs.readFileSync("miniprogram/pages/index/index.wxss", "utf8");
 const pageMarkup = fs.readFileSync("miniprogram/pages/index/index.wxml", "utf8");
 const pageScript = fs.readFileSync("miniprogram/pages/index/index.js", "utf8");
-const drawnCardFaceStyle = pageStyles.match(/\.card-face\s*{[^}]+}/);
+const readingOptionsScript = fs.readFileSync("miniprogram/services/reading-options.js", "utf8");
+const packageJson = JSON.parse(fs.readFileSync("package.json", "utf8"));
+const appManifest = fs.readFileSync("miniprogram/app.json", "utf8");
+const advancedMarkup = fs.readFileSync("miniprogram/pages/advanced/advanced.wxml", "utf8");
+const advancedStyles = fs.readFileSync("miniprogram/pages/advanced/advanced.wxss", "utf8");
+const advancedScript = fs.readFileSync("miniprogram/pages/advanced/advanced.js", "utf8");
 
-assert(drawnCardFaceStyle, "Drawn card face style should exist.");
 assert(
-  pageStyles.includes("grid-template-columns: repeat(3, minmax(0, 1fr));"),
-  "Three-card drawn spread should render horizontally."
+  pageStyles.includes(".wheel-card-face") &&
+    pageStyles.includes("width: 188rpx;") &&
+    pageStyles.includes("height: 330rpx;") &&
+    !pageStyles.includes(".cards-grid") &&
+    !pageStyles.includes(".card-face {"),
+  "Home page should keep card imagery inside the deck/wheel instead of restoring the old drawn-card grid."
 );
 assert(
-  pageStyles.includes("width: 172rpx;") &&
-    pageStyles.includes("height: 300rpx;") &&
-    pageStyles.includes(".cards-grid.pair .card-face") &&
-    pageStyles.includes("width: 218rpx;") &&
-    pageStyles.includes("height: 380rpx;") &&
-    drawnCardFaceStyle[0].includes("background: transparent;") &&
-    !drawnCardFaceStyle[0].includes("background: #171311;"),
-  "Displayed card images should match tarot art ratio without a black aspectFit background."
-);
-assert(
-  pageMarkup.includes('class="spread-insight"') &&
-    pageMarkup.includes("{{selectedSpread.insight}}") &&
-    pageStyles.includes(".spread-insight") &&
-    pageStyles.includes("color: #8f887f;") &&
-    !pageStyles.includes(".spread-insight {\\n  border"),
-  "Selected spread quote should render as small grey insight text without a box."
-);
-assert(
-  pageMarkup.includes('class="reader-control"') &&
-    pageMarkup.includes('class="reader-option {{selectedReaderId === item.id ? \'active\' : \'\'}}"') &&
-    pageMarkup.includes('bindtap="selectReader"') &&
-    pageMarkup.includes('class="reader-name"') &&
-    !pageMarkup.includes("reader-subtitle") &&
-    !pageMarkup.includes("source-pill") &&
-    pageStyles.includes(".reader-control") &&
-    pageStyles.includes("grid-template-columns: repeat(3, minmax(0, 1fr));") &&
-    pageStyles.includes(".reader-option.active") &&
-    !pageStyles.includes(".reader-subtitle") &&
-    !pageStyles.includes(".source-pill") &&
-    pageStyles.includes(".reader-option::after") &&
-    pageStyles.includes("max-width: 100%;") &&
-    pageStyles.includes("overflow: hidden;"),
-  "Reader selector should render three name-only readers in one row without active button overflow or duplicate source pills."
+  !fs.existsSync("iOS") &&
+    !fs.existsSync("Sources") &&
+    !fs.existsSync("Tests") &&
+    !fs.existsSync("Package.swift") &&
+    !fs.existsSync("server") &&
+    !fs.existsSync("scripts/deploy-cloudrun.js") &&
+    !fs.existsSync("scripts/test-reading-retry.js") &&
+    !packageJson.scripts.backend &&
+    !packageJson.scripts["backend:check"] &&
+    !packageJson.scripts["deploy:cloudrun"],
+  "Repository should keep only Mini Program code and tooling, without the Swift app or unused backend scaffolding."
 );
 assert(
   pageMarkup.includes('wx:if="{{!assets.ready}}"') &&
@@ -473,6 +480,47 @@ assert(
   "Miniapp should hold the page on a loading gate until remote assets are ready."
 );
 assert(
+  appManifest.includes('"pages/advanced/advanced"') &&
+    fs.existsSync("miniprogram/pages/advanced/advanced.js") &&
+    fs.existsSync("miniprogram/pages/advanced/advanced.wxml") &&
+    advancedMarkup.includes('class="option-grid spread-grid"') &&
+    advancedMarkup.includes('class="option-grid reader-grid"') &&
+    advancedMarkup.includes('bindtap="applyAdvancedMode"') &&
+    advancedMarkup.includes('bindtap="returnSimpleMode"') &&
+    advancedStyles.includes(".reader-grid") &&
+    advancedStyles.includes("max-width: 100%;") &&
+    advancedStyles.includes("text-overflow: ellipsis;") &&
+    advancedScript.includes("saveAdvancedReadingSelection") &&
+    readingOptionsScript.includes('wx.setStorageSync(READING_MODE_STORAGE_KEY, "advanced")'),
+  "Complete spreads and readers should live on the advanced subpage."
+);
+assert(
+  pageMarkup.includes('class="question-dock"') &&
+    pageMarkup.includes('class="mode-summary"') &&
+    pageMarkup.includes('class="mode-link"') &&
+    pageMarkup.includes('bindtap="goAdvancedMode"') &&
+    pageMarkup.includes('class="question-input compact-question-input"') &&
+    pageMarkup.includes('class="submit-button"') &&
+    pageMarkup.includes('bindtap="drawCards"') &&
+    pageMarkup.includes('class="deck-stage {{wheel.isOpen ? \'deck-stage-wheel\' : \'\'}}"') &&
+    pageMarkup.includes('class="idle-deck"') &&
+    pageMarkup.includes("{{ui.deckPrompt}}") &&
+    !pageMarkup.includes('class="spread-control"') &&
+    !pageMarkup.includes('class="reader-control"') &&
+    !pageMarkup.includes('class="interpret-button"') &&
+    !pageMarkup.includes('class="cards-section"') &&
+    pageStyles.includes(".question-dock") &&
+    pageStyles.includes(".compact-question-input") &&
+    pageStyles.includes("height: 104rpx;") &&
+    pageStyles.includes("grid-template-columns: minmax(0, 1fr) minmax(96rpx, 116rpx);") &&
+    pageStyles.includes(".submit-button") &&
+    pageStyles.includes("max-width: 100%;") &&
+    pageStyles.includes(".deck-stage") &&
+    pageStyles.includes(".idle-deck") &&
+    pageStyles.includes(".idle-card-back"),
+  "Home page should stay compact: question bar, submit, mode change, and a persistent deck display."
+);
+assert(
   pageMarkup.includes('class="music-toggle {{music.enabled ? \'active\' : \'muted\'}}"') &&
     pageMarkup.includes('aria-label="{{music.enabled ? ui.musicOnLabel : ui.musicOffLabel}}"') &&
     pageMarkup.includes('class="language-toggle"') &&
@@ -480,8 +528,6 @@ assert(
     pageMarkup.includes("{{item.title}}") &&
     !pageMarkup.includes("{{item.label}}") &&
     pageMarkup.includes('bindtap="selectLanguage"') &&
-    pageMarkup.includes('class="resource-badge"') &&
-    pageMarkup.includes("{{assets.resourceLabel}}") &&
     pageMarkup.includes('bindtap="toggleMusic"') &&
     pageMarkup.includes('role="button"') &&
     !pageMarkup.includes("<button\n        class=\"music-toggle") &&
@@ -491,7 +537,6 @@ assert(
     pageStyles.includes("width: 178rpx;") &&
     pageStyles.includes("flex: 0 0 178rpx;") &&
     pageStyles.includes("text-overflow: ellipsis;") &&
-    pageStyles.includes(".resource-badge") &&
     pageStyles.includes("width: 48rpx;") &&
     pageStyles.includes("height: 48rpx;") &&
     pageStyles.includes("flex: 0 0 48rpx;") &&
@@ -499,7 +544,7 @@ assert(
     pageScript.includes("REMOTE_ASSET_BASE_URL") &&
     pageScript.includes("languageOptions") &&
     pageScript.includes("selectLanguage(event)") &&
-    pageScript.includes("createSpreads(language)") &&
+    readingOptionsScript.includes("createSpreads(language)") &&
     pageScript.includes("LOCAL_CARD_BACK_FALLBACK_PATH") &&
     pageScript.includes("LOCAL_MUSIC_TRACK_PATHS") &&
     pageScript.includes("createLocalFallbackAssetPaths") &&
@@ -540,37 +585,15 @@ assert(
   "Miniapp should bundle compact local fallback card and music assets while remote media is unavailable."
 );
 assert(
-  pageMarkup.includes("selectedSpreadId === 'decisionPair'") &&
-    pageMarkup.includes('class="decision-inputs"') &&
-    pageMarkup.includes("Question") &&
-    pageMarkup.includes('value="{{question}}"') &&
-    pageMarkup.includes('bindinput="onQuestionInput"') &&
-    pageMarkup.includes('class="question-input decision-option-input decision-question-input"') &&
-    pageMarkup.includes("Plan A") &&
-    pageMarkup.includes("Plan B") &&
-    pageMarkup.includes('data-option="planA"') &&
-    pageMarkup.includes('data-option="planB"') &&
-    pageMarkup.includes('bindinput="onDecisionOptionInput"') &&
-    pageStyles.includes(".decision-question-card") &&
-    pageStyles.includes(".question-input.decision-question-input") &&
-    pageStyles.includes(".decision-input-card") &&
-    pageStyles.includes(".question-input.decision-option-input") &&
-    pageScript.includes("问题：${safeQuestion || \"未填写\"}") &&
+  pageScript.includes("问题：${safeQuestion || \"未填写\"}") &&
     pageScript.includes("方案 A：${planA || \"未填写\"}") &&
-    pageScript.includes("方案 B：${planB || \"未填写\"}"),
-  "Decision-pair spread should render separate Question, Plan A, and Plan B dialogue boxes and send all three to the model."
+    pageScript.includes("方案 B：${planB || \"未填写\"}") &&
+    advancedMarkup.includes('data-spread-id="{{item.id}}"') &&
+    advancedMarkup.includes('data-reader-id="{{item.id}}"'),
+  "Decision-pair prompt support should remain available for complete mode selections."
 );
 assert(
-  pageStyles.includes(".spread-control") &&
-    pageStyles.includes("grid-template-columns: repeat(2, minmax(0, 1fr));") &&
-    pageStyles.includes(".spread-option::after") &&
-    pageStyles.includes("box-sizing: border-box;") &&
-    pageMarkup.includes("drawnCards.length === 2 ? 'pair' : ''") &&
-    pageStyles.includes(".cards-grid.pair"),
-  "Four spread choices and two-card results should use stable two-column layouts without selection overflow."
-);
-assert(
-    pageMarkup.includes("main-flow {{wheel.isOpen ? 'main-flow-wheel-open' : ''}}") &&
+  pageMarkup.includes('class="page {{wheel.isOpen ? \'page-wheel-active\' : \'\'}}"') &&
     pageMarkup.includes('class="wheel-aperture-ring"') &&
     pageMarkup.includes("{{ui.wheelDrawPrefix}}{{wheel.currentDrawNumber}}{{ui.wheelDrawMiddle}}{{wheel.requiredCount}}{{ui.wheelDrawSuffix}}{{wheel.currentDrawPosition}}") &&
     pageMarkup.includes('class="wheel-track"') &&
@@ -579,9 +602,18 @@ assert(
     pageMarkup.includes('class="wheel-flight-face wheel-flight-front"') &&
     pageMarkup.includes('class="wheel-card-arc" style="{{item.arcStyle}}"') &&
     pageMarkup.includes('class="wheel-card-back" src="{{wheel.cardBackSrc}}" mode="aspectFill"') &&
+    pageStyles.includes(".page-wheel-active::before") &&
+    pageStyles.includes("transition: opacity 820ms") &&
+    pageStyles.includes(".wheel-overlay") &&
+    pageStyles.includes("position: relative;") &&
+    pageStyles.includes("background: transparent;") &&
+    pageStyles.includes("animation: none;") &&
+    pageStyles.includes(".wheel-stage") &&
+    pageStyles.includes("top: 80rpx;") &&
     pageStyles.includes("overflow: hidden;") &&
-    pageMarkup.includes('bindtap="onWheelCardTap"'),
-  "Visible cards should live inside the native scroll layer while the drawn card animates in its own overlay without back-image highlight gaps."
+    pageMarkup.includes('bindtap="onWheelCardTap"') &&
+    !pageMarkup.includes("main-flow-wheel-open"),
+  "Wheel should sit under the question dock while the page background gently blooms behind existing text."
 );
 assert(
   pageMarkup.includes('scroll-with-animation="{{false}}"') &&
@@ -593,16 +625,10 @@ assert(
 assert(
   pageStyles.includes(".wheel-motion-spreading .wheel-card-arc") &&
     pageStyles.includes(".wheel-motion-closing .wheel-card-arc") &&
-    pageStyles.includes("@keyframes wheel-aperture-open") &&
-    pageStyles.includes("@keyframes wheel-aperture-close") &&
     pageStyles.includes("@keyframes wheel-aperture-ring-open") &&
     pageStyles.includes("@keyframes wheel-content-exit") &&
-    pageStyles.includes("animation: wheel-aperture-open 920ms") &&
     pageStyles.includes("animation: wheel-aperture-ring-open 1120ms") &&
     pageStyles.includes("transform 1120ms cubic-bezier(0.18, 0.82, 0.22, 1)") &&
-    pageStyles.includes("clip-path: circle(0% at 50% 56%)") &&
-    pageStyles.includes("clip-path: circle(142% at 50% 56%)") &&
-    pageStyles.includes(".main-flow-wheel-open") &&
     pageMarkup.includes('class="wheel-flight-card-draw"') &&
     pageStyles.includes("@keyframes wheel-card-pop-move") &&
     pageStyles.includes("@keyframes wheel-card-draw-back-flip") &&
@@ -620,7 +646,9 @@ assert(
   "Drawn-card flight should use a two-step pop-and-move followed by a delayed flip reveal."
 );
 
-for (let drawIndex = 0; drawIndex < 3; drawIndex += 1) {
+const totalDraws = context.data.wheel.requiredCount;
+
+for (let drawIndex = 0; drawIndex < totalDraws; drawIndex += 1) {
   const activeIndex = context.data.wheel.activeIndex;
   const activeSlot = context.data.wheelCards[activeIndex];
 
@@ -669,7 +697,7 @@ for (let drawIndex = 0; drawIndex < 3; drawIndex += 1) {
     assert.notStrictEqual(context.data.wheel.activeIndex, activeIndex, "Native scroll should still update the highlighted wheel card during draw flight.");
   }
 
-  if (drawIndex < 2) {
+  if (drawIndex < totalDraws - 1) {
     runNextTimerByDelay(1120);
     assert.strictEqual(context.data.wheel.motion, "arc", "Wheel should remain interactive between selections.");
     assert.strictEqual(context.data.wheel.phase, "choosing", "Wheel should return to choosing after a non-final draw flight.");
@@ -696,6 +724,7 @@ for (let drawIndex = 0; drawIndex < 3; drawIndex += 1) {
 
 assert.strictEqual(context.data.wheel.isOpen, false, "Wheel should close after the spread is complete.");
 assert.strictEqual(context._interpreted, true, "Final draw should automatically start interpretation.");
+assert.strictEqual(context.data.wheel.cardBackSrc, `${REMOTE_ASSET_BASE_URL}/cards/card-back.png`, "Idle deck should keep the loaded card back after the wheel closes.");
 
 pageDefinition.onUnload.call(context);
 assert.strictEqual(activeMusicAudio.destroyed, true, "Page unload should destroy the active background music context.");
