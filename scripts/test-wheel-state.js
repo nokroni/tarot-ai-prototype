@@ -8,6 +8,7 @@ const {
   getRahdueDefaultQuestion
 } = require("../miniprogram/services/reading-options");
 const {
+  createCloudBaseRahdueSequentialReading,
   resolveCloudAIModel,
   resolveCloudAISourceLabel
 } = require("../miniprogram/services/cloudbase-ai");
@@ -91,6 +92,7 @@ global.clearTimeout = (id) => {
 require("../miniprogram/pages/index/index.js");
 
 assert(pageDefinition, "Page definition should be registered.");
+assert.strictEqual(typeof createCloudBaseRahdueSequentialReading, "function", "Rahdue sequential CloudBase reader should be exported.");
 assert.strictEqual(pageDefinition.data.language, "zh", "Miniapp should default to Chinese.");
 assert.deepStrictEqual(
   pageDefinition.data.languages.map((language) => [language.id, language.title]),
@@ -669,6 +671,8 @@ const readingStyles = fs.readFileSync("miniprogram/pages/reading/reading.wxss", 
 const readingScript = fs.readFileSync("miniprogram/pages/reading/reading.js", "utf8");
 const readingJson = fs.readFileSync("miniprogram/pages/reading/reading.json", "utf8");
 const readingResultScript = fs.readFileSync("miniprogram/services/reading-result.js", "utf8");
+const cloudBaseScript = fs.readFileSync("miniprogram/services/cloudbase-ai.js", "utf8");
+const systemPromptScript = fs.readFileSync("miniprogram/prompts/system-prompt.js", "utf8");
 const wheelStartSpacerStyle = pageStyles.match(/\.wheel-spacer-start\s*{[^}]+}/);
 const wheelEndSpacerStyle = pageStyles.match(/\.wheel-spacer-end\s*{[^}]+}/);
 const wheelCardSlotStyle = pageStyles.match(/\.wheel-card-slot\s*{[^}]+}/);
@@ -767,6 +771,20 @@ assert(
     pageScript.includes('url: "/pages/reading/reading"') &&
     pageScript.includes("createWheelFlightCaption(drawnCard)") &&
     pageScript.includes("getRahdueDefaultQuestion(languageCode)") &&
+    pageScript.includes("createCloudBaseRahdueSequentialReading") &&
+    pageScript.includes("onRahdueProgress") &&
+    pageScript.includes("createRahdueProgressState") &&
+    pageMarkup.includes('class="rahdue-progress"') &&
+    pageMarkup.includes("{{rahdueProgress.percent}}%") &&
+    pageStyles.includes(".rahdue-progress-fill") &&
+    cloudBaseScript.includes("createCloudBaseRahdueSequentialReading") &&
+    cloudBaseScript.includes("for (let index = 0; index < sections.length; index += 1)") &&
+    cloudBaseScript.includes("buildRahdueSectionMessages") &&
+    cloudBaseScript.includes("buildRahdueSynthesisMessages") &&
+    cloudBaseScript.includes("completedSections.push") &&
+    cloudBaseScript.includes("completedCards.push") &&
+    systemPromptScript.includes("buildRahdueSectionMessages") &&
+    systemPromptScript.includes("buildRahdueSynthesisMessages") &&
     pageMarkup.includes("{{wheel.flightCard.caption}}") &&
     pageMarkup.includes('class="message {{isInterpreting ? \'waiting\' : \'error\'}}"') &&
     !pageMarkup.includes('wx:if="{{interpretation}}" class="reading"') &&
@@ -776,6 +794,7 @@ assert(
     readingScript.includes("loadLatestReadingResult") &&
     readingScript.includes("createDisplayCards") &&
     readingScript.includes("drawRahdueWheelCanvas") &&
+    readingScript.includes("createRahdueOverlaySlots") &&
     readingScript.includes('RAHDUE_CANVAS_ID = "rahdue-wheel-canvas"') &&
     readingScript.includes("getRahdueCanvasMetrics(page)") &&
     readingScript.includes("appendCardRowRightToLeft") &&
@@ -785,6 +804,8 @@ assert(
     readingScript.includes('url: "/pages/index/index"') &&
     readingMarkup.includes('wx:if="{{isRahdueReading}}" class="rahdue-reading-template"') &&
     readingMarkup.includes('canvas-id="rahdue-wheel-canvas"') &&
+    readingMarkup.includes('class="rahdue-card-map"') &&
+    readingMarkup.includes('class="rahdue-map-card {{item.solidifier ? \'solidifier\' : \'\'}}"') &&
     readingMarkup.includes('wx:else class="standard-reading-template"') &&
     readingMarkup.includes('wx:if="{{showActionReminder}}"') &&
     readingMarkup.includes('class="drawn-card-image {{item.isReversed ? \'reversed\' : \'\'}}"') &&
@@ -794,6 +815,8 @@ assert(
     readingStyles.includes(".rahdue-wheel-canvas") &&
     readingStyles.includes("width: 650rpx;") &&
     readingStyles.includes("height: 1040rpx;") &&
+    readingStyles.includes(".rahdue-map-card") &&
+    !readingStyles.includes("-webkit-line-clamp: 3") &&
     readingStyles.includes(".drawn-card-image.reversed") &&
     readingStyles.includes("transform: rotate(180deg);") &&
     readingStyles.includes("grid-template-columns: 128rpx minmax(0, 1fr);") &&
@@ -1446,7 +1469,7 @@ assert.strictEqual(activeRainAudio.destroyed, true, "Page unload should destroy 
 global.setTimeout = originalSetTimeout;
 global.clearTimeout = originalClearTimeout;
 
-assertCardBackHasTransparentCorners().then(() => {
+assertRahdueSequentialReader().then(assertCardBackHasTransparentCorners).then(() => {
   console.log("Wheel state test passed.");
 }).catch((error) => {
   console.error(error);
@@ -1455,6 +1478,112 @@ assertCardBackHasTransparentCorners().then(() => {
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+async function assertRahdueSequentialReader() {
+  const previousCloud = global.wx.cloud;
+  const progressEvents = [];
+  const streamCalls = [];
+  let streamIndex = 0;
+
+  global.wx.cloud = {
+    extend: {
+      AI: {
+        createModel(provider) {
+          assert.strictEqual(provider, appConfig.cloudAI.provider, "Sequential Rahdue reader should use the configured CloudBase provider.");
+
+          return {
+            streamText(options) {
+              const data = options && options.data ? options.data : {};
+              const currentIndex = streamIndex;
+
+              streamIndex += 1;
+              streamCalls.push(data);
+
+              return Promise.resolve({
+                textStream: [
+                  JSON.stringify(
+                    currentIndex < initialRahdueSpread.sections.length
+                      ? createMockRahdueSectionResponse(initialRahdueSpread.sections[currentIndex])
+                      : createMockRahdueSynthesisResponse()
+                  )
+                ]
+              });
+            }
+          };
+        }
+      }
+    }
+  };
+
+  try {
+    const reading = await createCloudBaseRahdueSequentialReading({
+      cloudAIConfig: appConfig.cloudAI,
+      readingRequest: rahduePromptRequest,
+      onProgress(progress) {
+        progressEvents.push(progress);
+      }
+    });
+
+    assert.strictEqual(streamCalls.length, initialRahdueSpread.sections.length + 1, "Sequential Rahdue reader should call the model once per section plus synthesis.");
+    assert.deepStrictEqual(
+      progressEvents.map((event) => event.phase),
+      initialRahdueSpread.sections.map(() => "section").concat("synthesis"),
+      "Sequential Rahdue progress should report each section before synthesis."
+    );
+    assert.deepStrictEqual(
+      progressEvents.map((event) => event.current),
+      initialRahdueSpread.sections.map((section, index) => index + 1).concat(initialRahdueSpread.sections.length + 1),
+      "Sequential Rahdue progress should advance monotonically through the true pipeline."
+    );
+    assert.strictEqual(progressEvents[0].sectionTitle, initialRahdueSpread.sections[0].title, "First Rahdue progress event should name the first section.");
+    assert.strictEqual(progressEvents[progressEvents.length - 1].total, initialRahdueSpread.sections.length + 1, "Rahdue progress should include synthesis in the total.");
+
+    const secondSectionPayload = parsePromptPayload(streamCalls[1].messages[1].content);
+    const synthesisPayload = parsePromptPayload(streamCalls[streamCalls.length - 1].messages[1].content);
+
+    assert.strictEqual(secondSectionPayload.previousSections.length, 1, "Sequential Rahdue section prompts should carry completed prior sections.");
+    assert.strictEqual(synthesisPayload.sections.length, initialRahdueSpread.sections.length, "Rahdue synthesis prompt should receive every completed section.");
+    assert.strictEqual(reading.sections.length, initialRahdueSpread.sections.length, "Sequential Rahdue reading should return every section.");
+    assert.strictEqual(reading.cards.length, rahduePromptRequest.drawnCards.length, "Sequential Rahdue reading should return all 78 card interpretations.");
+    assert.strictEqual(reading.sections[reading.sections.length - 1].id, "malkuthBlock", "Sequential Rahdue reading should end with the Malkuth block.");
+    assert.doesNotThrow(() => {
+      assertValidReading(reading, rahduePromptRequest);
+    }, "Sequential Rahdue reading should satisfy the reading schema.");
+  } finally {
+    global.wx.cloud = previousCloud;
+  }
+}
+
+function createMockRahdueSectionResponse(section) {
+  const sectionCards = rahduePromptRequest.drawnCards.slice(section.start - 1, section.end);
+
+  return {
+    section: {
+      id: section.id,
+      title: section.title,
+      interpretation: `${section.title}按顺序显出一层可被整合的象征线索。`,
+      keyCards: sectionCards.slice(0, 2).map((card) => card.name)
+    },
+    cards: sectionCards.map((card) => ({
+      id: card.id,
+      interpretation: `${card.position}给出一句完整的顺序提示。`
+    }))
+  };
+}
+
+function createMockRahdueSynthesisResponse() {
+  return {
+    summary: "拉杜之轮按顺序完成后，显出前世洞见、业力模式与内在智慧之间的主线。",
+    overallMessage: "整体讯息是把每个分区当作同一张地图上的层次，而不是孤立判断。",
+    practicalReflection: "这只轮盘安静地照见此刻最需要被理解的模式。",
+    journalQuestion: "哪一个分区最像早已在心里等待被命名的线索？",
+    caveat: "AI生成内容，仅供娱乐和自我反思。"
+  };
+}
+
+function parsePromptPayload(content) {
+  return JSON.parse(String(content).slice(String(content).indexOf("{")));
 }
 
 function setDataPath(target, path, value) {

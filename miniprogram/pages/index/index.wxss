@@ -245,6 +245,62 @@
   font-weight: 800;
 }
 
+.rahdue-progress {
+  display: grid;
+  gap: 14rpx;
+  margin-top: 22rpx;
+  padding: 22rpx 24rpx;
+  border: 2rpx solid rgba(91, 63, 163, 0.18);
+  border-radius: 16rpx;
+  background: rgba(255, 250, 240, 0.84);
+  box-sizing: border-box;
+}
+
+.rahdue-progress-copy {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 18rpx;
+}
+
+.rahdue-progress-title,
+.rahdue-progress-detail {
+  display: block;
+  line-height: 1.28;
+}
+
+.rahdue-progress-title {
+  min-width: 0;
+  overflow: hidden;
+  color: #26231f;
+  font-size: 25rpx;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rahdue-progress-detail {
+  flex: 0 0 auto;
+  color: #5b3fa3;
+  font-size: 22rpx;
+  font-weight: 900;
+}
+
+.rahdue-progress-track {
+  height: 10rpx;
+  overflow: hidden;
+  border-radius: 999rpx;
+  background: rgba(91, 63, 163, 0.14);
+}
+
+.rahdue-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: #5b3fa3;
+  transition: width 260ms ease;
+}
+
 .note {
   display: block;
   margin: 34rpx auto 0;
@@ -997,6 +1053,37 @@
   font-size: 24rpx;
   font-weight: 900;
   line-height: 1.25;
+}
+
+.motion-rahdue-progress {
+  display: grid;
+  width: 260rpx;
+  gap: 8rpx;
+}
+
+.motion-rahdue-progress-title {
+  display: block;
+  overflow: hidden;
+  color: #5b3fa3;
+  font-size: 20rpx;
+  font-weight: 900;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.motion-rahdue-progress-track {
+  height: 8rpx;
+  overflow: hidden;
+  border-radius: 999rpx;
+  background: rgba(91, 63, 163, 0.14);
+}
+
+.motion-rahdue-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: #5b3fa3;
+  transition: width 260ms ease;
 }
 
 .deck-stage {

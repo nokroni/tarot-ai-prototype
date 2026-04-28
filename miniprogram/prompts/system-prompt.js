@@ -70,6 +70,108 @@ function buildReadingMessages({ sourceLabel, readingRequest }) {
   ];
 }
 
+function buildRahdueSectionMessages({ sourceLabel, readingRequest, section, sectionCards, previousSections }) {
+  const readerProfile = readingRequest && readingRequest.readerProfile;
+  const languageCode = normalizeLanguageCode(readingRequest && readingRequest.language);
+  const languageConfig = getLanguageConfig(languageCode);
+  const outputSourceLabel = createReaderSourceLabel(sourceLabel, readerProfile);
+  const previous = Array.isArray(previousSections) ? previousSections : [];
+  const systemSegments = [
+    languageCode === "en"
+      ? "You are reading one sequential section of Rahdue's Wheel for a WeChat mini program."
+      : "你正在为微信小程序按顺序解读拉杜之轮的一个分区。",
+    "只返回一个有效 JSON 对象，不要输出 markdown、解释文字或代码块。",
+    "JSON 顶层必须只包含 section 与 cards。",
+    "section 必须包含 id、title、interpretation、keyCards。cards 数组每项只输出 id 与 interpretation。",
+    "cards[].id 必须与本分区 drawnCards[].id 顺序对应且完全一致。不要替换、重抽、删除或编造牌。",
+    `Source label context: ${outputSourceLabel}.`,
+    `The selected output language is ${languageConfig.outputLanguage}.`,
+    languageCode === "en"
+      ? "Write each card interpretation as one concise but complete sentence; do not truncate with ellipses."
+      : "每张牌写成一句简洁但完整的话；不要用省略号截断。",
+    languageCode === "en"
+      ? "This is symbolic past-life insight and inner wisdom, not certain past-life fact or professional advice."
+      : "这是象征性的前世洞见与内在智慧探索，不是确定前世事实或专业建议。",
+    createReaderPromptGuidance(readerProfile, languageCode)
+  ].filter((segment) => typeof segment === "string" && segment.length > 0);
+  const userPayload = {
+    schemaVersion: readingRequest && readingRequest.schemaVersion,
+    language: readingRequest && readingRequest.language,
+    question: readingRequest && readingRequest.question,
+    spread: {
+      id: readingRequest && readingRequest.spread && readingRequest.spread.id,
+      title: readingRequest && readingRequest.spread && readingRequest.spread.title
+    },
+    currentSection: section,
+    previousSections: previous.map((item) => ({
+      id: item.id,
+      title: item.title,
+      interpretation: item.interpretation
+    })),
+    readerProfile,
+    drawnCards: sectionCards
+  };
+  const userIntro = languageCode === "en"
+    ? "Read this Rahdue section in sequence:"
+    : "请按顺序解读这个拉杜之轮分区：";
+
+  return [
+    {
+      role: "system",
+      content: systemSegments.join(" ")
+    },
+    {
+      role: "user",
+      content: `${userIntro}\n${JSON.stringify(userPayload, null, 2)}`
+    }
+  ];
+}
+
+function buildRahdueSynthesisMessages({ sourceLabel, readingRequest, sections }) {
+  const readerProfile = readingRequest && readingRequest.readerProfile;
+  const languageCode = normalizeLanguageCode(readingRequest && readingRequest.language);
+  const languageConfig = getLanguageConfig(languageCode);
+  const outputSourceLabel = createReaderSourceLabel(sourceLabel, readerProfile);
+  const systemSegments = [
+    languageCode === "en"
+      ? "You are writing the final synthesis for a sequential Rahdue's Wheel reading."
+      : "你正在为按顺序完成的拉杜之轮解读写最终综合。",
+    "只返回一个有效 JSON 对象，不要输出 markdown、解释文字或代码块。",
+    "JSON 顶层必须只包含 summary、overallMessage、practicalReflection、journalQuestion、caveat。",
+    `sourceLabel context is ${outputSourceLabel}, but do not include sourceLabel in this partial JSON.`,
+    `The selected output language is ${languageConfig.outputLanguage}.`,
+    languageCode === "en"
+      ? "Do not provide a user-facing Action reminder. practicalReflection is schema compatibility only: write one quiet closing observation, not an action step."
+      : "不要提供面向用户显示的“行动提醒”。practicalReflection 只为 schema 兼容保留，写成一句安静的收束观察，不要写行动建议。",
+    languageCode === "en"
+      ? "Frame Rahdue's Wheel as symbolic past-life insight and inner wisdom, never certain past-life fact."
+      : "把拉杜之轮写成象征性的前世洞见与内在智慧探索，不要写成确定前世事实。",
+    createReaderPromptGuidance(readerProfile, languageCode)
+  ].filter((segment) => typeof segment === "string" && segment.length > 0);
+  const userPayload = {
+    schemaVersion: readingRequest && readingRequest.schemaVersion,
+    language: readingRequest && readingRequest.language,
+    question: readingRequest && readingRequest.question,
+    spread: readingRequest && readingRequest.spread,
+    readerProfile,
+    sections
+  };
+  const userIntro = languageCode === "en"
+    ? "Synthesize these completed Rahdue sections:"
+    : "请综合这些已完成的拉杜之轮分区：";
+
+  return [
+    {
+      role: "system",
+      content: systemSegments.join(" ")
+    },
+    {
+      role: "user",
+      content: `${userIntro}\n${JSON.stringify(userPayload, null, 2)}`
+    }
+  ];
+}
+
 function createRahduePromptGuidance(language) {
   const languageCode = normalizeLanguageCode(language);
 
@@ -115,5 +217,7 @@ function buildEnglishOutputRules() {
 }
 
 module.exports = {
+  buildRahdueSectionMessages,
+  buildRahdueSynthesisMessages,
   buildReadingMessages
 };

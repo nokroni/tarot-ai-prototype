@@ -94,6 +94,16 @@
       </view>
     </view>
 
+    <view wx:if="{{rahdueProgress.visible}}" class="rahdue-progress">
+      <view class="rahdue-progress-copy">
+        <text class="rahdue-progress-title">{{rahdueProgress.title}}</text>
+        <text class="rahdue-progress-detail">{{rahdueProgress.detail}}</text>
+      </view>
+      <view class="rahdue-progress-track">
+        <view class="rahdue-progress-fill" style="width: {{rahdueProgress.percent}}%;"></view>
+      </view>
+    </view>
+
     <view class="deck-stage {{wheel.isOpen ? 'deck-stage-wheel' : 'deck-stage-idle'}}" bindtap="tapDeckStage">
       <view class="wheel-overlay {{wheel.isOpen ? 'wheel-overlay-open' : 'wheel-overlay-idle'}} wheel-motion-{{wheel.motion}}">
         <view wx:if="{{wheel.isOpen}}" class="wheel-aperture-ring"></view>
@@ -215,6 +225,12 @@
         <view class="motion-card motion-card-front"></view>
       </view>
       <text class="motion-block-text">{{ui.cloudWaiting}}</text>
+      <view wx:if="{{rahdueProgress.visible}}" class="motion-rahdue-progress">
+        <text class="motion-rahdue-progress-title">{{rahdueProgress.title}}</text>
+        <view class="motion-rahdue-progress-track">
+          <view class="motion-rahdue-progress-fill" style="width: {{rahdueProgress.percent}}%;"></view>
+        </view>
+      </view>
     </view>
   </view>
 </view>

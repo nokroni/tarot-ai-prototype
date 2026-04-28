@@ -1,6 +1,7 @@
 const appConfig = require("../../config");
 const {
   createCloudBaseReading,
+  createCloudBaseRahdueSequentialReading,
   hasCloudBaseAI,
   resolveCloudAISourceLabel
 } = require("../../services/cloudbase-ai");
@@ -66,6 +67,9 @@ const uiCopy = {
     wheelTapAgain: "再次轻触高亮牌，抽出这张牌",
     wheelComplete: "牌阵已完成",
     wheelHint: "滑动轮盘，轻触高亮牌背",
+    rahdueProgressPreparing: "正在准备拉杜之轮顺序解读",
+    rahdueProgressSynthesis: "正在综合完整轮盘",
+    rahdueProgressLabel: "分区进度",
     assetConnecting: "正在连接云托管资源",
     assetCheckingRemote: "正在确认高清资源",
     assetLocalReady: "使用本地备用资源",
@@ -106,6 +110,9 @@ const uiCopy = {
     wheelTapAgain: "Tap the highlighted card again to draw it",
     wheelComplete: "Spread complete",
     wheelHint: "Spin the wheel and tap the highlighted back",
+    rahdueProgressPreparing: "Preparing sequential Rahdue reading",
+    rahdueProgressSynthesis: "Synthesizing the full wheel",
+    rahdueProgressLabel: "Section progress",
     assetConnecting: "Connecting to CloudBase assets",
     assetCheckingRemote: "Checking high-resolution resources",
     assetLocalReady: "Using local fallback resources",
@@ -1020,6 +1027,52 @@ function applyRahdueDrawPreference(spread, rahdueHandDrawn) {
   });
 }
 
+function createClosedRahdueProgress() {
+  return {
+    visible: false,
+    current: 0,
+    total: 0,
+    percent: 0,
+    title: "",
+    detail: ""
+  };
+}
+
+function createRahdueProgressState(language, progress) {
+  const current = Number(progress && progress.current) || 0;
+  const total = Number(progress && progress.total) || 0;
+  const copy = createRahdueProgressCopy(language, progress || {});
+
+  return {
+    visible: true,
+    current,
+    total,
+    percent: total ? Math.max(4, Math.min(100, Math.round((current / total) * 100))) : 4,
+    title: copy.title,
+    detail: copy.detail
+  };
+}
+
+function createRahdueProgressCopy(language, progress) {
+  const ui = getUiCopy(language);
+  const phase = progress && progress.phase;
+  const current = Number(progress && progress.current) || 0;
+  const total = Number(progress && progress.total) || 0;
+  const sectionTitle = progress && progress.sectionTitle ? progress.sectionTitle : "";
+
+  if (phase === "synthesis") {
+    return {
+      title: ui.rahdueProgressSynthesis,
+      detail: total ? `${current}/${total}` : ""
+    };
+  }
+
+  return {
+    title: sectionTitle || ui.rahdueProgressPreparing,
+    detail: total ? `${ui.rahdueProgressLabel} ${current}/${total}` : ui.rahdueProgressPreparing
+  };
+}
+
 function getUiCopy(language) {
   return uiCopy[normalizeLanguageCode(language)] || uiCopy.zh;
 }
@@ -1114,6 +1167,7 @@ Page({
     modeSummary: getUiCopy(initialLanguage).modeSimple,
     drawnCards: [],
     drawnSummarySections: [],
+    rahdueProgress: createClosedRahdueProgress(),
     wheelCards: initialWheelCards,
     wheel: createClosedWheelState(),
     interpretation: null,
@@ -1246,6 +1300,7 @@ Page({
       modeSummary: createModeSummary(selectedSpread, this.data.selectedReader, this.data.readingMode, this.data.language),
       drawnCards: [],
       drawnSummarySections: [],
+      rahdueProgress: createClosedRahdueProgress(),
       interpretation: null,
       errorMessage: ""
     });
@@ -1283,6 +1338,7 @@ Page({
       modeSummary: createModeSummary(selectedSpread, this.data.selectedReader, this.data.readingMode, language),
       drawnCards: localizedDrawnCards,
       drawnSummarySections: createDrawnSummarySections(selectedSpread, localizedDrawnCards),
+      rahdueProgress: createClosedRahdueProgress(),
       wheelCards: localizedWheelCards,
       interpretation: null,
       errorMessage: "",
@@ -1355,6 +1411,7 @@ Page({
           },
       drawnCards: [],
       drawnSummarySections: [],
+      rahdueProgress: createClosedRahdueProgress(),
       wheelCards: prepareWheelCardsForIdle(this.data.wheelCards, this._assetPaths, this.data.language),
       wheel: createClosedWheelState(this._assetPaths),
       interpretation: null,
@@ -1379,6 +1436,7 @@ Page({
     this.setData({
       drawnCards: [],
       drawnSummarySections: [],
+      rahdueProgress: createClosedRahdueProgress(),
       wheelCards,
       wheel,
       interpretation: null,
@@ -1467,9 +1525,19 @@ Page({
       return;
     }
 
+    const isRahdueReading = isRahdueRequest(readingRequest);
+
     this.setData({
       isInterpreting: true,
-      errorMessage: ""
+      errorMessage: "",
+      rahdueProgress: isRahdueReading
+        ? createRahdueProgressState(this.data.language, {
+            phase: "section",
+            current: 0,
+            total: readingRequest.spread.sections.length + 1,
+            sectionTitle: pageText(this, "rahdueProgressPreparing")
+          })
+        : createClosedRahdueProgress()
     });
 
     requestReadingFromBestProvider({
@@ -1478,12 +1546,21 @@ Page({
       language: this.data.language,
       onRetry: () => {
         this.setData({
-          errorMessage: pageText(this, "aiRetry")
+          errorMessage: pageText(this, "aiRetry"),
+          rahdueProgress: createClosedRahdueProgress()
         });
       },
       onWaiting: (message) => {
         this.setData({
           errorMessage: message || pageText(this, "cloudWaiting")
+        });
+      },
+      onRahdueProgress: (progress) => {
+        const progressState = createRahdueProgressState(this.data.language, progress);
+
+        this.setData({
+          rahdueProgress: progressState,
+          errorMessage: progressState.title
         });
       }
     })
@@ -1525,6 +1602,7 @@ Page({
       interpretation: null,
       drawnCards: [],
       drawnSummarySections: [],
+      rahdueProgress: createClosedRahdueProgress(),
       wheelCards: prepareWheelCardsForIdle(this.data.wheelCards, this._assetPaths, this.data.language),
       wheel: createClosedWheelState(this._assetPaths),
       errorMessage: ""
@@ -1586,6 +1664,7 @@ Page({
 
 function requestReadingFromBestProvider(options) {
   const ui = getUiCopy(options.language);
+  const sequentialRahdue = isRahdueRequest(options.readingRequest);
 
   if (cloudAIEnabled) {
     if (typeof options.onWaiting === "function") {
@@ -1594,11 +1673,19 @@ function requestReadingFromBestProvider(options) {
 
     return requestValidReadingFromProvider(
       options,
-      () => createCloudBaseReading({
-        cloudAIConfig: appConfig.cloudAI,
-        readingRequest: options.readingRequest
-      }),
-      normalizeLanguageCode(options.language) === "en" ? "AI reading" : "AI 解读"
+      () => sequentialRahdue
+        ? createCloudBaseRahdueSequentialReading({
+            cloudAIConfig: appConfig.cloudAI,
+            readingRequest: options.readingRequest,
+            onProgress: options.onRahdueProgress
+          })
+        : createCloudBaseReading({
+            cloudAIConfig: appConfig.cloudAI,
+            readingRequest: options.readingRequest
+          }),
+      sequentialRahdue
+        ? (normalizeLanguageCode(options.language) === "en" ? "Rahdue section reader" : "拉杜之轮分区解读")
+        : (normalizeLanguageCode(options.language) === "en" ? "AI reading" : "AI 解读")
     )
       .catch((error) => {
         if (!canUseBackend(options.oauthSession)) {
@@ -1621,6 +1708,16 @@ function requestReadingFromBestProvider(options) {
     options,
     () => requestBackendReading(options),
     normalizeLanguageCode(options.language) === "en" ? "backup reader" : "备用后端"
+  );
+}
+
+function isRahdueRequest(readingRequest) {
+  return Boolean(
+    readingRequest &&
+      readingRequest.spread &&
+      readingRequest.spread.id === RAHDUE_SPREAD_ID &&
+      Array.isArray(readingRequest.spread.sections) &&
+      readingRequest.spread.sections.length
   );
 }
 

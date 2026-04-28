@@ -43,6 +43,7 @@ Page({
     interpretation: null,
     cards: [],
     sections: [],
+    rahdueCanvasSlots: [],
     isRahdueReading: false,
     showActionReminder: true,
     question: "",
@@ -73,6 +74,7 @@ Page({
         interpretation: null,
         cards: [],
         sections: [],
+        rahdueCanvasSlots: [],
         isRahdueReading: false,
         showActionReminder: true,
         question: "",
@@ -92,6 +94,7 @@ Page({
       interpretation,
       cards,
       sections: createDisplaySections(interpretation.sections, result.spread, cards),
+      rahdueCanvasSlots: isRahdueReading ? createRahdueOverlaySlots(cards) : [],
       isRahdueReading,
       showActionReminder: !isRahdueReading,
       question: result.question || "",
@@ -452,6 +455,46 @@ function createRahdueCanvasLayout(cards, metrics) {
   appendCardRow(layout, cards, 70, 78, scaleRahdueMetric(metrics, 82), scaleRahdueMetric(metrics, 936), scaleRahdueMetric(metrics, 56), metrics);
 
   return layout;
+}
+
+function createRahdueOverlaySlots(cards) {
+  const metrics = {
+    width: RAHDUE_CANVAS_BASE_WIDTH,
+    height: RAHDUE_CANVAS_BASE_HEIGHT,
+    scale: 1,
+    cardWidth: RAHDUE_CANVAS_BASE_CARD_WIDTH,
+    cardHeight: RAHDUE_CANVAS_BASE_CARD_HEIGHT
+  };
+
+  return createRahdueCanvasLayout(cards, metrics).map((slot) => {
+    const rotation = radiansToDegrees(slot.rotation) + (slot.card.isReversed ? 180 : 0);
+
+    return {
+      id: `rahdue-map-${slot.position}-${slot.card.id}`,
+      position: slot.position,
+      imageSrc: slot.card.imageSrc,
+      solidifier: slot.solidifier,
+      style: [
+        `left: ${formatRahdueRpx(slot.x)}rpx;`,
+        `top: ${formatRahdueRpx(slot.y)}rpx;`,
+        `width: ${formatRahdueRpx(slot.width)}rpx;`,
+        `height: ${formatRahdueRpx(slot.height)}rpx;`,
+        `transform: rotate(${formatRahdueDegrees(rotation)}deg);`
+      ].join(" ")
+    };
+  });
+}
+
+function radiansToDegrees(value) {
+  return (value * 180) / Math.PI;
+}
+
+function formatRahdueRpx(value) {
+  return String(Math.round(value * 10) / 10);
+}
+
+function formatRahdueDegrees(value) {
+  return String(Math.round(value * 10) / 10);
 }
 
 function appendWheelRing(layout, cards, start, end, centerX, centerY, radius, metrics) {
