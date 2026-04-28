@@ -38,6 +38,7 @@ const {
   getSpreadById,
   getStoredReadingMode
 } = require("../../services/reading-options");
+const { saveLatestReadingResult } = require("../../services/reading-result");
 
 const LANGUAGE_STORAGE_KEY = "tarot_language";
 const uiCopy = {
@@ -54,9 +55,6 @@ const uiCopy = {
     planAPlaceholder: "方案 A",
     planBPlaceholder: "方案 B",
     submitButton: "提交",
-    readingTitle: "解读",
-    overallLabel: "整体讯息",
-    actionLabel: "行动提醒",
     safetyNote: "AI生成内容，仅供娱乐和自我反思，不构成专业建议或确定预言。牌面由轮盘预先洗牌分配，选择后再进行解读。",
     wheelDrawPrefix: "抽取第",
     wheelDrawMiddle: "/",
@@ -97,9 +95,6 @@ const uiCopy = {
     planAPlaceholder: "Plan A",
     planBPlaceholder: "Plan B",
     submitButton: "Submit",
-    readingTitle: "Reading",
-    overallLabel: "Overall message",
-    actionLabel: "Action reminder",
     safetyNote: "AI-generated content, for entertainment and self-reflection only. It is not professional advice or a certain prediction. The wheel pre-shuffles the deck before the reading.",
     wheelDrawPrefix: "Drawing card ",
     wheelDrawMiddle: "/",
@@ -1392,11 +1387,14 @@ Page({
     });
 
     if (!cloudAIEnabled && !canUseBackend(this.data.oauthSession)) {
-      this.setData({
+      const notice = hasUsableOAuth(this.data.oauthSession)
+        ? ""
+        : pageText(this, "backendMissing");
+
+      this.openReadingResult({
         interpretation: normalizeReading(fallbackReading, null, this.data.language),
-        errorMessage: hasUsableOAuth(this.data.oauthSession)
-          ? ""
-          : pageText(this, "backendMissing")
+        question: readingQuestion,
+        notice
       });
       return;
     }
@@ -1422,15 +1420,17 @@ Page({
       }
     })
       .then((result) => {
-        this.setData({
+        this.openReadingResult({
           interpretation: normalizeReading(result.reading, fallbackReading, this.data.language),
-          errorMessage: result.warning || ""
+          question: readingQuestion,
+          notice: result.warning || ""
         });
       })
       .catch((error) => {
-        this.setData({
+        this.openReadingResult({
           interpretation: normalizeReading(fallbackReading, null, this.data.language),
-          errorMessage: `${formatProviderError(error, this.data.language)}${pageText(this, "fallbackPrefix")}`
+          question: readingQuestion,
+          notice: `${formatProviderError(error, this.data.language)}${pageText(this, "fallbackPrefix")}`
         });
       })
       .finally(() => {
@@ -1438,6 +1438,31 @@ Page({
           isInterpreting: false
         });
       });
+  },
+
+  openReadingResult({ interpretation, question, notice }) {
+    saveLatestReadingResult({
+      interpretation,
+      drawnCards: this.data.drawnCards,
+      spread: this.data.selectedSpread,
+      reader: this.data.selectedReader,
+      question,
+      decisionOptions: this.data.decisionOptions,
+      language: this.data.language,
+      notice: notice || "",
+      createdAt: Date.now()
+    });
+
+    this.setData({
+      interpretation: null,
+      errorMessage: ""
+    });
+
+    if (typeof wx !== "undefined" && wx.navigateTo) {
+      wx.navigateTo({
+        url: "/pages/reading/reading"
+      });
+    }
   },
 
   connectReadingBackend() {

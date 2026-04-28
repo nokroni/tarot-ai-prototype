@@ -213,8 +213,7 @@
   font-weight: 900;
 }
 
-.message,
-.reading {
+.message {
   margin-top: 28rpx;
   padding: 28rpx 32rpx;
   border: 2rpx solid #d8c5e8;
@@ -231,47 +230,12 @@
   font-weight: 800;
 }
 
-.reading {
-  line-height: 1.6;
-}
-
-.reading-heading {
-  display: flex;
-  align-items: center;
-}
-
-.reading-text {
-  display: block;
-  margin-top: 14rpx;
-  color: #3d352e;
-  font-size: 28rpx;
-  line-height: 1.58;
-}
-
-.reading-cards {
-  margin-top: 20rpx;
-}
-
-.reading-card {
-  padding: 20rpx 0;
-  border-top: 1rpx solid #d8c5e8;
-}
-
-.reading-card-title,
-.reading-label {
-  display: block;
-  margin-top: 24rpx;
-  color: #5b3fa3;
-  font-size: 24rpx;
-  font-weight: 900;
-}
-
-.reading-meta {
-  display: block;
-  margin-top: 8rpx;
+.message.waiting {
+  border-color: rgba(91, 63, 163, 0.2);
+  background: rgba(255, 250, 240, 0.82);
   color: #70685d;
-  font-size: 22rpx;
-  line-height: 1.45;
+  font-size: 27rpx;
+  font-weight: 800;
 }
 
 .note {

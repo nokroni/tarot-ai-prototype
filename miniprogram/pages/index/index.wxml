@@ -153,28 +153,8 @@
       </view>
     </view>
 
-    <view wx:if="{{errorMessage}}" class="message error">
+    <view wx:if="{{errorMessage}}" class="message {{isInterpreting ? 'waiting' : 'error'}}">
       {{errorMessage}}
-    </view>
-
-    <view wx:if="{{interpretation}}" class="reading">
-      <view class="reading-heading">
-        <text class="section-title">{{ui.readingTitle}}</text>
-      </view>
-      <text class="reading-text">{{interpretation.summary}}</text>
-
-      <view class="reading-cards">
-        <view wx:for="{{interpretation.cards}}" wx:key="id" class="reading-card">
-          <text class="reading-card-title">{{item.position}} · {{item.name}}</text>
-          <text class="reading-meta">{{item.orientationText}}</text>
-          <text class="reading-text">{{item.interpretation}}</text>
-        </view>
-      </view>
-
-      <text class="reading-label">{{ui.overallLabel}}</text>
-      <text class="reading-text">{{interpretation.overallMessage}}</text>
-      <text class="reading-label">{{ui.actionLabel}}</text>
-      <text class="reading-text">{{interpretation.practicalReflection}}</text>
     </view>
 
     <view class="note">

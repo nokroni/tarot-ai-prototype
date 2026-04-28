@@ -480,6 +480,11 @@ const advancedMarkup = fs.readFileSync("miniprogram/pages/advanced/advanced.wxml
 const advancedStyles = fs.readFileSync("miniprogram/pages/advanced/advanced.wxss", "utf8");
 const advancedScript = fs.readFileSync("miniprogram/pages/advanced/advanced.js", "utf8");
 const advancedJson = fs.readFileSync("miniprogram/pages/advanced/advanced.json", "utf8");
+const readingMarkup = fs.readFileSync("miniprogram/pages/reading/reading.wxml", "utf8");
+const readingStyles = fs.readFileSync("miniprogram/pages/reading/reading.wxss", "utf8");
+const readingScript = fs.readFileSync("miniprogram/pages/reading/reading.js", "utf8");
+const readingJson = fs.readFileSync("miniprogram/pages/reading/reading.json", "utf8");
+const readingResultScript = fs.readFileSync("miniprogram/services/reading-result.js", "utf8");
 
 assert(
   pageStyles.includes(".wheel-card-face") &&
@@ -537,6 +542,34 @@ assert(
     advancedScript.includes("saveAdvancedReadingSelection") &&
     readingOptionsScript.includes('wx.setStorageSync(READING_MODE_STORAGE_KEY, "advanced")'),
   "All spreads and readers should live on the advanced subpage with one confirm action and guidance text."
+);
+assert(
+  appManifest.includes('"pages/reading/reading"') &&
+    fs.existsSync("miniprogram/pages/reading/reading.js") &&
+    fs.existsSync("miniprogram/pages/reading/reading.wxml") &&
+    fs.existsSync("miniprogram/pages/reading/reading.wxss") &&
+    readingJson.includes('"navigationBarTitleText": "解读"') &&
+    readingResultScript.includes("tarot_latest_reading_result") &&
+    readingResultScript.includes("saveLatestReadingResult") &&
+    pageScript.includes("saveLatestReadingResult") &&
+    pageScript.includes("openReadingResult({ interpretation, question, notice })") &&
+    pageScript.includes('url: "/pages/reading/reading"') &&
+    pageMarkup.includes('class="message {{isInterpreting ? \'waiting\' : \'error\'}}"') &&
+    !pageMarkup.includes('wx:if="{{interpretation}}" class="reading"') &&
+    !pageMarkup.includes('class="reading-card"') &&
+    pageStyles.includes(".message.waiting") &&
+    !pageStyles.includes(".reading-card") &&
+    readingScript.includes("loadLatestReadingResult") &&
+    readingScript.includes("createDisplayCards") &&
+    readingScript.includes("wx.navigateBack") &&
+    readingScript.includes('url: "/pages/index/index"') &&
+    readingMarkup.includes('class="drawn-card-image"') &&
+    readingMarkup.includes('wx:for="{{cards}}"') &&
+    readingMarkup.includes('bindtap="returnHome"') &&
+    readingMarkup.includes("{{interpretation.summary}}") &&
+    readingStyles.includes("grid-template-columns: 128rpx minmax(0, 1fr);") &&
+    readingStyles.includes("max-width: 420rpx;"),
+  "Finished readings should leave the draw page and render drawn cards on a dedicated reading page."
 );
 assert(
   pageMarkup.includes('class="question-dock"') &&

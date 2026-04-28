@@ -1,7 +1,8 @@
 {
   "pages": [
     "pages/index/index",
-    "pages/advanced/advanced"
+    "pages/advanced/advanced",
+    "pages/reading/reading"
   ],
   "window": {
     "navigationBarTitleText": "AI 塔罗",

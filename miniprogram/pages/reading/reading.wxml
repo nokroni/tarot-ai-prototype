@@ -1,0 +1,47 @@
+<view class="reading-page">
+  <view class="reading-header">
+    <text class="reading-title">{{ui.title}}</text>
+    <text wx:if="{{metadataLine}}" class="reading-meta-line">{{metadataLine}}</text>
+  </view>
+
+  <view wx:if="{{notice}}" class="reading-notice">
+    <text>{{notice}}</text>
+  </view>
+
+  <view wx:if="{{interpretation}}" class="reading-content">
+    <view wx:if="{{question}}" class="question-block">
+      <text class="section-label">{{ui.questionLabel}}</text>
+      <text class="question-text">{{question}}</text>
+    </view>
+
+    <text class="summary-text">{{interpretation.summary}}</text>
+
+    <view class="drawn-section">
+      <text class="section-label">{{ui.cardsTitle}}</text>
+      <view class="drawn-list">
+        <view wx:for="{{cards}}" wx:key="id" class="drawn-card">
+          <image wx:if="{{item.imageSrc}}" class="drawn-card-image" src="{{item.imageSrc}}" mode="aspectFill"></image>
+          <view class="drawn-card-copy">
+            <text class="drawn-card-title">{{item.position}} · {{item.name}}</text>
+            <text class="drawn-card-meta">{{item.metaLine}}</text>
+            <text class="drawn-card-reading">{{item.interpretation}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="closing-section">
+      <text class="section-label">{{ui.overallLabel}}</text>
+      <text class="reading-paragraph">{{interpretation.overallMessage}}</text>
+      <text class="section-label action-label">{{ui.actionLabel}}</text>
+      <text class="reading-paragraph">{{interpretation.practicalReflection}}</text>
+    </view>
+  </view>
+
+  <view wx:else class="empty-state">
+    <text class="empty-title">{{ui.emptyTitle}}</text>
+    <text class="empty-copy">{{ui.emptyCopy}}</text>
+  </view>
+
+  <button class="return-button" bindtap="returnHome">{{ui.returnHome}}</button>
+</view>
