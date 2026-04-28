@@ -193,8 +193,12 @@ assert.strictEqual(audioContexts[0].playCount, 1, "Intro music should start once
 assert.strictEqual(context.data.music.playing, true, "Music state should report playback after page ready.");
 assert.strictEqual(audioContexts[1].src, `${REMOTE_ASSET_BASE_URL}/music/sfx_intro_rain.m4a`, "Loaded page should start the remote intro rain bed.");
 assert.strictEqual(audioContexts[1].loop, true, "Intro rain should loop until the first draw starts.");
-assert.strictEqual(audioContexts[1].volume, 0.34, "Intro rain should sit gently under the main music at the requested doubled volume.");
 assert.strictEqual(audioContexts[1].playCount, 1, "Intro rain should start once the page is ready.");
+assert.strictEqual(audioContexts[1].volume, 0, "Intro rain should begin silently before fading in.");
+runNextTimerByDelay(100);
+assert(audioContexts[1].volume > 0 && audioContexts[1].volume < 0.34, "Intro rain should fade in gently over the first second.");
+assert.strictEqual(runAllTimersByDelay(100), 9, "Intro rain fade-in should finish in about one second.");
+assert.strictEqual(audioContexts[1].volume, 0.34, "Intro rain should settle at the requested doubled volume.");
 
 audioContexts[0].triggerEnded();
 assert.strictEqual(audioContexts[0].src, `${REMOTE_ASSET_BASE_URL}/music/bgm_intro_bar.m4a`, "Intro should hand off to intro_bar when it finishes.");
@@ -257,6 +261,9 @@ assert.strictEqual(context.data.music.playing, true, "Local music fallback shoul
 activeRainAudio.triggerError();
 assert.strictEqual(activeRainAudio.src, "/music/sfx_intro_rain_fallback.m4a", "Remote rain errors should retry the bundled local rain bed.");
 assert(activeRainAudio.playCount >= 2, "Rain fallback should restart without waiting for another user gesture.");
+assert.strictEqual(activeRainAudio.volume, 0, "Rain fallback should restart from silence before fading back in.");
+assert.strictEqual(runAllTimersByDelay(100), 10, "Rain fallback fade-in should complete in about one second.");
+assert.strictEqual(activeRainAudio.volume, 0.34, "Rain fallback should settle at the doubled ambient volume.");
 
 pageDefinition.onDecisionOptionInput.call(context, {
   currentTarget: {
@@ -343,8 +350,9 @@ assert.strictEqual(context.data.wheel.activeIndex, 0, "Wheel should start with t
 assert.strictEqual(context.data.wheel.motion, "spreading", "Wheel should directly expand from the partial idle arc.");
 assert.strictEqual(context.data.wheel.currentDrawPosition, "指引", "Wheel caption should include the single-card guidance position.");
 assert.strictEqual(context._rainDismissed, true, "Starting a draw should dismiss the intro rain bed.");
-assert.strictEqual(activeRainAudio.destroyed, true, "Starting a draw should stop the intro rain immediately instead of letting it loop under the wheel.");
-assert(!pendingTimers.some((timer) => timer.delay === 120), "Starting a draw should not leave a rain fade timer running after the wheel opens.");
+assert.strictEqual(activeRainAudio.destroyed, false, "Starting a draw should fade the intro rain before destroying it.");
+assert(pendingTimers.some((timer) => timer.delay === 100), "Starting a draw should schedule a one-second rain fade-out.");
+const rainVolumeBeforeDrawFade = activeRainAudio.volume;
 assert.strictEqual(context.data.wheelCards.length, 78, "Wheel should contain the complete 78-card deck.");
 assert.strictEqual(context.data.wheel.cardBackSrc, `${REMOTE_ASSET_BASE_URL}/cards/card-back.png`, "Wheel should use the remote card back.");
 assert.deepStrictEqual(
@@ -403,6 +411,11 @@ assert(
     context.data.wheelCards[7].arcStyle.includes("rotate(57.0deg)"),
   "Spreading cards should target the exposed upper-left 60-degree circle arc."
 );
+runNextTimerByDelay(100);
+assert(activeRainAudio.volume < rainVolumeBeforeDrawFade, "Intro rain should fade down after the wheel opens.");
+assert.strictEqual(runAllTimersByDelay(100), 9, "Intro rain fade-out should finish in about one second.");
+assert.strictEqual(activeRainAudio.destroyed, true, "Intro rain should stop after the fade-out completes.");
+
 runNextTimerByDelay(1120);
 
 assert.strictEqual(context.data.wheel.motion, "arc", "Wheel should become interactive after the spread animation.");
@@ -709,10 +722,12 @@ assert(
     pageScript.includes("startIntroRain(this)") &&
     pageScript.includes("resumeIntroRainOnHome(this)") &&
     pageScript.includes("const INTRO_RAIN_VOLUME = 0.34;") &&
+    pageScript.includes("const INTRO_RAIN_FADE_MS = 1000;") &&
     pageScript.includes("dismissIntroRainForDraw(this)") &&
-    !pageScript.includes("fadeIntroRain(this)") &&
+    pageScript.includes("fadeIntroRainVolume(page, audio, 0") &&
+    pageScript.includes("fadeIntroRainVolume(page, audio, INTRO_RAIN_VOLUME)") &&
     pageScript.includes("audio.onEnded"),
-  "Miniapp should expose a top music toggle, loop intro into intro_bar, recover local audio on remote errors, and stop intro rain when the wheel opens."
+  "Miniapp should expose a top music toggle, loop intro into intro_bar, recover local audio on remote errors, and gently fade intro rain around draw transitions."
 );
 assert(
   fs.existsSync("miniprogram/images/card-back-fallback.png") &&
@@ -1010,8 +1025,10 @@ pageDefinition.onShow.call(context);
 assert.strictEqual(audioContexts.length, rainContextCountBeforeReturn + 1, "Returning from the reading page should create a fresh intro rain session.");
 activeRainAudio = audioContexts[audioContexts.length - 1];
 assert.strictEqual(context._rainDismissed, false, "Returning to the closed home page should allow intro rain to resume.");
-assert.strictEqual(activeRainAudio.volume, 0.34, "Resumed intro rain should use the doubled ambient volume.");
+assert.strictEqual(activeRainAudio.volume, 0, "Resumed intro rain should restart silently before fading in.");
 assert(activeRainAudio.playCount >= 1, "Returning from the reading page should restart the intro rain bed.");
+assert.strictEqual(runAllTimersByDelay(100), 10, "Returning from the reading page should fade rain in over about one second.");
+assert.strictEqual(activeRainAudio.volume, 0.34, "Resumed intro rain should settle at the doubled ambient volume.");
 
 pageDefinition.onUnload.call(context);
 assert.strictEqual(activeMusicAudio.destroyed, true, "Page unload should destroy the active background music context.");
@@ -1055,6 +1072,17 @@ function runNextTimerByDelay(delay) {
 
   const [timer] = pendingTimers.splice(timerIndex, 1);
   timer.callback();
+}
+
+function runAllTimersByDelay(delay, limit = 20) {
+  let count = 0;
+
+  while (pendingTimers.some((timer) => timer.delay === delay) && count < limit) {
+    runNextTimerByDelay(delay);
+    count += 1;
+  }
+
+  return count;
 }
 
 function createMockAudioContext() {

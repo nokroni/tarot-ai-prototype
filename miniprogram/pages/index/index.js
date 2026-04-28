@@ -171,6 +171,8 @@ const MUSIC_TRACK_NEXT = {
 };
 const INTRO_RAIN_TRACK_PATH = createRemoteAssetUrl("music", "sfx_intro_rain.m4a");
 const INTRO_RAIN_VOLUME = 0.34;
+const INTRO_RAIN_FADE_MS = 1000;
+const INTRO_RAIN_FADE_STEPS = 10;
 
 const tarotDeck = [
   {
@@ -3203,7 +3205,7 @@ function startIntroRain(page) {
   }
 
   audio.loop = true;
-  audio.volume = INTRO_RAIN_VOLUME;
+  audio.volume = 0;
   audio.src = getIntroRainTrackPath(page);
   if (!audio.src) {
     return;
@@ -3214,6 +3216,7 @@ function startIntroRain(page) {
   };
   page._rainPendingPlay = true;
   safePlayIntroRain(page);
+  fadeIntroRainVolume(page, audio, INTRO_RAIN_VOLUME);
 }
 
 function handleMusicError(page) {
@@ -3296,6 +3299,7 @@ function retryMusicSource(page, trackKey, sourcePath) {
 
 function handleIntroRainError(page) {
   page._rainPendingPlay = false;
+  clearIntroRainFadeTimer(page);
 
   if (!page.data.music.enabled || page._rainDismissed) {
     return;
@@ -3352,10 +3356,11 @@ function retryIntroRainSource(page, sourcePath) {
 
   audio.stop();
   audio.loop = true;
-  audio.volume = INTRO_RAIN_VOLUME;
+  audio.volume = 0;
   audio.src = sourcePath;
   page._rainPendingPlay = true;
   safePlayIntroRain(page);
+  fadeIntroRainVolume(page, audio, INTRO_RAIN_VOLUME);
 }
 
 function isRemoteAssetUrl(sourcePath) {
@@ -3408,7 +3413,58 @@ function stopIntroRain(page) {
 function dismissIntroRainForDraw(page) {
   page._rainDismissed = true;
   page._rainPendingPlay = false;
-  stopIntroRain(page);
+
+  const audio = page._rainAudioContext;
+
+  if (!audio) {
+    return;
+  }
+
+  fadeIntroRainVolume(page, audio, 0, () => {
+    if (isCurrentRainAudio(page, audio)) {
+      stopIntroRain(page);
+    }
+  });
+}
+
+function fadeIntroRainVolume(page, audio, targetVolume, onComplete) {
+  clearIntroRainFadeTimer(page);
+
+  if (!audio) {
+    if (typeof onComplete === "function") {
+      onComplete();
+    }
+    return;
+  }
+
+  const startVolume = typeof audio.volume === "number" ? audio.volume : INTRO_RAIN_VOLUME;
+  const safeTargetVolume = Math.max(0, Math.min(INTRO_RAIN_VOLUME, targetVolume));
+  const fadeStepMs = Math.round(INTRO_RAIN_FADE_MS / INTRO_RAIN_FADE_STEPS);
+  let step = 0;
+
+  const fadeNextStep = () => {
+    if (!isCurrentRainAudio(page, audio)) {
+      page._rainFadeTimer = null;
+      return;
+    }
+
+    step += 1;
+    audio.volume = startVolume + (safeTargetVolume - startVolume) * (step / INTRO_RAIN_FADE_STEPS);
+
+    if (step < INTRO_RAIN_FADE_STEPS) {
+      page._rainFadeTimer = setTimeout(fadeNextStep, fadeStepMs);
+      return;
+    }
+
+    audio.volume = safeTargetVolume;
+    page._rainFadeTimer = null;
+
+    if (typeof onComplete === "function") {
+      onComplete();
+    }
+  };
+
+  page._rainFadeTimer = setTimeout(fadeNextStep, fadeStepMs);
 }
 
 function destroyMusic(page) {
