@@ -515,6 +515,7 @@ const readingResultScript = fs.readFileSync("miniprogram/services/reading-result
 const wheelStartSpacerStyle = pageStyles.match(/\.wheel-spacer-start\s*{[^}]+}/);
 const wheelEndSpacerStyle = pageStyles.match(/\.wheel-spacer-end\s*{[^}]+}/);
 const wheelCardSlotStyle = pageStyles.match(/\.wheel-card-slot\s*{[^}]+}/);
+const wheelStageStyle = pageStyles.match(/(?:^|\n)\.wheel-stage\s*{[^}]+}/);
 const motionBlockStyle = pageStyles.match(/\.motion-block\s*{[^}]+}/);
 const deckStageStyle = pageStyles.match(/\.deck-stage\s*{[^}]+}/);
 const deckStageWheelStyle = pageStyles.match(/\.deck-stage-wheel\s*{[^}]+}/);
@@ -900,9 +901,11 @@ assert(
     wheelCopyStyle[0].includes("background: transparent;") &&
     wheelCopyStyle[0].includes("pointer-events: none;") &&
     !pageStyles.includes(".wheel-overlay::before") &&
-    pageStyles.includes(".wheel-stage") &&
-    pageStyles.includes("top: 80rpx;") &&
-    pageStyles.includes("overflow: hidden;") &&
+    wheelStageStyle &&
+    wheelStageStyle[0].includes("top: 80rpx;") &&
+    wheelStageStyle[0].includes("bottom: 0;") &&
+    wheelStageStyle[0].includes("overflow: hidden;") &&
+    !wheelStageStyle[0].includes("bottom: 92rpx;") &&
     pageMarkup.includes('bindtap="onWheelCardTap"') &&
     !pageMarkup.includes("main-flow-wheel-open"),
   "Wheel should sit under the question dock while the page background gently blooms behind existing text."
