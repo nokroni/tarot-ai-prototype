@@ -153,7 +153,6 @@ const WHEEL_ARC_SPREAD_MS = 1120;
 const WHEEL_FINISH_RIGHT_SPIN_MS = 280;
 const WHEEL_HOME_ANCHOR_ID = "wheel-scroll-home";
 const WHEEL_STACK_COLLAPSE_MS = 660;
-const WHEEL_APERTURE_CLOSE_MS = 660;
 const WHEEL_DRAW_FLIGHT_MS = 1120;
 const WHEEL_VIBRATE_THROTTLE_MS = 55;
 const MUSIC_TRACK_PATHS = {
@@ -1485,6 +1484,9 @@ Page({
 
     this.setData({
       interpretation: null,
+      drawnCards: [],
+      wheelCards: prepareWheelCardsForIdle(this.data.wheelCards, this._assetPaths, this.data.language),
+      wheel: createClosedWheelState(this._assetPaths),
       errorMessage: ""
     });
 
@@ -1889,7 +1891,8 @@ function createClosedWheelState(assetPaths) {
     currentDrawPosition: "",
     cardBackSrc: getCardBackPath(assetPaths),
     revealedCard: null,
-    flightCard: null
+    flightCard: null,
+    showDrawnSummary: false
   };
 }
 
@@ -1911,7 +1914,8 @@ function createOpenWheelState(spread, assetPaths) {
     currentDrawPosition: getWheelDrawPosition(spread, 0),
     cardBackSrc: getCardBackPath(assetPaths),
     revealedCard: null,
-    flightCard: null
+    flightCard: null,
+    showDrawnSummary: false
   };
 }
 
@@ -2414,7 +2418,8 @@ function startWheelFinishAnimation(page, wheelCards, centerPosition) {
       phase: "closing",
       motion: "closing-spin",
       revealedCard: null,
-      flightCard: null
+      flightCard: null,
+      showDrawnSummary: false
     })
   });
 
@@ -2432,7 +2437,8 @@ function startWheelFinishAnimation(page, wheelCards, centerPosition) {
         phase: "closing",
         motion: "closing",
         revealedCard: null,
-        flightCard: null
+        flightCard: null,
+        showDrawnSummary: false
       })
     });
 
@@ -2444,22 +2450,15 @@ function startWheelFinishAnimation(page, wheelCards, centerPosition) {
         wheel: Object.assign({}, page.data.wheel, {
           activeIndex: 0,
           selectedIndex: -1,
-          phase: "closing",
-          motion: "closing-ring",
+          phase: "summary",
+          motion: "summary",
           revealedCard: null,
-          flightCard: null
+          flightCard: null,
+          showDrawnSummary: true
         })
       });
 
-      page._wheelFinishTimer = setTimeout(() => {
-        page._wheelFinishTimer = null;
-
-        page.setData({
-          wheelCards: prepareWheelCardsForIdle(page.data.wheelCards, page._assetPaths, page.data.language),
-          wheel: createClosedWheelState(page._assetPaths)
-        });
-        page.interpretReading();
-      }, WHEEL_APERTURE_CLOSE_MS);
+      page.interpretReading();
     }, WHEEL_STACK_COLLAPSE_MS);
   }, WHEEL_FINISH_RIGHT_SPIN_MS);
 }

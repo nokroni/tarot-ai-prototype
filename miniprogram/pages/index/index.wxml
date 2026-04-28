@@ -97,7 +97,7 @@
     <view class="deck-stage {{wheel.isOpen ? 'deck-stage-wheel' : 'deck-stage-idle'}}" bindtap="tapDeckStage">
       <view class="wheel-overlay {{wheel.isOpen ? 'wheel-overlay-open' : 'wheel-overlay-idle'}} wheel-motion-{{wheel.motion}}">
         <view wx:if="{{wheel.isOpen}}" class="wheel-aperture-ring"></view>
-        <view wx:if="{{wheel.isOpen}}" class="wheel-status">
+        <view wx:if="{{wheel.isOpen && !wheel.showDrawnSummary}}" class="wheel-status">
           <text class="wheel-eyebrow">{{selectedSpread.title}}</text>
           <text class="wheel-title">{{ui.wheelDrawPrefix}}{{wheel.currentDrawNumber}}{{ui.wheelDrawMiddle}}{{wheel.requiredCount}}{{ui.wheelDrawSuffix}}{{wheel.currentDrawPosition}}</text>
         </view>
@@ -137,6 +137,16 @@
           </scroll-view>
         </view>
 
+        <view wx:if="{{wheel.showDrawnSummary}}" class="wheel-drawn-summary">
+          <view wx:for="{{drawnCards}}" wx:key="id" class="wheel-drawn-summary-item">
+            <text class="wheel-drawn-summary-position">{{item.position}}</text>
+            <view class="wheel-drawn-summary-main">
+              <text class="wheel-drawn-summary-name">{{item.card.name}}</text>
+              <text class="wheel-drawn-summary-direction">{{item.orientationLabel}}</text>
+            </view>
+          </view>
+        </view>
+
         <view wx:if="{{wheel.flightCard}}" class="wheel-flight-card">
           <view class="wheel-flight-card-plane">
             <view class="wheel-flight-card-draw">
@@ -158,7 +168,7 @@
           </view>
         </view>
 
-        <view wx:if="{{wheel.isOpen}}" class="wheel-copy">
+        <view wx:if="{{wheel.isOpen && !wheel.showDrawnSummary}}" class="wheel-copy">
           <text wx:if="{{wheel.phase === 'popped'}}">{{ui.wheelTapAgain}}</text>
           <text wx:elif="{{wheel.phase === 'drawing' && wheel.flightCard}}">{{wheel.flightCard.caption}}</text>
           <text wx:elif="{{wheel.phase === 'closing'}}">{{ui.wheelComplete}}</text>

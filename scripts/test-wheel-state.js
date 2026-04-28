@@ -517,6 +517,8 @@ const wheelEndSpacerStyle = pageStyles.match(/\.wheel-spacer-end\s*{[^}]+}/);
 const wheelCardSlotStyle = pageStyles.match(/\.wheel-card-slot\s*{[^}]+}/);
 const wheelStageStyle = pageStyles.match(/(?:^|\n)\.wheel-stage\s*{[^}]+}/);
 const wheelFlightCardStyle = pageStyles.match(/(?:^|\n)\.wheel-flight-card\s*{[^}]+}/);
+const wheelSummaryStageStyle = pageStyles.match(/\.wheel-motion-summary \.wheel-stage\s*{[^}]+}/);
+const wheelDrawnSummaryStyle = pageStyles.match(/(?:^|\n)\.wheel-drawn-summary\s*{[^}]+}/);
 const motionBlockStyle = pageStyles.match(/\.motion-block\s*{[^}]+}/);
 const deckStageStyle = pageStyles.match(/\.deck-stage\s*{[^}]+}/);
 const deckStageWheelStyle = pageStyles.match(/\.deck-stage-wheel\s*{[^}]+}/);
@@ -638,6 +640,11 @@ assert(
     pageMarkup.includes('class="deck-stage {{wheel.isOpen ? \'deck-stage-wheel\' : \'deck-stage-idle\'}}"') &&
     pageMarkup.includes('bindtap="tapDeckStage"') &&
     pageMarkup.includes("wheel-overlay-idle") &&
+    pageMarkup.includes('wx:if="{{wheel.showDrawnSummary}}"') &&
+    pageMarkup.includes('class="wheel-drawn-summary"') &&
+    pageMarkup.includes('class="wheel-drawn-summary-name"') &&
+    pageMarkup.includes("{{item.card.name}}") &&
+    pageMarkup.includes("{{item.orientationLabel}}") &&
     pageMarkup.includes('wx:for="{{wheelCards}}"') &&
     pageMarkup.includes('style="{{item.slotStyle}}"') &&
     pageMarkup.includes('style="{{item.arcStyle}}"') &&
@@ -885,6 +892,7 @@ assert(
 assert(
   pageMarkup.includes('class="page {{wheel.isOpen ? \'page-wheel-active\' : \'\'}}"') &&
     pageMarkup.includes('class="wheel-aperture-ring"') &&
+    pageMarkup.includes('wx:if="{{wheel.isOpen && !wheel.showDrawnSummary}}" class="wheel-status"') &&
     pageMarkup.includes("{{ui.wheelDrawPrefix}}{{wheel.currentDrawNumber}}{{ui.wheelDrawMiddle}}{{wheel.requiredCount}}{{ui.wheelDrawSuffix}}{{wheel.currentDrawPosition}}") &&
     pageMarkup.includes('class="wheel-track"') &&
     pageMarkup.includes("wheel-motion-{{wheel.motion}}") &&
@@ -907,6 +915,14 @@ assert(
     wheelStageStyle[0].includes("bottom: 0;") &&
     wheelStageStyle[0].includes("overflow: hidden;") &&
     !wheelStageStyle[0].includes("bottom: 92rpx;") &&
+    wheelSummaryStageStyle &&
+    wheelSummaryStageStyle[0].includes("top: -236rpx;") &&
+    wheelSummaryStageStyle[0].includes("left: -250rpx;") &&
+    wheelDrawnSummaryStyle &&
+    wheelDrawnSummaryStyle[0].includes("left: 258rpx;") &&
+    wheelDrawnSummaryStyle[0].includes("pointer-events: none;") &&
+    pageStyles.includes(".wheel-motion-summary .wheel-scroll") &&
+    !pageStyles.includes("closing-ring") &&
     pageMarkup.includes('bindtap="onWheelCardTap"') &&
     !pageMarkup.includes("main-flow-wheel-open"),
   "Wheel should sit under the question dock while the page background gently blooms behind existing text."
@@ -933,7 +949,7 @@ assert(
   pageStyles.includes(".wheel-motion-spreading .wheel-card-arc") &&
     pageStyles.includes(".wheel-motion-closing-spin .wheel-card-arc") &&
     pageStyles.includes(".wheel-motion-closing .wheel-card-arc") &&
-    pageStyles.includes(".wheel-motion-closing-ring .wheel-aperture-ring") &&
+    pageStyles.includes(".wheel-motion-summary .wheel-aperture-ring") &&
     pageStyles.includes("@keyframes wheel-aperture-ring-open") &&
     pageStyles.includes("@keyframes wheel-content-exit") &&
     pageStyles.includes("animation: wheel-aperture-ring-open 1120ms") &&
@@ -1069,28 +1085,49 @@ for (let drawIndex = 0; drawIndex < totalDraws; drawIndex += 1) {
       "Pile-back animation should collapse the right side into the tight idle deck instead of disappearing."
     );
     runNextTimerByDelay(660);
-    assert.strictEqual(context.data.wheel.isOpen, true, "Wheel should stay open while the aperture closes after pile-back.");
-    assert.strictEqual(context.data.wheel.motion, "closing-ring", "Aperture close should wait until after the cards have piled back.");
-    assert.strictEqual(context._interpreted, false, "Interpretation should still wait for the aperture close.");
+    assert.strictEqual(context.data.wheel.isOpen, true, "Wheel should stay open while the drawn-card summary waits for the reading page.");
+    assert.strictEqual(context.data.wheel.motion, "summary", "After pile-back, the wheel should push the pile top-left for the summary.");
+    assert.strictEqual(context.data.wheel.phase, "summary", "Final pile-back should enter the temporary drawn-card summary state.");
+    assert.strictEqual(context.data.wheel.showDrawnSummary, true, "All drawn cards should be listed temporarily before the reading page opens.");
+    assert.strictEqual(context._interpreted, true, "Interpretation should start once the temporary drawn-card summary is visible.");
     assert(
       context.data.wheelCards[0].arcStyle.includes("translate(0rpx, 32rpx)") &&
         context.data.wheelCards[77].arcStyle.includes("translate(-2440rpx, -8rpx)") &&
         context.data.wheelCards.every((slot) => slot.drawn === false),
-      "Closing aperture should run over the restored idle deck rather than over unsorted drawn slots."
+      "Temporary summary should sit beside the restored pile rather than over unsorted drawn slots."
     );
-    runNextTimerByDelay(660);
   }
 }
 
-assert.strictEqual(context.data.wheel.isOpen, false, "Wheel should close after the spread is complete.");
-assert.strictEqual(context._interpreted, true, "Final draw should automatically start interpretation.");
-assert.strictEqual(context.data.wheel.cardBackSrc, `${REMOTE_ASSET_BASE_URL}/cards/card-back.png`, "Idle deck should keep the loaded card back after the wheel closes.");
+const completedDrawnCards = clone(context.data.drawnCards);
+assert.strictEqual(context.data.wheel.isOpen, true, "Completed draws should keep the temporary summary on the draw page until reading navigation.");
+assert.strictEqual(completedDrawnCards.length, totalDraws, "Temporary summary should be backed by every drawn card.");
+assert(
+  completedDrawnCards.every((drawn) => drawn.card && drawn.card.name && drawn.orientationLabel),
+  "Temporary summary entries should have a card name and upright/reversed direction."
+);
 assert(
   context.data.wheelCards.map((slot) => slot.id).join("|") === idleWheelCardIds &&
     context.data.wheelCards[77].arcStyle.includes("translate(-2440rpx, -8rpx)") &&
     context.data.wheelCards[77].slotStyle.includes("z-index: 1"),
-  "Closed wheel should restore the same tight idle wheel deck."
+  "Temporary summary should restore the same tight idle wheel deck."
 );
+
+pageDefinition.openReadingResult.call(context, {
+  interpretation: {
+    cards: [],
+    summary: "done",
+    action: "done"
+  },
+  question: "test question",
+  notice: ""
+});
+assert.strictEqual(navigatedToUrl, "/pages/reading/reading", "Opening the finished reading should navigate to the dedicated reading page.");
+assert.strictEqual(context.data.wheel.isOpen, false, "Opening the reading page should remove the temporary drawn-card summary from home.");
+assert.strictEqual(context.data.wheel.showDrawnSummary, false, "Reading navigation should leave a fresh closed card pile on the main page.");
+assert.strictEqual(context.data.drawnCards.length, 0, "Main page should clear drawn cards after saving the reading result.");
+assert.strictEqual(context.data.wheel.cardBackSrc, `${REMOTE_ASSET_BASE_URL}/cards/card-back.png`, "Fresh idle deck should keep the loaded card back after reading navigation.");
+assert.strictEqual(wxStorage.tarot_latest_reading_result.drawnCards.length, totalDraws, "Saved reading payload should keep the drawn cards before the home page is reset.");
 const rainContextCountBeforeReturn = audioContexts.length;
 
 assert.strictEqual(context._rainDismissed, true, "Completed draw should keep rain dismissed while the reading page is active.");
