@@ -56,7 +56,7 @@ const uiCopy = {
     modeSimple: "单牌 · Misty",
     musicOnLabel: "关闭音乐",
     musicOffLabel: "开启音乐",
-    questionPlaceholder: "想问 Misty 什么呢",
+    questionPlaceholder: "想问 {reader} 什么呢",
     planAPlaceholder: "方案 A",
     planBPlaceholder: "方案 B",
     submitButton: "提交",
@@ -88,7 +88,7 @@ const uiCopy = {
     oauthDisconnected: "未连接",
     oauthBackupReady: "备用后端已就绪",
     oauthMissingKey: "模型密钥缺失",
-    buildLabel: "0.9.5 双语版本"
+    buildLabel: "0.9.6 双语版本"
   },
   en: {
     assetGateTitle: "Setting the table",
@@ -99,7 +99,7 @@ const uiCopy = {
     modeSimple: "Single · Misty",
     musicOnLabel: "Mute music",
     musicOffLabel: "Play music",
-    questionPlaceholder: "What do you want to ask Misty?",
+    questionPlaceholder: "What do you want to ask {reader}?",
     planAPlaceholder: "Plan A",
     planBPlaceholder: "Plan B",
     submitButton: "Submit",
@@ -131,7 +131,7 @@ const uiCopy = {
     oauthDisconnected: "Disconnected",
     oauthBackupReady: "backup ready",
     oauthMissingKey: "model key missing",
-    buildLabel: "0.9.5 bilingual"
+    buildLabel: "0.9.6 bilingual"
   }
 };
 
@@ -1016,6 +1016,15 @@ function createModeSummary(spread, reader, mode, language) {
   return `${spread.title} · ${reader.title}`;
 }
 
+function createQuestionPlaceholder(reader, language) {
+  const ui = getUiCopy(language);
+  const readerTitle = reader && reader.title
+    ? reader.title
+    : getReaderProfileOption(SIMPLE_READER_ID).title;
+
+  return ui.questionPlaceholder.replace("{reader}", readerTitle);
+}
+
 function applyRahdueDrawPreference(spread, rahdueHandDrawn) {
   if (!spread || spread.id !== RAHDUE_SPREAD_ID) {
     return spread;
@@ -1144,6 +1153,7 @@ function getInitialLanguage() {
 
 const initialLanguage = getInitialLanguage();
 const initialSpreads = createSpreads(initialLanguage);
+const initialReader = getReaderProfileOption(SIMPLE_READER_ID);
 const initialWheelCards = createWheelCards(null, initialLanguage);
 
 Page({
@@ -1151,6 +1161,7 @@ Page({
     language: initialLanguage,
     languages: languageOptions,
     ui: getUiCopy(initialLanguage),
+    questionPlaceholder: createQuestionPlaceholder(initialReader, initialLanguage),
     question: "",
     decisionOptions: {
       planA: "",
@@ -1161,7 +1172,7 @@ Page({
     selectedSpread: initialSpreads[0],
     readerProfiles: readerProfileOptions,
     selectedReaderId: SIMPLE_READER_ID,
-    selectedReader: getReaderProfileOption(SIMPLE_READER_ID),
+    selectedReader: initialReader,
     readingMode: "simple",
     rahdueHandDrawn: false,
     modeSummary: getUiCopy(initialLanguage).modeSimple,
@@ -1333,6 +1344,7 @@ Page({
     this.setData({
       language,
       ui,
+      questionPlaceholder: createQuestionPlaceholder(this.data.selectedReader, language),
       spreads: localizedSpreads,
       selectedSpread,
       modeSummary: createModeSummary(selectedSpread, this.data.selectedReader, this.data.readingMode, language),
@@ -1365,6 +1377,7 @@ Page({
     this.setData({
       selectedReaderId: selectedReader.id,
       selectedReader,
+      questionPlaceholder: createQuestionPlaceholder(selectedReader, this.data.language),
       modeSummary: createModeSummary(this.data.selectedSpread, selectedReader, this.data.readingMode, this.data.language),
       interpretation: null,
       errorMessage: ""
@@ -1401,6 +1414,7 @@ Page({
       selectedSpread,
       selectedReaderId: selectedReader.id,
       selectedReader,
+      questionPlaceholder: createQuestionPlaceholder(selectedReader, this.data.language),
       rahdueHandDrawn,
       modeSummary: createModeSummary(selectedSpread, selectedReader, mode.mode, this.data.language),
       decisionOptions: mode.mode === "advanced" && selectedSpread.id === "decisionPair"

@@ -53,7 +53,7 @@
           class="question-input compact-question-input"
           auto-height="{{false}}"
           maxlength="180"
-          placeholder="{{ui.questionPlaceholder}}"
+          placeholder="{{questionPlaceholder}}"
           placeholder-class="placeholder"
           value="{{question}}"
           disabled="{{isInterpreting}}"

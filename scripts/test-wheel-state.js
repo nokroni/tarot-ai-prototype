@@ -94,9 +94,9 @@ global.clearTimeout = (id) => {
 require("../miniprogram/pages/index/index.js");
 
 assert(pageDefinition, "Page definition should be registered.");
-assert.strictEqual(releasePackageJson.version, "0.9.5", "Package version should be bumped for this update.");
-assert.strictEqual(releasePackageLock.version, "0.9.5", "Package lock top-level version should match the release.");
-assert.strictEqual(releasePackageLock.packages[""].version, "0.9.5", "Package lock root package version should match the release.");
+assert.strictEqual(releasePackageJson.version, "0.9.6", "Package version should be bumped for this update.");
+assert.strictEqual(releasePackageLock.version, "0.9.6", "Package lock top-level version should match the release.");
+assert.strictEqual(releasePackageLock.packages[""].version, "0.9.6", "Package lock root package version should match the release.");
 assert.strictEqual(typeof createCloudBaseRahdueSequentialReading, "function", "Rahdue sequential CloudBase reader should be exported.");
 assert.strictEqual(pageDefinition.data.language, "zh", "Miniapp should default to Chinese.");
 assert.deepStrictEqual(
@@ -161,6 +161,7 @@ assert.deepStrictEqual(
 );
 assert.strictEqual(pageDefinition.data.readerProfiles.length, 3, "Reader picker should include all three personalities.");
 assert.strictEqual(pageDefinition.data.selectedReaderId, "misty", "Misty should be the default reader.");
+assert.strictEqual(pageDefinition.data.questionPlaceholder, "想问 Misty 什么呢", "Question placeholder should name the default reader.");
 assert.strictEqual(pageDefinition.data.selectedSpreadId, "oneCard", "The home page should default to a single-card spread.");
 assert.deepStrictEqual(pageDefinition.data.selectedSpread.positions, ["指引"], "Single-card mode should use one guidance position.");
 assert.strictEqual(pageDefinition.data.readingMode, "simple", "The home page should open in simple mode.");
@@ -503,6 +504,7 @@ pageDefinition.selectReader.call(context, {
 });
 assert.strictEqual(context.data.selectedReaderId, "johnny", "Reader selector should switch to Johnny.");
 assert.strictEqual(context.data.selectedReader.title, "Johnny", "Selected reader metadata should update.");
+assert.strictEqual(context.data.questionPlaceholder, "想问 Johnny 什么呢", "Reader selector should update the question placeholder.");
 assert.strictEqual(context.data.interpretation, null, "Changing reader should clear the stale interpretation.");
 assert.strictEqual(context.data.drawnCards.length, 0, "Changing reader should not force a redraw.");
 
@@ -515,6 +517,7 @@ pageDefinition.selectLanguage.call(context, {
 });
 assert.strictEqual(context.data.language, "en", "Language selector should switch to English.");
 assert.strictEqual(context.data.ui.title, "Tarot", "English UI copy should update the hero title.");
+assert.strictEqual(context.data.questionPlaceholder, "What do you want to ask Johnny?", "Language selector should localize the current reader placeholder.");
 assert.strictEqual(context.data.selectedSpread.title, "Single Card", "Selected home spread title should localize to English.");
 assert.deepStrictEqual(context.data.selectedSpread.positions, ["Guidance"], "Selected home spread position should localize to English.");
 assert.strictEqual(context.data.assets.resourceLabel, "High-res", "Resource badge should localize when switching to English.");
@@ -528,11 +531,12 @@ pageDefinition.selectLanguage.call(context, {
 });
 assert.strictEqual(context.data.language, "zh", "Language selector should switch back to Chinese.");
 assert.strictEqual(context.data.ui.title, "塔罗牌", "Chinese UI copy should restore the hero title.");
+assert.strictEqual(context.data.questionPlaceholder, "想问 Johnny 什么呢", "Chinese language restore should keep the selected reader in the placeholder.");
 
 const idleWheelCardIds = context.data.wheelCards.map((slot) => slot.id).join("|");
 pageDefinition.tapDeckStage.call(context);
 
-assert.strictEqual(context.data.buildLabel, "0.9.5 双语版本", "Build label should identify the 0.9.5 bilingual build.");
+assert.strictEqual(context.data.buildLabel, "0.9.6 双语版本", "Build label should identify the 0.9.6 bilingual build.");
 assert.strictEqual(context.data.wheel.isOpen, true, "Tapping the closed pile should mount the wheel like the submit button.");
 assert.strictEqual(
   context.data.wheelCards.map((slot) => slot.id).join("|"),
@@ -905,6 +909,8 @@ assert(
     pageMarkup.includes('class="mode-link {{isInterpreting ? \'disabled\' : \'\'}}"') &&
     pageMarkup.includes('bindtap="goAdvancedMode"') &&
     pageMarkup.includes('class="question-input compact-question-input"') &&
+    pageMarkup.includes('placeholder="{{questionPlaceholder}}"') &&
+    !pageMarkup.includes('placeholder="{{ui.questionPlaceholder}}"') &&
     pageMarkup.includes('wx:if="{{selectedSpread.id === \'decisionPair\'}}"') &&
     pageMarkup.includes('class="decision-options-row"') &&
     pageMarkup.includes('class="question-input compact-question-input decision-option-input"') &&
