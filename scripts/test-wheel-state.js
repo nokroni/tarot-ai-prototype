@@ -516,6 +516,7 @@ const wheelStartSpacerStyle = pageStyles.match(/\.wheel-spacer-start\s*{[^}]+}/)
 const wheelEndSpacerStyle = pageStyles.match(/\.wheel-spacer-end\s*{[^}]+}/);
 const wheelCardSlotStyle = pageStyles.match(/\.wheel-card-slot\s*{[^}]+}/);
 const wheelStageStyle = pageStyles.match(/(?:^|\n)\.wheel-stage\s*{[^}]+}/);
+const wheelFlightCardStyle = pageStyles.match(/(?:^|\n)\.wheel-flight-card\s*{[^}]+}/);
 const motionBlockStyle = pageStyles.match(/\.motion-block\s*{[^}]+}/);
 const deckStageStyle = pageStyles.match(/\.deck-stage\s*{[^}]+}/);
 const deckStageWheelStyle = pageStyles.match(/\.deck-stage-wheel\s*{[^}]+}/);
@@ -940,15 +941,23 @@ assert(
     pageStyles.includes("transform 1120ms cubic-bezier(0.18, 0.82, 0.22, 1)") &&
     !pageStyles.includes(".wheel-motion-closing .wheel-stage") &&
     pageMarkup.includes('class="wheel-flight-card-draw"') &&
+    wheelFlightCardStyle &&
+    wheelFlightCardStyle[0].includes("top: 257rpx;") &&
+    wheelFlightCardStyle[0].includes("left: 281rpx;") &&
+    wheelFlightCardStyle[0].includes("width: 188rpx;") &&
+    wheelFlightCardStyle[0].includes("height: 330rpx;") &&
     pageStyles.includes("@keyframes wheel-card-pop-move") &&
     pageStyles.includes("@keyframes wheel-card-draw-back-flip") &&
     pageStyles.includes("@keyframes wheel-card-draw-front-flip") &&
     pageStyles.includes("animation: wheel-card-pop-move 820ms") &&
     pageStyles.includes("animation: wheel-card-draw-front-flip 300ms") &&
     pageStyles.includes("820ms forwards") &&
-    pageStyles.includes("translate(215rpx, 316rpx) rotate(-4deg) scale(1.14)") &&
-    pageStyles.includes("translate(0, 0) rotate(0deg) scale(0.78)") &&
+    pageStyles.includes("translate(0, -26rpx) rotate(0deg) scale(1.06)") &&
+    pageStyles.includes("translate(-172rpx, -34rpx) rotate(-4deg) scale(1.00)") &&
     pageStyles.includes("rotateX(360deg)") &&
+    !pageStyles.includes("translate(245rpx, 360rpx)") &&
+    !pageStyles.includes("translate(215rpx, 316rpx)") &&
+    !pageStyles.includes("scale(0.78)") &&
     !pageStyles.includes("@keyframes wheel-card-tangent-pull") &&
     !pageStyles.includes("wheel-card-clockwise-spin") &&
     !pageStyles.includes("rotate(720deg)") &&

@@ -516,8 +516,8 @@
 
 .wheel-flight-card {
   position: absolute;
-  top: 154rpx;
-  left: 38rpx;
+  top: 257rpx;
+  left: 281rpx;
   z-index: 6;
   width: 188rpx;
   height: 330rpx;
@@ -578,17 +578,17 @@
 @keyframes wheel-card-pop-move {
   0% {
     opacity: 1;
-    transform: translate(245rpx, 360rpx) rotate(-4deg) scale(1.04);
+    transform: translate(0, -26rpx) rotate(0deg) scale(1.06);
   }
 
-  12% {
+  18% {
     opacity: 1;
-    transform: translate(215rpx, 316rpx) rotate(-4deg) scale(1.14);
+    transform: translate(-42rpx, -34rpx) rotate(-2deg) scale(1.08);
   }
 
   100% {
     opacity: 1;
-    transform: translate(0, 0) rotate(0deg) scale(0.78);
+    transform: translate(-172rpx, -34rpx) rotate(-4deg) scale(1.00);
   }
 }
 
