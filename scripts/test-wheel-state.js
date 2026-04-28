@@ -639,6 +639,10 @@ assert(
     pageStyles.includes(".decision-options-row") &&
     pageStyles.includes(".decision-option-input") &&
     pageStyles.includes("height: 104rpx;") &&
+    pageStyles.includes(".mode-link:active") &&
+    pageStyles.includes("background: #5b3fa3;") &&
+    pageStyles.includes("box-shadow: 0 10rpx 22rpx rgba(91, 63, 163, 0.24);") &&
+    pageStyles.includes("color: #fffaf0;") &&
     pageStyles.includes("grid-template-columns: minmax(0, 1fr) minmax(96rpx, 116rpx);") &&
     pageStyles.includes("grid-template-columns: repeat(2, minmax(0, 1fr));") &&
     pageStyles.includes(".submit-button") &&
