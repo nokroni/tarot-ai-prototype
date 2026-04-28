@@ -61,12 +61,12 @@ function createMessages({ sourceLabel, readingRequest }) {
   const outputSourceLabel = createReaderSourceLabel(sourceLabel, readerProfile);
   const zhOutputRules = [
     "所有面向用户的文字字段必须使用自然简体中文，包括 summary、cards[].interpretation、overallMessage、practicalReflection、journalQuestion、caveat。",
-    "正文里提到牌面方向时，只使用 drawnCards[].orientationText 提供的“正位/逆位”；orientation 只是内部字段，除了复制到 cards[].orientation 之外，不要写进正文。",
+    "正文里提到牌面方向时，只使用 drawnCards[].orientationText 提供的“正位/逆位”；不要把 orientation、keywords 这类英文字段名写进正文。",
     "caveat 必须包含这句话：AI生成内容，仅供娱乐和自我反思。"
   ];
   const enOutputRules = [
     "All user-facing string values must be natural English, including summary, cards[].interpretation, overallMessage, practicalReflection, journalQuestion, and caveat.",
-    "When mentioning card orientation in prose, use drawnCards[].orientationText, which will be Upright or Reversed for this request; orientation is an internal enum and should only be copied to cards[].orientation.",
+    "When mentioning card orientation in prose, use drawnCards[].orientationText, which will be Upright or Reversed for this request; do not write internal field names like orientation or keywords into the prose.",
     "Do not write Chinese UI phrases or Chinese prompt terms in the user-facing fields.",
     "caveat must include this exact phrase: AI-generated content, for entertainment and self-reflection only."
   ];
@@ -81,8 +81,7 @@ function createMessages({ sourceLabel, readingRequest }) {
         "只返回一个有效 JSON 对象，不要输出 markdown、解释文字或代码块。",
         `JSON 的 schemaVersion 必须是 \"${READING_SCHEMA_VERSION}\"，sourceLabel 必须是 \"${outputSourceLabel}\"。`,
         "顶层 key 必须包含 schemaVersion、sourceLabel、summary、cards、overallMessage、practicalReflection、journalQuestion、caveat。",
-        "cards 数组必须与请求里的 drawnCards 一一对应。",
-        "每张牌必须从 drawnCards 复制 id、position、name、orientation、keywords，再补充 interpretation。",
+        "cards 数组每项只输出 id 与 interpretation 两个字段：id 必须与 drawnCards[].id 顺序对应且完全一致，interpretation 是这张牌在该牌位、正逆位下针对用户问题的解读。drawnCards 里 position、name、orientation、keywords 等元数据是输入参考，请勿在 cards[] 里复制或回显。",
         "应用已经完成抽牌。不要替换、重抽、删除或编造牌。",
         `The selected output language is ${languageConfig.outputLanguage}.`,
         ...(languageCode === "en" ? enOutputRules : zhOutputRules),

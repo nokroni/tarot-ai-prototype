@@ -15,7 +15,10 @@ const {
 function normalizeReading(rawReading, fallbackReading, language) {
   const reading = rawReading && typeof rawReading === "object" ? rawReading : {};
   const fallback = fallbackReading || {};
-  const cards = Array.isArray(reading.cards) && reading.cards.length ? reading.cards : fallback.cards || [];
+  const fallbackCards = Array.isArray(fallback.cards) ? fallback.cards : [];
+  const sourceCards = Array.isArray(reading.cards) && reading.cards.length
+    ? reading.cards
+    : fallbackCards;
   const languageCode = normalizeLanguageCode(
     language ||
       reading.language ||
@@ -28,16 +31,9 @@ function normalizeReading(rawReading, fallbackReading, language) {
     sourceLabel: reading.sourceLabel || fallback.sourceLabel || "原型",
     language: createLanguageRequest(languageCode),
     summary: textOr(reading.summary, fallback.summary),
-    cards: cards.map((card, index) => ({
-      id: textOr(card.id, `card-${index}`),
-      position: textOr(card.position, "牌位"),
-      name: textOr(card.name, "未知牌"),
-      orientation: textOr(card.orientation, "upright"),
-      orientationText: formatOrientation(card.orientation, languageCode),
-      keywords: Array.isArray(card.keywords) ? card.keywords : [],
-      keywordsText: Array.isArray(card.keywords) ? card.keywords.join(languageConfig.keywordJoiner) : "",
-      interpretation: textOr(card.interpretation, card.text || "")
-    })),
+    cards: sourceCards.map((card, index) =>
+      mergeCardWithMetadata(card, fallbackCards, index, languageCode, languageConfig)
+    ),
     overallMessage: textOr(reading.overallMessage, fallback.overallMessage),
     practicalReflection: textOr(reading.practicalReflection, fallback.practicalReflection),
     journalQuestion: textOr(reading.journalQuestion, fallback.journalQuestion),
@@ -46,6 +42,31 @@ function normalizeReading(rawReading, fallbackReading, language) {
       fallback.caveat ||
         languageConfig.fullCaveat
     )
+  };
+}
+
+function mergeCardWithMetadata(card, fallbackCards, index, languageCode, languageConfig) {
+  const safeCard = card && typeof card === "object" ? card : {};
+  const matched = safeCard.id
+    ? fallbackCards.find((fallbackCard) => fallbackCard && fallbackCard.id === safeCard.id)
+    : null;
+  const meta = matched || fallbackCards[index] || {};
+  const orientation = textOr(meta.orientation, textOr(safeCard.orientation, "upright"));
+  const keywords = Array.isArray(meta.keywords) && meta.keywords.length
+    ? meta.keywords
+    : Array.isArray(safeCard.keywords)
+      ? safeCard.keywords
+      : [];
+
+  return {
+    id: textOr(safeCard.id, textOr(meta.id, `card-${index}`)),
+    position: textOr(meta.position, textOr(safeCard.position, "牌位")),
+    name: textOr(meta.name, textOr(safeCard.name, "未知牌")),
+    orientation,
+    orientationText: formatOrientation(orientation, languageCode),
+    keywords,
+    keywordsText: keywords.join(languageConfig.keywordJoiner),
+    interpretation: textOr(safeCard.interpretation, textOr(meta.interpretation, safeCard.text || ""))
   };
 }
 
@@ -348,7 +369,7 @@ function createSpreadGuidance(question, spread, decisionOptions, questionFocus, 
       title: "决策双牌",
       positions,
       ...baseGuidance,
-      optionMapping: `方案 A 的用户输入是：“${planA}”。方案 B 的用户输入是：“${planB}”。cards[].position 为“方案 A”的牌只能解释方案 A，cards[].position 为“方案 B”的牌只能解释方案 B，不要交换或混用。`,
+      optionMapping: `方案 A 的用户输入是：“${planA}”。方案 B 的用户输入是：“${planB}”。drawnCards 中 position 为“方案 A”的牌只能解释方案 A，position 为“方案 B”的牌只能解释方案 B，输出按 drawnCards 顺序对应即可，不要交换或混用。`,
       answerShape: isLightEveryday
         ? "直接比较方案 A 与方案 B，并保持短答。分别用不超过两句说明各自好处和风险，然后给出更偏向的选项。若选项是具体食物或饮料，直接使用物品名和普通理由，不要展开成心理长文。"
         : "直接比较方案 A 与方案 B。分别转述两张牌最相关的关键词含义，说明各自好处、成本和风险；若不属于医疗、法律、财务或紧急问题，可以给出更偏向的选项，但不能只夸被选择的一边。如果两张牌都偏弱，要说“两个都不理想但哪边损失较小”；如果两张牌都偏强，要说“两边都可行但哪边更贴合问题”。",
@@ -466,7 +487,7 @@ function createEnglishSpreadGuidance(question, spread, decisionOptions, question
       title: "Two-Card Choice",
       positions,
       ...baseGuidance,
-      optionMapping: `The user's Plan A input is: "${planA}". The user's Plan B input is: "${planB}". A card whose position is "Plan A" may only interpret Plan A; a card whose position is "Plan B" may only interpret Plan B. Do not swap or merge them.`,
+      optionMapping: `The user's Plan A input is: "${planA}". The user's Plan B input is: "${planB}". In drawnCards, the entry whose position is "Plan A" must be interpreted only as Plan A, and the entry whose position is "Plan B" must be interpreted only as Plan B; keep cards[] in the same order as drawnCards and do not swap or merge them.`,
       answerShape: isLightEveryday
         ? "Compare Plan A and Plan B directly and keep it short. Give each option's upside and risk in no more than two sentences, then name the option you lean toward. If the options are concrete food or drinks, use the item names and ordinary reasons instead of a long psychological reading."
         : "Compare Plan A and Plan B directly. Explain each option's upside, cost, and risk by translating the most relevant card meanings. If it is not medical, legal, financial, or urgent, give a preferred option, but do not only praise the chosen side. If both cards are weak, say which loss is smaller; if both are strong, say which one fits the question better.",
@@ -1241,49 +1262,16 @@ function getReadingCardValidationError(card, expectedCard, index) {
     return `cards[${index}] 必须是 JSON object`;
   }
 
-  const requiredTextFields = ["id", "position", "name", "interpretation"];
-
-  for (let fieldIndex = 0; fieldIndex < requiredTextFields.length; fieldIndex += 1) {
-    const field = requiredTextFields[fieldIndex];
-
-    if (!isNonEmptyString(card[field])) {
-      return `cards[${index}].${field} 必须是非空字符串`;
-    }
+  if (!isNonEmptyString(card.id)) {
+    return `cards[${index}].id 必须是非空字符串`;
   }
 
-  if (card.orientation !== "upright" && card.orientation !== "reversed") {
-    return `cards[${index}].orientation 必须是 upright 或 reversed`;
+  if (!isNonEmptyString(card.interpretation)) {
+    return `cards[${index}].interpretation 必须是非空字符串`;
   }
 
-  if (!Array.isArray(card.keywords) || !card.keywords.length) {
-    return `cards[${index}].keywords 必须是非空字符串数组`;
-  }
-
-  for (let keywordIndex = 0; keywordIndex < card.keywords.length; keywordIndex += 1) {
-    if (!isNonEmptyString(card.keywords[keywordIndex])) {
-      return `cards[${index}].keywords 必须只包含非空字符串`;
-    }
-  }
-
-  if (expectedCard) {
-    const copiedFields = ["id", "position", "name", "orientation"];
-
-    for (let fieldIndex = 0; fieldIndex < copiedFields.length; fieldIndex += 1) {
-      const field = copiedFields[fieldIndex];
-
-      if (card[field] !== expectedCard[field]) {
-        return `cards[${index}].${field} 必须复制已抽牌数据`;
-      }
-    }
-
-    const expectedKeywords = Array.isArray(expectedCard.keywords) ? expectedCard.keywords : [];
-
-    if (expectedKeywords.length) {
-      if (!keywordsMatchExpected(card.keywords, expectedKeywords)) {
-        return `cards[${index}].keywords 必须复制已抽牌关键词`;
-      }
-
-    }
+  if (expectedCard && card.id !== expectedCard.id) {
+    return `cards[${index}].id 必须与对应已抽牌一致`;
   }
 
   return "";
@@ -1424,20 +1412,6 @@ function normalizeForComparison(value) {
     .trim();
 }
 
-function keywordsMatchExpected(actualKeywords, expectedKeywords) {
-  if (!Array.isArray(actualKeywords) || actualKeywords.length !== expectedKeywords.length) {
-    return false;
-  }
-
-  for (let index = 0; index < expectedKeywords.length; index += 1) {
-    if (actualKeywords[index] !== expectedKeywords[index]) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
 function readingJsonSchema() {
   return {
     type: "json_schema",
@@ -1472,26 +1446,10 @@ function readingJsonSchema() {
           items: {
             type: "object",
             additionalProperties: false,
-            required: ["id", "position", "name", "orientation", "keywords", "interpretation"],
+            required: ["id", "interpretation"],
             properties: {
               id: {
                 type: "string"
-              },
-              position: {
-                type: "string"
-              },
-              name: {
-                type: "string"
-              },
-              orientation: {
-                type: "string",
-                enum: ["upright", "reversed"]
-              },
-              keywords: {
-                type: "array",
-                items: {
-                  type: "string"
-                }
               },
               interpretation: {
                 type: "string"
