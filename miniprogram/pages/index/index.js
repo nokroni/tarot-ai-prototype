@@ -88,7 +88,7 @@ const uiCopy = {
     oauthDisconnected: "未连接",
     oauthBackupReady: "备用后端已就绪",
     oauthMissingKey: "模型密钥缺失",
-    buildLabel: "0.9.3 双语版本"
+    buildLabel: "0.9.4 双语版本"
   },
   en: {
     assetGateTitle: "Setting the table",
@@ -131,7 +131,7 @@ const uiCopy = {
     oauthDisconnected: "Disconnected",
     oauthBackupReady: "backup ready",
     oauthMissingKey: "model key missing",
-    buildLabel: "0.9.3 bilingual"
+    buildLabel: "0.9.4 bilingual"
   }
 };
 
@@ -2285,19 +2285,29 @@ function confirmWheelCard(page, index) {
   const drawnCard = createDrawnCardFromWheelSlot(slot, position);
   const nextDrawnCards = drawnCards.concat(drawnCard);
   const isComplete = nextDrawnCards.length >= page.data.wheel.requiredCount;
-  const markedWheelCards = markWheelCardDrawn(page.data.wheelCards, index);
-  const nextActiveIndex = isComplete ? index : findNearestAvailableIndex(markedWheelCards, index + 1);
-  const drawingWheelCards = updateWheelCardPresentation(markedWheelCards, index);
+  const shouldCompactRail = shouldCompactDrawnWheelRail(page.data.selectedSpread);
+  const nextWheelCards = shouldCompactRail
+    ? removeWheelCardAt(page.data.wheelCards, index)
+    : markWheelCardDrawn(page.data.wheelCards, index);
+  const drawingActiveIndex = shouldCompactRail
+    ? getWheelActiveIndexAfterDraw(nextWheelCards, index)
+    : index;
+  const nextActiveIndex = isComplete
+    ? drawingActiveIndex
+    : shouldCompactRail
+      ? drawingActiveIndex
+      : findNearestAvailableIndex(nextWheelCards, index + 1);
+  const drawingWheelCards = updateWheelCardPresentation(nextWheelCards, drawingActiveIndex);
   const flightCard = createWheelFlightCard(drawnCard, index);
 
-  page._lastWheelPresentationPosition = index;
+  page._lastWheelPresentationPosition = drawingActiveIndex;
   clearWheelDrawFlightTimer(page);
 
   page.setData({
     drawnCards: nextDrawnCards,
     wheelCards: drawingWheelCards,
     wheel: Object.assign({}, page.data.wheel, {
-      activeIndex: index,
+      activeIndex: drawingActiveIndex,
       selectedIndex: -1,
       phase: "drawing",
       motion: "arc",
@@ -2317,11 +2327,11 @@ function confirmWheelCard(page, index) {
     }
 
     if (isComplete) {
-      startWheelFinishAnimation(page, page.data.wheelCards, index);
+      startWheelFinishAnimation(page, page.data.wheelCards, page.data.wheel.activeIndex);
       return;
     }
 
-    const currentActiveIndex = page.data.wheel.activeIndex === index
+    const currentActiveIndex = page.data.wheel.activeIndex === drawingActiveIndex
       ? nextActiveIndex
       : findNearestAvailableIndex(page.data.wheelCards, page.data.wheel.activeIndex);
     const shouldAutoCenter = shouldAutoCenterRemainingWheel(page.data.wheelCards);
@@ -2409,6 +2419,24 @@ function markAllWheelCardsDrawn(wheelCards) {
   }));
 }
 
+function removeWheelCardAt(wheelCards, index) {
+  return wheelCards.filter((_, slotIndex) => slotIndex !== index);
+}
+
+function shouldCompactDrawnWheelRail(spread) {
+  return spread &&
+    spread.id === RAHDUE_SPREAD_ID &&
+    spread.drawMode === RAHDUE_MANUAL_DRAW_MODE;
+}
+
+function getWheelActiveIndexAfterDraw(wheelCards, targetIndex) {
+  if (!Array.isArray(wheelCards) || !wheelCards.length) {
+    return 0;
+  }
+
+  return findNearestAvailableIndex(wheelCards, Math.min(targetIndex, wheelCards.length - 1));
+}
+
 function isFullDeckAutoSpread(spread) {
   return spread && spread.drawMode === "fullDeckAuto";
 }
@@ -2429,15 +2457,15 @@ function findNearestAvailableIndex(wheelCards, targetIndex) {
     return 0;
   }
 
-  const normalizedTarget = normalizeWheelIndex(targetIndex);
+  const normalizedTarget = normalizeWheelIndex(targetIndex, wheelCards.length);
 
   if (wheelCards[normalizedTarget] && !wheelCards[normalizedTarget].drawn) {
     return normalizedTarget;
   }
 
   for (let distance = 1; distance < wheelCards.length; distance += 1) {
-    const forward = normalizeWheelIndex(normalizedTarget + distance);
-    const backward = normalizeWheelIndex(normalizedTarget - distance);
+    const forward = normalizeWheelIndex(normalizedTarget + distance, wheelCards.length);
+    const backward = normalizeWheelIndex(normalizedTarget - distance, wheelCards.length);
 
     if (wheelCards[forward] && !wheelCards[forward].drawn) {
       return forward;
@@ -2787,9 +2815,10 @@ function getWheelRpxRatio(page) {
   return ratio;
 }
 
-function normalizeWheelIndex(index) {
-  const count = tarotDeck.length;
-  return ((index % count) + count) % count;
+function normalizeWheelIndex(index, count) {
+  const normalizedCount = Math.max(1, Number(count) || tarotDeck.length);
+
+  return ((index % normalizedCount) + normalizedCount) % normalizedCount;
 }
 
 function vibrateWheelStep(page) {

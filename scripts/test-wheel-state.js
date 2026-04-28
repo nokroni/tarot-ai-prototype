@@ -94,9 +94,9 @@ global.clearTimeout = (id) => {
 require("../miniprogram/pages/index/index.js");
 
 assert(pageDefinition, "Page definition should be registered.");
-assert.strictEqual(releasePackageJson.version, "0.9.3", "Package version should be bumped for this update.");
-assert.strictEqual(releasePackageLock.version, "0.9.3", "Package lock top-level version should match the release.");
-assert.strictEqual(releasePackageLock.packages[""].version, "0.9.3", "Package lock root package version should match the release.");
+assert.strictEqual(releasePackageJson.version, "0.9.4", "Package version should be bumped for this update.");
+assert.strictEqual(releasePackageLock.version, "0.9.4", "Package lock top-level version should match the release.");
+assert.strictEqual(releasePackageLock.packages[""].version, "0.9.4", "Package lock root package version should match the release.");
 assert.strictEqual(typeof createCloudBaseRahdueSequentialReading, "function", "Rahdue sequential CloudBase reader should be exported.");
 assert.strictEqual(pageDefinition.data.language, "zh", "Miniapp should default to Chinese.");
 assert.deepStrictEqual(
@@ -278,6 +278,59 @@ pageDefinition.onWheelCardTap.call(manualRahdueContext, {
 assert.strictEqual(manualRahdueContext.data.wheel.requiredCount, 78, "Rahdue handdrawn mode should still use all 78 positions.");
 assert.strictEqual(manualRahdueContext.data.wheel.selectedIndex, 0, "Rahdue handdrawn mode should use the normal two-tap manual draw interaction.");
 assert.strictEqual(manualRahdueContext.data.drawnCards.length, 0, "Rahdue handdrawn mode should not auto-select the whole deck on first tap.");
+pendingTimers = pendingTimers.slice(0, manualRahdueTimerBaseline);
+while (manualRahdueContext.data.drawnCards.length < 72) {
+  const activeIndex = manualRahdueContext.data.wheel.activeIndex;
+  const selectedIndex = manualRahdueContext.data.wheel.selectedIndex;
+
+  if (selectedIndex !== activeIndex) {
+    pageDefinition.onWheelCardTap.call(manualRahdueContext, {
+      currentTarget: {
+        dataset: {
+          index: activeIndex
+        }
+      }
+    });
+    assert.strictEqual(manualRahdueContext.data.wheel.selectedIndex, activeIndex, "Rahdue manual draw should pop the active remaining rail card.");
+  }
+
+  pageDefinition.onWheelCardTap.call(manualRahdueContext, {
+    currentTarget: {
+      dataset: {
+        index: activeIndex
+      }
+    }
+  });
+  assert.strictEqual(
+    manualRahdueContext.data.wheelCards.length,
+    78 - manualRahdueContext.data.drawnCards.length,
+    "Rahdue manual draw should remove each drawn card from the moving rail immediately."
+  );
+  assert.strictEqual(
+    manualRahdueContext.data.wheelCards.some((slot) => slot.drawn),
+    false,
+    "Rahdue manual rail should not keep invisible drawn cards that can disturb late animation geometry."
+  );
+  assert(
+    manualRahdueContext.data.wheel.activeIndex >= 0 &&
+      manualRahdueContext.data.wheel.activeIndex < manualRahdueContext.data.wheelCards.length,
+    "Rahdue manual rail should keep its active index inside the compacted remaining cards."
+  );
+
+  runNextTimerByDelay(1120);
+}
+assert.strictEqual(manualRahdueContext.data.drawnCards.length, 72, "Rahdue manual regression should reach the fragile post-70 draw range.");
+assert.strictEqual(manualRahdueContext.data.wheelCards.length, 6, "Rahdue manual rail should contain only the final six selectable cards after 72 draws.");
+assert.strictEqual(
+  manualRahdueContext.data.wheel.scrollIntoView,
+  `wheel-slot-${manualRahdueContext.data.wheel.activeIndex}`,
+  "Rahdue manual endgame should auto-center the next compacted rail card."
+);
+assert.strictEqual(manualRahdueContext.data.wheel.scrollWithAnimation, true, "Rahdue manual endgame should keep native auto-centering enabled.");
+assert(
+  manualRahdueContext.data.wheelCards.every((slot) => !slot.arcStyle.includes("rotate(-97.7deg)") && !slot.arcStyle.includes("opacity: 0.48;")),
+  "Rahdue manual endgame should not inherit far-tail 78-card arc geometry after drawn cards are removed."
+);
 pendingTimers = pendingTimers.slice(0, manualRahdueTimerBaseline);
 delete wxStorage.tarot_reading_mode;
 delete wxStorage.tarot_advanced_reading_selection;
@@ -479,7 +532,7 @@ assert.strictEqual(context.data.ui.title, "塔罗牌", "Chinese UI copy should r
 const idleWheelCardIds = context.data.wheelCards.map((slot) => slot.id).join("|");
 pageDefinition.tapDeckStage.call(context);
 
-assert.strictEqual(context.data.buildLabel, "0.9.3 双语版本", "Build label should identify the 0.9.3 bilingual build.");
+assert.strictEqual(context.data.buildLabel, "0.9.4 双语版本", "Build label should identify the 0.9.4 bilingual build.");
 assert.strictEqual(context.data.wheel.isOpen, true, "Tapping the closed pile should mount the wheel like the submit button.");
 assert.strictEqual(
   context.data.wheelCards.map((slot) => slot.id).join("|"),
