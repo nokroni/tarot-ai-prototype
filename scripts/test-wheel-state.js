@@ -681,9 +681,11 @@ assert(
   pageStyles.includes(".wheel-motion-spreading .wheel-card-arc") &&
     pageStyles.includes(".wheel-motion-closing-spin .wheel-card-arc") &&
     pageStyles.includes(".wheel-motion-closing .wheel-card-arc") &&
+    pageStyles.includes(".wheel-motion-closing-ring .wheel-aperture-ring") &&
     pageStyles.includes("@keyframes wheel-aperture-ring-open") &&
     pageStyles.includes("@keyframes wheel-content-exit") &&
     pageStyles.includes("animation: wheel-aperture-ring-open 1120ms") &&
+    !pageStyles.includes(".wheel-motion-closing-spin .wheel-aperture-ring,\n.wheel-motion-closing .wheel-aperture-ring {\n  animation: wheel-aperture-ring-close") &&
     pageStyles.includes("transform 1120ms cubic-bezier(0.18, 0.82, 0.22, 1)") &&
     !pageStyles.includes(".wheel-motion-closing .wheel-stage") &&
     pageMarkup.includes('class="wheel-flight-card-draw"') &&
@@ -791,6 +793,16 @@ for (let drawIndex = 0; drawIndex < totalDraws; drawIndex += 1) {
         context.data.wheelCards[77].arcStyle.includes("translate(-2440rpx, -8rpx)") &&
         context.data.wheelCards[77].arcStyle.includes("rotate(4.8deg)"),
       "Pile-back animation should collapse the right side into the tight idle deck instead of disappearing."
+    );
+    runNextTimerByDelay(660);
+    assert.strictEqual(context.data.wheel.isOpen, true, "Wheel should stay open while the aperture closes after pile-back.");
+    assert.strictEqual(context.data.wheel.motion, "closing-ring", "Aperture close should wait until after the cards have piled back.");
+    assert.strictEqual(context._interpreted, false, "Interpretation should still wait for the aperture close.");
+    assert(
+      context.data.wheelCards[0].arcStyle.includes("translate(0rpx, 32rpx)") &&
+        context.data.wheelCards[77].arcStyle.includes("translate(-2440rpx, -8rpx)") &&
+        context.data.wheelCards.every((slot) => slot.drawn === false),
+      "Closing aperture should run over the restored idle deck rather than over unsorted drawn slots."
     );
     runNextTimerByDelay(660);
   }

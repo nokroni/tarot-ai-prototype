@@ -155,6 +155,7 @@ const WHEEL_ARC_SPREAD_MS = 1120;
 const WHEEL_FINISH_RIGHT_SPIN_MS = 280;
 const WHEEL_HOME_ANCHOR_ID = "wheel-scroll-home";
 const WHEEL_STACK_COLLAPSE_MS = 660;
+const WHEEL_APERTURE_CLOSE_MS = 660;
 const WHEEL_DRAW_FLIGHT_MS = 1120;
 const WHEEL_VIBRATE_THROTTLE_MS = 55;
 const MUSIC_TRACK_PATHS = {
@@ -2361,9 +2362,25 @@ function startWheelFinishAnimation(page, wheelCards, centerPosition) {
 
       page.setData({
         wheelCards: prepareWheelCardsForIdle(page.data.wheelCards, page._assetPaths, page.data.language),
-        wheel: createClosedWheelState(page._assetPaths)
+        wheel: Object.assign({}, page.data.wheel, {
+          activeIndex: 0,
+          selectedIndex: -1,
+          phase: "closing",
+          motion: "closing-ring",
+          revealedCard: null,
+          flightCard: null
+        })
       });
-      page.interpretReading();
+
+      page._wheelFinishTimer = setTimeout(() => {
+        page._wheelFinishTimer = null;
+
+        page.setData({
+          wheelCards: prepareWheelCardsForIdle(page.data.wheelCards, page._assetPaths, page.data.language),
+          wheel: createClosedWheelState(page._assetPaths)
+        });
+        page.interpretReading();
+      }, WHEEL_APERTURE_CLOSE_MS);
     }, WHEEL_STACK_COLLAPSE_MS);
   }, WHEEL_FINISH_RIGHT_SPIN_MS);
 }
