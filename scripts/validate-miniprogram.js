@@ -9,6 +9,8 @@ const requiredFiles = [
   "miniprogram/config.js",
   "miniprogram/sitemap.json",
   "miniprogram/services/cloudbase-ai.js",
+  "miniprogram/services/cloudrun.js",
+  "miniprogram/services/language.js",
   "miniprogram/services/oauth.js",
   "miniprogram/services/reading-schema.js",
   "miniprogram/pages/index/index.js",
@@ -47,18 +49,61 @@ for (const page of appConfig.pages || []) {
 }
 
 const cardImageFiles = fs
-  .readdirSync("miniprogram/images")
+  .readdirSync("images")
   .filter((file) => /\.(jpe?g)$/i.test(file));
 
 if (cardImageFiles.length < 78) {
-  console.error("Mini Program card image bundle must include the complete 78-card deck.");
+  console.error("Remote card image source bundle must include the complete 78-card deck.");
   process.exit(1);
 }
 
-const cardBackPath = path.join("miniprogram", "images", "card-back.png");
+const cardBackPath = path.join("images", "card-back-source.png");
 
 if (!fs.existsSync(cardBackPath)) {
-  console.error("Mini Program card image bundle must include card-back.png.");
+  console.error("Remote card image source bundle must include card-back-source.png.");
+  process.exit(1);
+}
+
+const localCardBackFallbackPath = path.join("miniprogram", "images", "card-back-fallback.png");
+
+if (!fs.existsSync(localCardBackFallbackPath)) {
+  console.error("Mini Program must include a local card-back fallback while remote media domains are pending.");
+  process.exit(1);
+}
+
+for (const musicFile of ["bgm_intro.ogg", "bgm_intro_bar.ogg", "sfx_intro_rain.ogg"]) {
+  const musicPath = path.join("music", musicFile);
+
+  if (!fs.existsSync(musicPath)) {
+    console.error(`Remote music source bundle must include ${musicFile}.`);
+    process.exit(1);
+  }
+}
+
+for (const musicFile of ["bgm_intro_fallback.m4a", "bgm_intro_bar_fallback.m4a", "sfx_intro_rain_fallback.m4a"]) {
+  const musicPath = path.join("miniprogram", "music", musicFile);
+
+  if (!fs.existsSync(musicPath)) {
+    console.error(`Mini Program must include local fallback music file ${musicFile}.`);
+    process.exit(1);
+  }
+}
+
+const miniProgramConfig = require(path.resolve("miniprogram/config.js"));
+const expectedCloudRunBaseUrl = "https://express-6a5b-251593-6-1425965613.sh.run.tcloudbase.com";
+
+if (
+  !miniProgramConfig.cloudRun ||
+    miniProgramConfig.cloudRun.envId !== "prod-d0g9v713d07a202a0" ||
+    miniProgramConfig.cloudRun.serviceName !== "express-6a5b" ||
+    miniProgramConfig.cloudRun.baseUrl !== expectedCloudRunBaseUrl
+) {
+  console.error("Mini Program must be configured for the WeChat CloudBase Run service.");
+  process.exit(1);
+}
+
+if (!miniProgramConfig.assets || miniProgramConfig.assets.baseUrl !== `${expectedCloudRunBaseUrl}/assets/tarot`) {
+  console.error("Mini Program must point remote assets at the WeChat CloudBase Run service.");
   process.exit(1);
 }
 

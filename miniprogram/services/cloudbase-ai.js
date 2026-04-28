@@ -1,4 +1,16 @@
-const { READING_SCHEMA_VERSION } = require("./reading-schema");
+const {
+  READING_SCHEMA_VERSION,
+  createInvalidReadingError,
+  readingDirectionPromptGuidance
+} = require("./reading-schema");
+const {
+  getLanguageConfig,
+  normalizeLanguageCode
+} = require("./language");
+const {
+  createReaderPromptGuidance,
+  createReaderSourceLabel
+} = require("./reader-profiles");
 
 function hasCloudBaseAI(cloudAIConfig) {
   return Boolean(
@@ -24,7 +36,7 @@ async function createCloudBaseReading({ cloudAIConfig, readingRequest }) {
     data: {
       model: cloudAIConfig.model,
       messages: createMessages({
-        sourceLabel: cloudAIConfig.sourceLabel || "腾讯混元",
+        sourceLabel: cloudAIConfig.sourceLabel || "HY",
         readingRequest
       })
     }
@@ -32,52 +44,60 @@ async function createCloudBaseReading({ cloudAIConfig, readingRequest }) {
   const outputText = await collectStreamText(result);
 
   if (!outputText) {
-    throw new Error("云开发 AI 返回了空解读。");
+    throw createInvalidReadingError("云开发 AI 返回了空解读。");
   }
 
   try {
     return JSON.parse(extractJsonObject(outputText));
   } catch (error) {
-    throw new Error("云开发 AI 返回的解读 JSON 无效。");
+    throw createInvalidReadingError("云开发 AI 返回的解读 JSON 无效。");
   }
 }
 
 function createMessages({ sourceLabel, readingRequest }) {
+  const readerProfile = readingRequest && readingRequest.readerProfile;
+  const languageCode = normalizeLanguageCode(readingRequest && readingRequest.language);
+  const languageConfig = getLanguageConfig(languageCode);
+  const outputSourceLabel = createReaderSourceLabel(sourceLabel, readerProfile);
+  const zhOutputRules = [
+    "所有面向用户的文字字段必须使用自然简体中文，包括 summary、cards[].interpretation、overallMessage、practicalReflection、journalQuestion、caveat。",
+    "正文里提到牌面方向时，只使用 drawnCards[].orientationText 提供的“正位/逆位”；orientation 只是内部字段，除了复制到 cards[].orientation 之外，不要写进正文。",
+    "caveat 必须包含这句话：AI生成内容，仅供娱乐和自我反思。"
+  ];
+  const enOutputRules = [
+    "All user-facing string values must be natural English, including summary, cards[].interpretation, overallMessage, practicalReflection, journalQuestion, and caveat.",
+    "When mentioning card orientation in prose, use drawnCards[].orientationText, which will be Upright or Reversed for this request; orientation is an internal enum and should only be copied to cards[].orientation.",
+    "Do not write Chinese UI phrases or Chinese prompt terms in the user-facing fields.",
+    "caveat must include this exact phrase: AI-generated content, for entertainment and self-reflection only."
+  ];
+
   return [
     {
       role: "system",
       content: [
-        "You write reflective tarot readings for a WeChat Mini Program.",
-        "Return exactly one valid JSON object and no markdown, prose, or code fences.",
-        `The JSON schemaVersion must be \"${READING_SCHEMA_VERSION}\" and sourceLabel must be \"${sourceLabel}\".`,
-        "Required top-level keys: schemaVersion, sourceLabel, summary, cards, overallMessage, practicalReflection, journalQuestion, caveat.",
-        "The cards array must contain exactly one item for each drawnCards item in the request.",
-        "For each card, copy id, position, name, orientation, and keywords from the drawnCards item, then add interpretation.",
-        "The app has already drawn the cards. Do not replace, redraw, remove, or invent cards.",
-        "所有面向用户的文字字段必须使用简体中文，包括 summary、cards[].interpretation、overallMessage、practicalReflection、journalQuestion、caveat。",
+        languageCode === "en"
+          ? "You write restrained, reflective tarot readings for a WeChat mini program."
+          : "你为微信小程序撰写克制、反思性的塔罗解读。",
+        "只返回一个有效 JSON 对象，不要输出 markdown、解释文字或代码块。",
+        `JSON 的 schemaVersion 必须是 \"${READING_SCHEMA_VERSION}\"，sourceLabel 必须是 \"${outputSourceLabel}\"。`,
+        "顶层 key 必须包含 schemaVersion、sourceLabel、summary、cards、overallMessage、practicalReflection、journalQuestion、caveat。",
+        "cards 数组必须与请求里的 drawnCards 一一对应。",
+        "每张牌必须从 drawnCards 复制 id、position、name、orientation、keywords，再补充 interpretation。",
+        "应用已经完成抽牌。不要替换、重抽、删除或编造牌。",
+        `The selected output language is ${languageConfig.outputLanguage}.`,
+        ...(languageCode === "en" ? enOutputRules : zhOutputRules),
+        "不要把内部字段名、枚举值、英文提示词术语或 JSON 说明写进面向用户的句子。",
         "字段名仍使用英文 JSON key，不要翻译 schemaVersion、sourceLabel、cards 等键名。",
-        createSoulPromptGuidance(),
-        "Avoid certainty, fortune telling, or professional medical, legal, financial, or emergency advice."
+        createReaderPromptGuidance(readerProfile, languageCode),
+        readingDirectionPromptGuidance(languageCode),
+        "避免确定性预言，也不要提供医疗、法律、财务或紧急事务专业建议。"
       ].join(" ")
     },
     {
       role: "user",
-      content: `Create a structured tarot reading for this request:\n${JSON.stringify(readingRequest, null, 2)}`
+      content: `${languageCode === "en" ? "Generate a structured tarot reading from this request:" : "请按这个请求生成结构化塔罗解读："}\n${JSON.stringify(readingRequest, null, 2)}`
     }
   ];
-}
-
-function createSoulPromptGuidance() {
-  return [
-    "Use the 0.7 灵魂 reading voice.",
-    "Treat tarot as reflective language: the card is a mirror, the spread is a map, and the future is not sealed.",
-    "语气要像安静的灯：温和、克制、具体、带一点神秘感，但建议必须落回现实。",
-    "像一位懂得悲伤和犹豫的朋友那样回应，不要像舞台上的预言者。",
-    "先看见提问背后的情绪天气，再解释每张牌与牌位、正逆位之间的关系。",
-    "每张牌的解读必须贴合用户的问题，避免只堆关键词，不要生成单独的牌义说明段。",
-    "最终把选择权还给用户：给方向，不给命令；给线索，不给审判。",
-    "Do not impersonate any named fictional character or claim spiritual authority."
-  ].join(" ");
 }
 
 async function collectStreamText(result) {
