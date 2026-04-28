@@ -18,7 +18,7 @@
           <view
             wx:for="{{languages}}"
             wx:key="id"
-            class="language-option {{language === item.id ? 'active' : ''}}"
+            class="language-option {{language === item.id ? 'active' : ''}} {{isInterpreting ? 'disabled' : ''}}"
             data-language="{{item.id}}"
             bindtap="selectLanguage"
             role="button"
@@ -27,7 +27,7 @@
           </view>
         </view>
         <view
-          class="music-toggle {{music.enabled ? 'active' : 'muted'}}"
+          class="music-toggle {{music.enabled ? 'active' : 'muted'}} {{isInterpreting ? 'disabled' : ''}}"
           bindtap="toggleMusic"
           aria-label="{{music.enabled ? ui.musicOnLabel : ui.musicOffLabel}}"
           role="button"
@@ -40,7 +40,13 @@
     <view class="question-dock">
       <view class="mode-row">
         <text class="mode-summary">{{modeSummary}}</text>
-        <button class="mode-link" bindtap="goAdvancedMode">{{ui.modeChange}}</button>
+        <button
+          class="mode-link {{isInterpreting ? 'disabled' : ''}}"
+          bindtap="goAdvancedMode"
+          disabled="{{isInterpreting}}"
+        >
+          {{ui.modeChange}}
+        </button>
       </view>
       <view class="question-submit-row">
         <textarea
@@ -50,9 +56,15 @@
           placeholder="{{ui.questionPlaceholder}}"
           placeholder-class="placeholder"
           value="{{question}}"
+          disabled="{{isInterpreting}}"
           bindinput="onQuestionInput"
         />
-        <button class="submit-button" bindtap="drawCards" loading="{{wheel.phase === 'drawing'}}">
+        <button
+          class="submit-button {{isInterpreting ? 'disabled' : ''}}"
+          bindtap="drawCards"
+          loading="{{wheel.phase === 'drawing'}}"
+          disabled="{{isInterpreting}}"
+        >
           {{ui.submitButton}}
         </button>
       </view>
@@ -64,6 +76,7 @@
           placeholder="{{ui.planAPlaceholder}}"
           placeholder-class="placeholder"
           value="{{decisionOptions.planA}}"
+          disabled="{{isInterpreting}}"
           data-option="planA"
           bindinput="onDecisionOptionInput"
         />
@@ -74,6 +87,7 @@
           placeholder="{{ui.planBPlaceholder}}"
           placeholder-class="placeholder"
           value="{{decisionOptions.planB}}"
+          disabled="{{isInterpreting}}"
           data-option="planB"
           bindinput="onDecisionOptionInput"
         />
@@ -94,7 +108,7 @@
             scroll-x="{{true}}"
             enhanced="{{true}}"
             enable-flex="{{true}}"
-            bounces="{{true}}"
+            bounces="{{false}}"
             fast-deceleration="{{false}}"
             show-scrollbar="{{false}}"
             scroll-with-animation="{{wheel.scrollWithAnimation}}"
@@ -164,6 +178,22 @@
     <view class="provider-footer">
       <text class="provider-status">{{oauthStatus}}</text>
       <text class="provider-build">{{buildLabel}}</text>
+    </view>
+  </view>
+
+  <view
+    wx:if="{{isInterpreting}}"
+    class="motion-block"
+    catchtap="blockPendingInteraction"
+    catchtouchmove="blockPendingInteraction"
+  >
+    <view class="motion-block-panel">
+      <view class="motion-card-stack">
+        <view class="motion-card motion-card-back"></view>
+        <view class="motion-card motion-card-middle"></view>
+        <view class="motion-card motion-card-front"></view>
+      </view>
+      <text class="motion-block-text">{{ui.cloudWaiting}}</text>
     </view>
   </view>
 </view>

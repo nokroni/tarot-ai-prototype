@@ -460,6 +460,14 @@ assert(
     context.data.wheelCards[76].arcStyle.includes("rotate(-8.1deg)"),
   "Final deck slot should own the centered visual curve."
 );
+assert(
+  context.data.wheelCards[69].arcStyle.includes("translate(-142rpx, 653rpx)") &&
+    context.data.wheelCards[69].arcStyle.includes("rotate(-65.1deg)") &&
+    context.data.wheelCards[68].arcStyle.includes("rotate(-73.3deg)") &&
+    context.data.wheelCards[65].arcStyle.includes("rotate(-97.7deg)") &&
+    context.data.wheelCards[65].arcStyle.includes("opacity: 0.48;"),
+  "Final-slot tail cards should keep curving out of view instead of flattening into a horizontal row."
+);
 
 pageDefinition.onWheelNativeScroll.call(context, {
   detail: {
@@ -485,6 +493,8 @@ const readingStyles = fs.readFileSync("miniprogram/pages/reading/reading.wxss", 
 const readingScript = fs.readFileSync("miniprogram/pages/reading/reading.js", "utf8");
 const readingJson = fs.readFileSync("miniprogram/pages/reading/reading.json", "utf8");
 const readingResultScript = fs.readFileSync("miniprogram/services/reading-result.js", "utf8");
+const wheelEndSpacerStyle = pageStyles.match(/\.wheel-spacer-end\s*{[^}]+}/);
+const motionBlockStyle = pageStyles.match(/\.motion-block\s*{[^}]+}/);
 
 assert(
   pageStyles.includes(".wheel-card-face") &&
@@ -574,7 +584,7 @@ assert(
 assert(
   pageMarkup.includes('class="question-dock"') &&
     pageMarkup.includes('class="mode-summary"') &&
-    pageMarkup.includes('class="mode-link"') &&
+    pageMarkup.includes('class="mode-link {{isInterpreting ? \'disabled\' : \'\'}}"') &&
     pageMarkup.includes('bindtap="goAdvancedMode"') &&
     pageMarkup.includes('class="question-input compact-question-input"') &&
     pageMarkup.includes('wx:if="{{selectedSpread.id === \'decisionPair\'}}"') &&
@@ -584,7 +594,7 @@ assert(
     pageMarkup.includes('data-option="planB"') &&
     pageMarkup.includes('placeholder="{{ui.planAPlaceholder}}"') &&
     pageMarkup.includes('placeholder="{{ui.planBPlaceholder}}"') &&
-    pageMarkup.includes('class="submit-button"') &&
+    pageMarkup.includes('class="submit-button {{isInterpreting ? \'disabled\' : \'\'}}"') &&
     pageMarkup.includes('bindtap="drawCards"') &&
     pageMarkup.includes('class="deck-stage {{wheel.isOpen ? \'deck-stage-wheel\' : \'\'}}"') &&
     pageMarkup.includes("wheel-overlay-idle") &&
@@ -600,6 +610,16 @@ assert(
     !pageMarkup.includes('class="cards-section"') &&
     pageStyles.includes(".question-dock") &&
     pageStyles.includes(".compact-question-input") &&
+    pageScript.includes("isReadingPending(page)") &&
+    pageScript.includes("blockPendingInteraction()") &&
+    pageMarkup.includes('disabled="{{isInterpreting}}"') &&
+    pageMarkup.includes('class="motion-block"') &&
+    pageMarkup.includes('catchtap="blockPendingInteraction"') &&
+    pageStyles.includes(".motion-card-stack") &&
+    pageStyles.includes("@keyframes motion-card-breathe") &&
+    motionBlockStyle &&
+    motionBlockStyle[0].includes("position: fixed;") &&
+    motionBlockStyle[0].includes("z-index: 30;") &&
     pageStyles.includes(".decision-options-row") &&
     pageStyles.includes(".decision-option-input") &&
     pageStyles.includes("height: 104rpx;") &&
@@ -637,10 +657,10 @@ assert(
   "Safety and provider text should be a quiet grey footer with no panel background or border."
 );
 assert(
-  pageMarkup.includes('class="music-toggle {{music.enabled ? \'active\' : \'muted\'}}"') &&
+  pageMarkup.includes('class="music-toggle {{music.enabled ? \'active\' : \'muted\'}} {{isInterpreting ? \'disabled\' : \'\'}}"') &&
     pageMarkup.includes('aria-label="{{music.enabled ? ui.musicOnLabel : ui.musicOffLabel}}"') &&
     pageMarkup.includes('class="language-toggle"') &&
-    pageMarkup.includes('class="language-option {{language === item.id ? \'active\' : \'\'}}"') &&
+    pageMarkup.includes('class="language-option {{language === item.id ? \'active\' : \'\'}} {{isInterpreting ? \'disabled\' : \'\'}}"') &&
     pageMarkup.includes("{{item.title}}") &&
     !pageMarkup.includes("{{item.label}}") &&
     pageMarkup.includes('bindtap="selectLanguage"') &&
@@ -833,10 +853,14 @@ assert(
     pageMarkup.includes('scroll-into-view="{{wheel.scrollIntoView}}"') &&
     pageMarkup.includes('id="wheel-scroll-home"') &&
     pageMarkup.includes('id="wheel-slot-{{index}}"') &&
+    pageMarkup.includes('bounces="{{false}}"') &&
     pageMarkup.includes('fast-deceleration="{{false}}"') &&
     !pageMarkup.includes("scroll-left=") &&
-    pageMarkup.includes('enhanced="{{true}}"'),
-  "Arc motion should use free native inertia, with scroll-into-view reserved for the close animation."
+    pageMarkup.includes('enhanced="{{true}}"') &&
+    pageScript.includes("WHEEL_ARC_TAIL_DISTANCE") &&
+    wheelEndSpacerStyle &&
+    wheelEndSpacerStyle[0].includes("width: 281rpx;"),
+  "Arc motion should use free native inertia, clamp the final scroll range, and curve tail cards out of view."
 );
 assert(
   pageStyles.includes(".wheel-motion-spreading .wheel-card-arc") &&

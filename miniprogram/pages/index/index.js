@@ -141,6 +141,7 @@ const WHEEL_CARD_BACK_FILE = "card-back.png";
 const LOCAL_CARD_BACK_FALLBACK_PATH = "/images/card-back-fallback.png";
 const WHEEL_CARD_STRIDE_RPX = 32;
 const WHEEL_ARC_MAX_DISTANCE = 7;
+const WHEEL_ARC_TAIL_DISTANCE = 12;
 const WHEEL_ARC_RADIUS_RPX = 1080;
 const WHEEL_ARC_START_DEGREES = 180;
 const WHEEL_ARC_END_DEGREES = 120;
@@ -1145,7 +1146,7 @@ Page({
   },
 
   toggleMusic() {
-    if (!this.data.assets.ready) {
+    if (!this.data.assets.ready || isReadingPending(this)) {
       return;
     }
 
@@ -1166,6 +1167,10 @@ Page({
   },
 
   onQuestionInput(event) {
+    if (isReadingPending(this)) {
+      return;
+    }
+
     this.setData({
       question: event.detail.value,
       interpretation: null,
@@ -1174,6 +1179,10 @@ Page({
   },
 
   goAdvancedMode() {
+    if (isReadingPending(this)) {
+      return;
+    }
+
     if (typeof wx === "undefined" || !wx.navigateTo) {
       return;
     }
@@ -1184,6 +1193,10 @@ Page({
   },
 
   onDecisionOptionInput(event) {
+    if (isReadingPending(this)) {
+      return;
+    }
+
     const option = event.currentTarget.dataset.option;
 
     if (option !== "planA" && option !== "planB") {
@@ -1212,6 +1225,10 @@ Page({
   },
 
   selectLanguage(event) {
+    if (isReadingPending(this)) {
+      return;
+    }
+
     const language = normalizeLanguageCode(event.currentTarget.dataset.language);
 
     if (language === this.data.language) {
@@ -1308,7 +1325,7 @@ Page({
   },
 
   drawCards() {
-    if (!this.data.assets.ready || this.data.wheel.isOpen) {
+    if (!this.data.assets.ready || this.data.wheel.isOpen || isReadingPending(this)) {
       return;
     }
 
@@ -1342,6 +1359,10 @@ Page({
   },
 
   onWheelCardTap(event) {
+    if (isReadingPending(this)) {
+      return;
+    }
+
     const index = Number(event.currentTarget.dataset.index);
 
     if (index !== this.data.wheel.activeIndex) {
@@ -1463,6 +1484,10 @@ Page({
         url: "/pages/reading/reading"
       });
     }
+  },
+
+  blockPendingInteraction() {
+    return false;
   },
 
   connectReadingBackend() {
@@ -2241,7 +2266,7 @@ function createWheelEntryDistance(distance, count) {
 }
 
 function createWheelArcGeometry(distance, arcFraction) {
-  const clampedDistance = Math.max(-WHEEL_ARC_MAX_DISTANCE, Math.min(WHEEL_ARC_MAX_DISTANCE, distance));
+  const clampedDistance = Math.max(-WHEEL_ARC_TAIL_DISTANCE, Math.min(WHEEL_ARC_TAIL_DISTANCE, distance));
   const effectiveDistance = clampedDistance * arcFraction;
   const absoluteDistance = Math.abs(effectiveDistance);
   const arcProgress = effectiveDistance / WHEEL_ARC_MAX_DISTANCE;
@@ -2265,6 +2290,10 @@ function createWheelArcGeometry(distance, arcFraction) {
     scale,
     opacity
   };
+}
+
+function isReadingPending(page) {
+  return Boolean(page && page.data && page.data.isInterpreting);
 }
 
 function handleWheelNativeScroll(page, scrollLeft) {

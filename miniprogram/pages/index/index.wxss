@@ -142,6 +142,13 @@
   color: #fffaf0;
 }
 
+.language-option.disabled,
+.music-toggle.disabled,
+.mode-link.disabled,
+.submit-button.disabled {
+  opacity: 0.52;
+}
+
 .music-toggle {
   position: relative;
   display: flex;
@@ -397,7 +404,7 @@
 }
 
 .wheel-spacer-end {
-  width: 650rpx;
+  width: 281rpx;
 }
 
 .wheel-card-slot {
@@ -676,6 +683,17 @@
   }
 }
 
+@keyframes motion-card-breathe {
+  0%,
+  100% {
+    transform: translateY(-2rpx) rotate(0deg);
+  }
+
+  50% {
+    transform: translateY(-8rpx) rotate(0deg);
+  }
+}
+
 /* Compact single-card home layout */
 .main-header {
   display: flex;
@@ -808,6 +826,75 @@
   font-weight: 900;
   line-height: 1;
   overflow: hidden;
+}
+
+.motion-block {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 32rpx 98rpx;
+  background: rgba(243, 237, 248, 0.08);
+  box-sizing: border-box;
+}
+
+.motion-block-panel {
+  display: flex;
+  min-width: 286rpx;
+  max-width: 86vw;
+  min-height: 82rpx;
+  align-items: center;
+  justify-content: center;
+  gap: 18rpx;
+  padding: 16rpx 24rpx;
+  border: 2rpx solid rgba(91, 63, 163, 0.18);
+  border-radius: 999rpx;
+  background: rgba(255, 250, 240, 0.94);
+  box-shadow: 0 14rpx 38rpx rgba(64, 45, 24, 0.12);
+  box-sizing: border-box;
+}
+
+.motion-card-stack {
+  position: relative;
+  width: 58rpx;
+  height: 48rpx;
+  flex: 0 0 58rpx;
+}
+
+.motion-card {
+  position: absolute;
+  top: 5rpx;
+  left: 16rpx;
+  width: 28rpx;
+  height: 40rpx;
+  border: 2rpx solid rgba(91, 63, 163, 0.34);
+  border-radius: 5rpx;
+  background: linear-gradient(160deg, #5b3fa3, #2f195b);
+  box-sizing: border-box;
+  transform-origin: 50% 88%;
+}
+
+.motion-card-back {
+  transform: translateX(-13rpx) rotate(-12deg);
+}
+
+.motion-card-middle {
+  transform: translateY(-2rpx) rotate(0deg);
+  animation: motion-card-breathe 1080ms ease-in-out infinite;
+}
+
+.motion-card-front {
+  transform: translateX(13rpx) rotate(12deg);
+}
+
+.motion-block-text {
+  display: block;
+  color: #5b3fa3;
+  font-size: 24rpx;
+  font-weight: 900;
+  line-height: 1.25;
 }
 
 .deck-stage {
