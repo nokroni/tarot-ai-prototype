@@ -173,6 +173,7 @@ const context = {
 
     this.data = nextData;
   },
+  applyReadingModeFromStorage: pageDefinition.applyReadingModeFromStorage,
   interpretReading() {
     this._interpreted = true;
   }
@@ -192,7 +193,7 @@ assert.strictEqual(audioContexts[0].playCount, 1, "Intro music should start once
 assert.strictEqual(context.data.music.playing, true, "Music state should report playback after page ready.");
 assert.strictEqual(audioContexts[1].src, `${REMOTE_ASSET_BASE_URL}/music/sfx_intro_rain.m4a`, "Loaded page should start the remote intro rain bed.");
 assert.strictEqual(audioContexts[1].loop, true, "Intro rain should loop until the first draw starts.");
-assert.strictEqual(audioContexts[1].volume, 0.17, "Intro rain should sit gently under the main music.");
+assert.strictEqual(audioContexts[1].volume, 0.34, "Intro rain should sit gently under the main music at the requested doubled volume.");
 assert.strictEqual(audioContexts[1].playCount, 1, "Intro rain should start once the page is ready.");
 
 audioContexts[0].triggerEnded();
@@ -709,6 +710,8 @@ assert(
     pageScript.includes("retryLocalMusicSource(page, trackKey)") &&
     pageScript.includes("handleIntroRainError(page)") &&
     pageScript.includes("startIntroRain(this)") &&
+    pageScript.includes("resumeIntroRainOnHome(this)") &&
+    pageScript.includes("const INTRO_RAIN_VOLUME = 0.34;") &&
     pageScript.includes("fadeIntroRain(this)") &&
     pageScript.includes("audio.onEnded"),
   "Miniapp should expose a top music toggle, loop intro into intro_bar, recover local audio on remote errors, and fade intro rain on draw."
@@ -1002,6 +1005,13 @@ assert(
     context.data.wheelCards[77].slotStyle.includes("z-index: 1"),
   "Closed wheel should restore the same tight idle wheel deck."
 );
+const rainPlayCountBeforeReturn = activeRainAudio.playCount;
+
+assert.strictEqual(context._rainDismissed, true, "Completed draw should keep rain dismissed while the reading page is active.");
+pageDefinition.onShow.call(context);
+assert.strictEqual(context._rainDismissed, false, "Returning to the closed home page should allow intro rain to resume.");
+assert.strictEqual(activeRainAudio.volume, 0.34, "Resumed intro rain should use the doubled ambient volume.");
+assert(activeRainAudio.playCount > rainPlayCountBeforeReturn, "Returning from the reading page should restart the intro rain bed.");
 
 pageDefinition.onUnload.call(context);
 assert.strictEqual(activeMusicAudio.destroyed, true, "Page unload should destroy the active background music context.");

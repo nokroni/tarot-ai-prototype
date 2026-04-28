@@ -170,7 +170,7 @@ const MUSIC_TRACK_NEXT = {
   introBar: "intro"
 };
 const INTRO_RAIN_TRACK_PATH = createRemoteAssetUrl("music", "sfx_intro_rain.m4a");
-const INTRO_RAIN_VOLUME = 0.17;
+const INTRO_RAIN_VOLUME = 0.34;
 const INTRO_RAIN_FADE_MS = 1080;
 const INTRO_RAIN_FADE_STEPS = 9;
 
@@ -1127,6 +1127,7 @@ Page({
 
   onShow() {
     this.applyReadingModeFromStorage();
+    resumeIntroRainOnHome(this);
   },
 
   onReady() {
@@ -2886,6 +2887,25 @@ function startAmbientAudioWhenReady(page) {
   page._ambientAudioStarted = true;
   page._rainDismissed = false;
   startMusicTrack(page, "intro");
+  startIntroRain(page);
+}
+
+function resumeIntroRainOnHome(page) {
+  if (
+    !page._pageReady ||
+      !page.data.assets.ready ||
+      !page.data.music.enabled ||
+      isReadingPending(page) ||
+      (page.data.wheel && page.data.wheel.isOpen)
+  ) {
+    return;
+  }
+
+  if (!page._rainDismissed && page._rainAudioContext) {
+    return;
+  }
+
+  page._rainDismissed = false;
   startIntroRain(page);
 }
 
