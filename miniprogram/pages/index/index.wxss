@@ -404,7 +404,7 @@
 }
 
 .wheel-spacer-end {
-  width: 281rpx;
+  width: 405rpx;
 }
 
 .wheel-card-slot {
@@ -619,10 +619,12 @@
   left: 36rpx;
   z-index: 7;
   min-height: 56rpx;
+  background: transparent;
   color: #f3ddaa;
   font-size: 28rpx;
   font-weight: 850;
   line-height: 1.4;
+  pointer-events: none;
   text-align: center;
   animation: wheel-content-enter 840ms cubic-bezier(0.18, 0.82, 0.16, 1) 160ms both;
 }

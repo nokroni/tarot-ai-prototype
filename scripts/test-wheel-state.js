@@ -512,10 +512,21 @@ const readingStyles = fs.readFileSync("miniprogram/pages/reading/reading.wxss", 
 const readingScript = fs.readFileSync("miniprogram/pages/reading/reading.js", "utf8");
 const readingJson = fs.readFileSync("miniprogram/pages/reading/reading.json", "utf8");
 const readingResultScript = fs.readFileSync("miniprogram/services/reading-result.js", "utf8");
+const wheelStartSpacerStyle = pageStyles.match(/\.wheel-spacer-start\s*{[^}]+}/);
 const wheelEndSpacerStyle = pageStyles.match(/\.wheel-spacer-end\s*{[^}]+}/);
+const wheelCardSlotStyle = pageStyles.match(/\.wheel-card-slot\s*{[^}]+}/);
 const motionBlockStyle = pageStyles.match(/\.motion-block\s*{[^}]+}/);
 const deckStageStyle = pageStyles.match(/\.deck-stage\s*{[^}]+}/);
 const deckStageWheelStyle = pageStyles.match(/\.deck-stage-wheel\s*{[^}]+}/);
+const wheelCopyStyle = pageStyles.match(/(?:^|\n)\.wheel-copy\s*{[^}]+}/);
+const wheelStartSpacerRpx = extractRpxValue(wheelStartSpacerStyle, "width");
+const wheelEndSpacerRpx = extractRpxValue(wheelEndSpacerStyle, "width");
+const wheelSlotWidthRpx = extractRpxValue(wheelCardSlotStyle, "width");
+const wheelSlotMarginRpx = extractRpxValue(wheelCardSlotStyle, "margin-right");
+const wheelStrideRpx = wheelSlotWidthRpx + wheelSlotMarginRpx;
+const wheelViewportRpx = 686;
+const wheelMaxScrollRpx = wheelStartSpacerRpx + wheelEndSpacerRpx + (pageDefinition.data.wheelCards.length * wheelStrideRpx) - wheelViewportRpx;
+const wheelLastSlotScrollRpx = (pageDefinition.data.wheelCards.length - 1) * wheelStrideRpx;
 
 assert(
   pageStyles.includes(".wheel-card-face") &&
@@ -885,6 +896,9 @@ assert(
     pageStyles.includes("position: relative;") &&
     pageStyles.includes("background: transparent;") &&
     pageStyles.includes("animation: none;") &&
+    wheelCopyStyle &&
+    wheelCopyStyle[0].includes("background: transparent;") &&
+    wheelCopyStyle[0].includes("pointer-events: none;") &&
     !pageStyles.includes(".wheel-overlay::before") &&
     pageStyles.includes(".wheel-stage") &&
     pageStyles.includes("top: 80rpx;") &&
@@ -903,8 +917,12 @@ assert(
     !pageMarkup.includes("scroll-left=") &&
     pageMarkup.includes('enhanced="{{true}}"') &&
     pageScript.includes("WHEEL_ARC_TAIL_DISTANCE") &&
+    wheelStartSpacerStyle &&
     wheelEndSpacerStyle &&
-    wheelEndSpacerStyle[0].includes("width: 281rpx;"),
+    wheelCardSlotStyle &&
+    wheelEndSpacerStyle[0].includes("width: 405rpx;") &&
+    wheelStrideRpx === 32 &&
+    wheelMaxScrollRpx >= wheelLastSlotScrollRpx,
   "Arc motion should use free native inertia, clamp the final scroll range, and curve tail cards out of view."
 );
 assert(
@@ -1124,6 +1142,16 @@ function runAllTimersByDelay(delay, limit = 20) {
   }
 
   return count;
+}
+
+function extractRpxValue(styleMatch, property) {
+  assert(styleMatch, `Missing style block while reading ${property}.`);
+
+  const pattern = new RegExp(`${property}:\\s*(-?\\d+)rpx;`);
+  const match = styleMatch[0].match(pattern);
+
+  assert(match, `Missing ${property} rpx declaration.`);
+  return Number(match[1]);
 }
 
 function createMockAudioContext() {
