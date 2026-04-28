@@ -642,6 +642,8 @@ assert(
     pageMarkup.includes("wheel-overlay-idle") &&
     pageMarkup.includes('wx:if="{{wheel.showDrawnSummary}}"') &&
     pageMarkup.includes('class="wheel-drawn-summary"') &&
+    pageMarkup.includes('class="wheel-drawn-summary-image {{item.orientation === \'reversed\' ? \'reversed\' : \'\'}}"') &&
+    pageMarkup.includes('src="{{item.card.imageSrc}}"') &&
     pageMarkup.includes('class="wheel-drawn-summary-name"') &&
     pageMarkup.includes("{{item.card.name}}") &&
     pageMarkup.includes("{{item.orientationLabel}}") &&
@@ -916,11 +918,15 @@ assert(
     wheelStageStyle[0].includes("overflow: hidden;") &&
     !wheelStageStyle[0].includes("bottom: 92rpx;") &&
     wheelSummaryStageStyle &&
-    wheelSummaryStageStyle[0].includes("top: -236rpx;") &&
+    wheelSummaryStageStyle[0].includes("top: 0;") &&
     wheelSummaryStageStyle[0].includes("left: -250rpx;") &&
     wheelDrawnSummaryStyle &&
     wheelDrawnSummaryStyle[0].includes("left: 258rpx;") &&
     wheelDrawnSummaryStyle[0].includes("pointer-events: none;") &&
+    pageStyles.includes(".wheel-drawn-summary-image") &&
+    pageStyles.includes("width: 54rpx;") &&
+    pageStyles.includes("height: 94rpx;") &&
+    pageStyles.includes(".wheel-drawn-summary-image.reversed") &&
     pageStyles.includes(".wheel-motion-summary .wheel-scroll") &&
     !pageStyles.includes("closing-ring") &&
     pageMarkup.includes('bindtap="onWheelCardTap"') &&
@@ -1103,8 +1109,8 @@ const completedDrawnCards = clone(context.data.drawnCards);
 assert.strictEqual(context.data.wheel.isOpen, true, "Completed draws should keep the temporary summary on the draw page until reading navigation.");
 assert.strictEqual(completedDrawnCards.length, totalDraws, "Temporary summary should be backed by every drawn card.");
 assert(
-  completedDrawnCards.every((drawn) => drawn.card && drawn.card.name && drawn.orientationLabel),
-  "Temporary summary entries should have a card name and upright/reversed direction."
+  completedDrawnCards.every((drawn) => drawn.card && drawn.card.name && drawn.card.imageSrc && drawn.orientationLabel),
+  "Temporary summary entries should have a card image, name, and upright/reversed direction."
 );
 assert(
   context.data.wheelCards.map((slot) => slot.id).join("|") === idleWheelCardIds &&

@@ -479,7 +479,7 @@
 }
 
 .wheel-motion-summary .wheel-stage {
-  top: -236rpx;
+  top: 0;
   left: -250rpx;
   opacity: 0.82;
   animation: none;
@@ -606,10 +606,30 @@
 }
 
 .wheel-drawn-summary-item {
+  display: flex;
   min-width: 0;
+  align-items: center;
+  gap: 14rpx;
   padding: 0 0 12rpx;
   border-bottom: 1rpx solid rgba(255, 250, 240, 0.34);
   color: #fffaf0;
+}
+
+.wheel-drawn-summary-image {
+  display: block;
+  width: 54rpx;
+  height: 94rpx;
+  flex: 0 0 54rpx;
+  border-radius: 6rpx;
+}
+
+.wheel-drawn-summary-image.reversed {
+  transform: rotate(180deg);
+}
+
+.wheel-drawn-summary-copy {
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .wheel-drawn-summary-position {
