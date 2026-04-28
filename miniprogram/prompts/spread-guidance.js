@@ -51,7 +51,9 @@ function createSpreadGuidance(question, spread, decisionOptions, questionFocus, 
       sections,
       ...baseGuidance,
       experimentalNotice: "这是高度实验且不稳定的数字化改编，不是 Connolly 体系的权威复刻；不要写成确定预言、前世事实或专业建议。",
+      template: "Rahdue 专用阅读模板：主线 summary、分区 sections[]、完整牌位 cards[]、整体 overallMessage；不要给用户显示为“行动提醒”的建议段。",
       answerShape: "采用 Layered Summary：summary 先给完整牌组的主线；sections[] 写分区层级总结；cards[] 保持 78 张完整顺序，但每张只给一条极短提示。",
+      practicalRule: "Rahdue 阅读页不会显示“行动提醒”。practicalReflection 只为 schema 兼容保留，写成一句安静的收束观察，不要写行动建议。",
       cardRoles: sections.map((section) => `${section.title}：把第 ${section.start}-${section.end} 张合并成一层主题，挑少量关键牌即可，不要逐张长篇展开。`)
     };
   }
@@ -184,7 +186,9 @@ function createEnglishSpreadGuidance(question, spread, decisionOptions, question
       sections,
       ...baseGuidance,
       experimentalNotice: "This is a highly experimental and unstable digital adaptation, not an authoritative reproduction of Connolly's system; do not write it as certain prediction, past-life fact, or professional advice.",
+      template: "Dedicated Rahdue reading template: main-line summary, section-level sections[], full-position cards[], and overallMessage; do not provide a user-facing Action reminder.",
       answerShape: "Use Layered Summary: summary gives the full-deck main line; sections[] gives section-level interpretation; cards[] keeps all 78 cards in order, but each card gets only one very short line.",
+      practicalRule: "The Rahdue reading page does not display an Action reminder. Keep practicalReflection only for schema compatibility as one quiet closing observation, not an action step.",
       cardRoles: sections.map((section) => `${section.title}: combine cards ${section.start}-${section.end} into one layer and name only a few key cards rather than expanding every card at length.`)
     };
   }

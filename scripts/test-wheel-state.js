@@ -113,6 +113,17 @@ assert(initialRahdueSpread, "Rahdue's Wheel should be registered as an advanced 
 assert.strictEqual(initialRahdueSpread.positions.length, 78, "Rahdue's Wheel should draw all 78 cards.");
 assert.strictEqual(initialRahdueSpread.sections.length, 13, "Rahdue's Wheel should expose the known section map.");
 assert.strictEqual(initialRahdueSpread.sections.reduce((sum, section) => sum + section.count, 0), 78, "Rahdue sections should cover the full deck exactly once.");
+assert.deepStrictEqual(
+  initialRahdueSpread.sections.slice(-5).map((section) => [section.id, section.start, section.end, section.count]),
+  [
+    ["talehPillar", 50, 58, 9],
+    ["solidifier5", 59, 59, 1],
+    ["shorPillar", 60, 68, 9],
+    ["solidifier6", 69, 69, 1],
+    ["malkuthBlock", 70, 78, 9]
+  ],
+  "Rahdue's Wheel should use the corrected lower pillar and Malkuth position map."
+);
 assert.strictEqual(initialRahdueSpread.drawMode, "fullDeckAuto", "Rahdue's Wheel should use the full-deck automatic draw path.");
 assert.strictEqual(initialRahdueSpread.experimental, true, "Rahdue's Wheel should be marked experimental.");
 assert.strictEqual(initialRahdueSpread.unstable, true, "Rahdue's Wheel should be marked unstable.");
@@ -218,6 +229,50 @@ assert.strictEqual(
 );
 assert.strictEqual(rahdueContext._interpreted, true, "Rahdue's Wheel should start interpretation after the sectioned summary is visible.");
 const rahdueDrawnCardsForPrompt = clone(rahdueContext.data.drawnCards);
+const manualRahdueTimerBaseline = pendingTimers.length;
+const manualRahdueContext = {
+  data: clone(pageDefinition.data),
+  setData(update) {
+    const nextData = clone(this.data);
+
+    Object.keys(update).forEach((key) => {
+      setDataPath(nextData, key, clone(update[key]));
+    });
+
+    this.data = nextData;
+  }
+};
+
+wxStorage.tarot_reading_mode = "advanced";
+wxStorage.tarot_advanced_reading_selection = {
+  spreadId: RAHDUE_SPREAD_ID,
+  readerId: "misty",
+  rahdueHandDrawn: true
+};
+pageDefinition.applyReadingModeFromStorage.call(manualRahdueContext);
+assert.strictEqual(manualRahdueContext.data.rahdueHandDrawn, true, "Stored Rahdue handdrawn preference should reach the home page.");
+assert.strictEqual(manualRahdueContext.data.selectedSpread.drawMode, "fullDeckManual", "Rahdue handdrawn mode should disable the automatic full-deck tap path.");
+manualRahdueContext.setData({
+  "assets.ready": true
+});
+pageDefinition.drawCards.call(manualRahdueContext);
+manualRahdueContext.setData({
+  "wheel.motion": "arc",
+  "wheel.activeIndex": 0
+});
+pageDefinition.onWheelCardTap.call(manualRahdueContext, {
+  currentTarget: {
+    dataset: {
+      index: 0
+    }
+  }
+});
+assert.strictEqual(manualRahdueContext.data.wheel.requiredCount, 78, "Rahdue handdrawn mode should still use all 78 positions.");
+assert.strictEqual(manualRahdueContext.data.wheel.selectedIndex, 0, "Rahdue handdrawn mode should use the normal two-tap manual draw interaction.");
+assert.strictEqual(manualRahdueContext.data.drawnCards.length, 0, "Rahdue handdrawn mode should not auto-select the whole deck on first tap.");
+pendingTimers = pendingTimers.slice(0, manualRahdueTimerBaseline);
+delete wxStorage.tarot_reading_mode;
+delete wxStorage.tarot_advanced_reading_selection;
 assert.deepStrictEqual(
   pageDefinition.data.readerProfiles.map((reader) => reader.id),
   ["misty", "johnny", "donovan"],
@@ -657,15 +712,23 @@ assert(
     advancedMarkup.includes('class="option-grid reader-grid"') &&
     advancedMarkup.includes('class="reader-guide"') &&
     advancedMarkup.includes('class="spread-guide"') &&
+    advancedMarkup.includes('class="rahdue-handdrawn-option"') &&
+    advancedMarkup.includes('checkbox value="handDrawn"') &&
+    advancedMarkup.includes('bindchange="toggleRahdueHandDrawn"') &&
     advancedMarkup.includes('bindtap="applyAdvancedMode"') &&
     !advancedMarkup.includes('bindtap="returnSimpleMode"') &&
     !advancedMarkup.includes("secondary-action") &&
     advancedStyles.includes(".reader-grid") &&
     advancedStyles.includes(".reader-guide-line") &&
     advancedStyles.includes(".spread-guide-line") &&
+    advancedStyles.includes(".rahdue-handdrawn-option") &&
     advancedStyles.includes("max-width: 100%;") &&
     advancedStyles.includes("text-overflow: ellipsis;") &&
     advancedScript.includes("saveAdvancedReadingSelection") &&
+    advancedScript.includes('rahdueHandDrawnConfirmTitle: "Are you really sure?"') &&
+    advancedScript.includes("toggleRahdueHandDrawn(event)") &&
+    advancedScript.includes("wx.showModal") &&
+    readingOptionsScript.includes("rahdueHandDrawn") &&
     readingOptionsScript.includes('wx.setStorageSync(READING_MODE_STORAGE_KEY, "advanced")'),
   "All spreads and readers should live on the advanced subpage with one confirm action and guidance text."
 );
@@ -689,13 +752,21 @@ assert(
     !pageStyles.includes(".reading-card") &&
     readingScript.includes("loadLatestReadingResult") &&
     readingScript.includes("createDisplayCards") &&
+    readingScript.includes("drawRahdueWheelCanvas") &&
+    readingScript.includes('RAHDUE_CANVAS_ID = "rahdue-wheel-canvas"') &&
     readingScript.includes('isReversed: orientation === "reversed"') &&
     readingScript.includes("wx.navigateBack") &&
     readingScript.includes('url: "/pages/index/index"') &&
+    readingMarkup.includes('wx:if="{{isRahdueReading}}" class="rahdue-reading-template"') &&
+    readingMarkup.includes('canvas-id="rahdue-wheel-canvas"') &&
+    readingMarkup.includes('wx:else class="standard-reading-template"') &&
+    readingMarkup.includes('wx:if="{{showActionReminder}}"') &&
     readingMarkup.includes('class="drawn-card-image {{item.isReversed ? \'reversed\' : \'\'}}"') &&
     readingMarkup.includes('wx:for="{{cards}}"') &&
     readingMarkup.includes('bindtap="returnHome"') &&
     readingMarkup.includes("{{interpretation.summary}}") &&
+    readingStyles.includes(".rahdue-wheel-canvas") &&
+    readingStyles.includes("height: 980rpx;") &&
     readingStyles.includes(".drawn-card-image.reversed") &&
     readingStyles.includes("transform: rotate(180deg);") &&
     readingStyles.includes("grid-template-columns: 128rpx minmax(0, 1fr);") &&
@@ -1032,6 +1103,11 @@ assert.strictEqual(rahduePromptRequest.drawnCards.length, 78, "Rahdue prompt req
 assert.strictEqual(rahduePromptRequest.spread.sections.length, 13, "Rahdue prompt requests should include the section map.");
 assert.strictEqual(rahduePromptRequest.spread.drawMode, "fullDeckAuto", "Rahdue prompt requests should preserve the full-deck draw mode.");
 assert.strictEqual(rahduePromptRequest.spreadGuidance.kind, "rahdue_wheel_full_deck", "Rahdue spread guidance should identify the layered full-deck behavior.");
+assert.strictEqual(
+  rahduePromptRequest.spreadGuidance.practicalRule,
+  "Rahdue 阅读页不会显示“行动提醒”。practicalReflection 只为 schema 兼容保留，写成一句安静的收束观察，不要写行动建议。",
+  "Rahdue spread guidance should not ask for a displayed action reminder."
+);
 assert.doesNotThrow(() => {
   assertValidReading(rahdueSlimReading, rahduePromptRequest);
 }, "Rahdue readings should validate with section summaries and slim 78-card entries.");
@@ -1052,6 +1128,7 @@ assert.deepStrictEqual(
 assert(
   rahdueMessages[0].content.includes("sections[]") &&
     rahdueMessages[0].content.includes("cards[] 必须覆盖全部 78 张") &&
+    rahdueMessages[0].content.includes("Rahdue 阅读页不显示“行动提醒”") &&
     rahdueMessages[0].content.includes("Rahdue实验 · Misty") &&
     serializedRahduePayload.spread.sections.length === 13 &&
     serializedRahduePayload.drawnCards.length === 78 &&

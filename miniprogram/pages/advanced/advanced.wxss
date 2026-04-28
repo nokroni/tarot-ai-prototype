@@ -121,6 +121,48 @@
   box-shadow: 0 8rpx 24rpx rgba(64, 45, 24, 0.12);
 }
 
+.rahdue-handdrawn-option {
+  margin-top: 16rpx;
+  padding: 18rpx 20rpx;
+  border: 2rpx solid rgba(151, 73, 56, 0.22);
+  border-radius: 16rpx;
+  background: rgba(255, 250, 240, 0.74);
+  box-sizing: border-box;
+}
+
+.rahdue-handdrawn-label {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 14rpx;
+}
+
+.rahdue-handdrawn-copy {
+  display: grid;
+  min-width: 0;
+  gap: 6rpx;
+}
+
+.rahdue-handdrawn-title,
+.rahdue-handdrawn-hint {
+  display: block;
+  min-width: 0;
+}
+
+.rahdue-handdrawn-title {
+  color: #26231f;
+  font-size: 26rpx;
+  font-weight: 900;
+  line-height: 1.24;
+}
+
+.rahdue-handdrawn-hint {
+  color: #70685d;
+  font-size: 22rpx;
+  font-weight: 700;
+  line-height: 1.38;
+}
+
 .reader-guide,
 .spread-guide-list {
   display: grid;

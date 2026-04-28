@@ -1,4 +1,5 @@
 const {
+  RAHDUE_SPREAD_ID,
   createAdvancedSpreadOptions,
   createReaderOptions,
   loadAdvancedReadingSelection,
@@ -27,12 +28,17 @@ Page({
       spreadLabel: "牌阵",
       readerLabel: "读牌人",
       spreadGuideTitle: "适合这样问",
+      rahdueHandDrawnLabel: "Complete handdrawn",
+      rahdueHandDrawnHint: "手动选择完整 78 张牌。过程会很长，默认会自动完成完整牌组。",
+      rahdueHandDrawnConfirmTitle: "Are you really sure?",
+      rahdueHandDrawnConfirmCopy: "Complete handdrawn mode means you will choose all 78 cards one by one before the reading starts.",
       apply: "确认"
     },
     spreads: createPageSpreadOptions(),
     readers: createPageReaderOptions(),
     selectedSpreadId: "threeCard",
-    selectedReaderId: "misty"
+    selectedReaderId: "misty",
+    rahdueHandDrawn: false
   },
 
   onLoad() {
@@ -40,13 +46,17 @@ Page({
 
     this.setData({
       selectedSpreadId: selection.spreadId,
-      selectedReaderId: selection.readerId
+      selectedReaderId: selection.readerId,
+      rahdueHandDrawn: Boolean(selection.rahdueHandDrawn)
     });
   },
 
   selectSpread(event) {
+    const selectedSpreadId = event.currentTarget.dataset.spreadId;
+
     this.setData({
-      selectedSpreadId: event.currentTarget.dataset.spreadId
+      selectedSpreadId,
+      rahdueHandDrawn: selectedSpreadId === RAHDUE_SPREAD_ID ? this.data.rahdueHandDrawn : false
     });
   },
 
@@ -59,9 +69,46 @@ Page({
   applyAdvancedMode() {
     saveAdvancedReadingSelection({
       spreadId: this.data.selectedSpreadId,
-      readerId: this.data.selectedReaderId
+      readerId: this.data.selectedReaderId,
+      rahdueHandDrawn: this.data.selectedSpreadId === RAHDUE_SPREAD_ID && this.data.rahdueHandDrawn
     });
     navigateBackToIndex();
+  },
+
+  toggleRahdueHandDrawn(event) {
+    const values = event.detail && Array.isArray(event.detail.value) ? event.detail.value : [];
+    const shouldEnable = values.indexOf("handDrawn") !== -1;
+
+    if (!shouldEnable) {
+      this.setData({
+        rahdueHandDrawn: false
+      });
+      return;
+    }
+
+    if (typeof wx === "undefined" || !wx.showModal) {
+      this.setData({
+        rahdueHandDrawn: true
+      });
+      return;
+    }
+
+    wx.showModal({
+      title: this.data.ui.rahdueHandDrawnConfirmTitle,
+      content: this.data.ui.rahdueHandDrawnConfirmCopy,
+      confirmText: "Yes",
+      cancelText: "Cancel",
+      success: (result) => {
+        this.setData({
+          rahdueHandDrawn: Boolean(result && result.confirm)
+        });
+      },
+      fail: () => {
+        this.setData({
+          rahdueHandDrawn: false
+        });
+      }
+    });
   }
 });
 

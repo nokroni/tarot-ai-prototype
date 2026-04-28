@@ -33,6 +33,8 @@ const {
   normalizeLanguageCode
 } = require("../../services/language");
 const {
+  RAHDUE_MANUAL_DRAW_MODE,
+  RAHDUE_SPREAD_ID,
   SIMPLE_READER_ID,
   SIMPLE_SPREAD_ID,
   createSpreads,
@@ -1004,6 +1006,17 @@ function createModeSummary(spread, reader, mode, language) {
   return `${spread.title} · ${reader.title}`;
 }
 
+function applyRahdueDrawPreference(spread, rahdueHandDrawn) {
+  if (!spread || spread.id !== RAHDUE_SPREAD_ID) {
+    return spread;
+  }
+
+  return Object.assign({}, spread, {
+    drawMode: rahdueHandDrawn ? RAHDUE_MANUAL_DRAW_MODE : "fullDeckAuto",
+    handDrawn: Boolean(rahdueHandDrawn)
+  });
+}
+
 function getUiCopy(language) {
   return uiCopy[normalizeLanguageCode(language)] || uiCopy.zh;
 }
@@ -1090,6 +1103,7 @@ Page({
     selectedReaderId: SIMPLE_READER_ID,
     selectedReader: getReaderProfileOption(SIMPLE_READER_ID),
     readingMode: "simple",
+    rahdueHandDrawn: false,
     modeSummary: getUiCopy(initialLanguage).modeSimple,
     drawnCards: [],
     drawnSummarySections: [],
@@ -1214,7 +1228,10 @@ Page({
 
   selectSpread(event) {
     const spreadId = event.currentTarget.dataset.spreadId;
-    const selectedSpread = getSpreadById(this.data.spreads, spreadId);
+    const selectedSpread = applyRahdueDrawPreference(
+      getSpreadById(this.data.spreads, spreadId),
+      this.data.rahdueHandDrawn
+    );
 
     this.setData({
       selectedSpreadId: spreadId,
@@ -1239,7 +1256,10 @@ Page({
     }
 
     const localizedSpreads = createSpreads(language);
-    const selectedSpread = getSpreadById(localizedSpreads, this.data.selectedSpreadId);
+    const selectedSpread = applyRahdueDrawPreference(
+      getSpreadById(localizedSpreads, this.data.selectedSpreadId),
+      this.data.rahdueHandDrawn
+    );
     const localizedDrawnCards = localizeDrawnCardsForLanguage(this.data.drawnCards, selectedSpread, language);
     const localizedWheelCards = this.data.wheelCards && this.data.wheelCards.length
       ? localizeWheelCardsForLanguage(this.data.wheelCards, language)
@@ -1296,13 +1316,18 @@ Page({
     const mode = getStoredReadingMode();
     const spreadId = mode.mode === "advanced" ? mode.spreadId : SIMPLE_SPREAD_ID;
     const readerId = mode.mode === "advanced" ? mode.readerId : SIMPLE_READER_ID;
-    const selectedSpread = getSpreadById(this.data.spreads, spreadId);
+    const rahdueHandDrawn = mode.mode === "advanced" && spreadId === RAHDUE_SPREAD_ID && Boolean(mode.rahdueHandDrawn);
+    const selectedSpread = applyRahdueDrawPreference(
+      getSpreadById(this.data.spreads, spreadId),
+      rahdueHandDrawn
+    );
     const selectedReader = getReaderProfileOption(readerId);
 
     if (
       selectedSpread.id === this.data.selectedSpreadId &&
         selectedReader.id === this.data.selectedReaderId &&
-        mode.mode === this.data.readingMode
+        mode.mode === this.data.readingMode &&
+        rahdueHandDrawn === this.data.rahdueHandDrawn
     ) {
       return;
     }
@@ -1313,6 +1338,7 @@ Page({
       selectedSpread,
       selectedReaderId: selectedReader.id,
       selectedReader,
+      rahdueHandDrawn,
       modeSummary: createModeSummary(selectedSpread, selectedReader, mode.mode, this.data.language),
       decisionOptions: mode.mode === "advanced" && selectedSpread.id === "decisionPair"
         ? this.data.decisionOptions

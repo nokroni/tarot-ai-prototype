@@ -40,9 +40,6 @@ function buildReadingMessages({ sourceLabel, readingRequest }) {
       ? "顶层 key 必须包含 schemaVersion、sourceLabel、summary、sections、cards、overallMessage、practicalReflection、journalQuestion、caveat；JSON key 一律保留英文，不要翻译。"
       : "顶层 key 必须包含 schemaVersion、sourceLabel、summary、cards、overallMessage、practicalReflection、journalQuestion、caveat；JSON key 一律保留英文，不要翻译。",
     "cards 数组每项只输出 id 与 interpretation 两个字段：id 必须与 drawnCards[].id 顺序对应且完全一致，interpretation 是这张牌在该牌位、正逆位下针对用户问题的解读。drawnCards 里 position、name、orientation、keywords 等元数据是输入参考，请勿在 cards[] 里复制或回显。",
-    isRahdueReading
-      ? createRahduePromptGuidance(languageCode)
-      : "",
     "应用已经完成抽牌。不要替换、重抽、删除或编造牌。",
     `The selected output language is ${languageConfig.outputLanguage}.`,
     ...outputRules,
@@ -50,6 +47,9 @@ function buildReadingMessages({ sourceLabel, readingRequest }) {
     createReaderPromptGuidance(readerProfile, languageCode),
     readingDirectionPromptGuidance(languageCode),
     conditionalGuidance,
+    isRahdueReading
+      ? createRahduePromptGuidance(languageCode)
+      : "",
     "避免确定性预言，也不要提供医疗、法律、财务或紧急事务专业建议。"
   ].filter((segment) => typeof segment === "string" && segment.length > 0);
 
@@ -74,10 +74,10 @@ function createRahduePromptGuidance(language) {
   const languageCode = normalizeLanguageCode(language);
 
   if (languageCode === "en") {
-    return "This is highly experimental and unstable; do not present it as certain prediction, past-life fact, medical/legal/financial guidance, or authoritative Rahdue doctrine. Treat Rahdue’s Wheel here as a digital experimental adaptation inspired by public Rahdue notes. Use Layered Summary behavior: all 78 cards must appear in cards[] in drawnCards order, but each cards[].interpretation must be one very short line. Put the main analysis in sections[], one entry per spread.sections item, with id, title, interpretation, and keyCards.";
+    return "This is highly experimental and unstable; do not present it as certain prediction, past-life fact, medical/legal/financial guidance, or authoritative Rahdue doctrine. Treat Rahdue’s Wheel here as a dedicated digital reading template inspired by public Rahdue notes: a canvas-like wheel layout, one main summary, one sections[] entry per spread.sections item, all 78 cards[] in drawnCards order, and one overallMessage. Each cards[].interpretation must be one very short line. The reading page does not display an Action reminder for Rahdue; practicalReflection exists only for schema compatibility and must be a quiet closing observation, not an action step.";
   }
 
-  return "This is highly experimental and unstable; do not present it as certain prediction, past-life fact, medical/legal/financial guidance, or authoritative Rahdue doctrine. Rahdue’s Wheel 在这里属于高度实验且不稳定的数字化改编；不得把它写成确定预言、前世事实、医疗/法律/财务建议，或权威 Rahdue 教义。按 Layered Summary 输出：cards[] 必须覆盖全部 78 张并与 drawnCards 顺序一致，但每张 interpretation 只能是一条很短的提示；主要分析放在 sections[]，每个 spread.sections 分区输出 id、title、interpretation、keyCards。";
+  return "This is highly experimental and unstable; do not present it as certain prediction, past-life fact, medical/legal/financial guidance, or authoritative Rahdue doctrine. Rahdue’s Wheel 在这里属于高度实验且不稳定的数字化专用阅读模板；不得把它写成确定预言、前世事实、医疗/法律/财务建议，或权威 Rahdue 教义。按 Layered Summary 输出：阅读页会显示轮盘式 canvas、summary 主线、sections[] 分区层级、完整 78 张 cards[] 和 overallMessage。cards[] 必须覆盖全部 78 张并与 drawnCards 顺序一致，但每张 interpretation 只能是一条很短的提示；主要分析放在 sections[]，每个 spread.sections 分区输出 id、title、interpretation、keyCards。Rahdue 阅读页不显示“行动提醒”；practicalReflection 只为 schema 兼容保留，必须写成一句安静的收束观察，不要写行动建议。";
 }
 
 function serializeReadingRequest(readingRequest) {

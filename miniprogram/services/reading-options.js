@@ -10,6 +10,7 @@ const SIMPLE_SPREAD_ID = "oneCard";
 const SIMPLE_READER_ID = DEFAULT_READER_PROFILE_ID;
 const DEFAULT_ADVANCED_SPREAD_ID = "threeCard";
 const RAHDUE_SPREAD_ID = "rahdueWheel";
+const RAHDUE_MANUAL_DRAW_MODE = "fullDeckManual";
 
 const rahdueSectionTemplates = [
   {
@@ -82,7 +83,7 @@ const rahdueSectionTemplates = [
       zh: "Taleh 支柱",
       en: "Taleh Pillar"
     },
-    count: 8
+    count: 9
   },
   {
     id: "solidifier5",
@@ -98,7 +99,7 @@ const rahdueSectionTemplates = [
       zh: "Shor 支柱",
       en: "Shor Pillar"
     },
-    count: 8
+    count: 9
   },
   {
     id: "solidifier6",
@@ -114,7 +115,7 @@ const rahdueSectionTemplates = [
       zh: "Malkuth 区块",
       en: "Malkuth Block"
     },
-    count: 11
+    count: 9
   }
 ];
 
@@ -230,7 +231,8 @@ function getStoredReadingMode() {
       return {
         mode: "advanced",
         spreadId: advancedSelection.spreadId,
-        readerId: advancedSelection.readerId
+        readerId: advancedSelection.readerId,
+        rahdueHandDrawn: advancedSelection.rahdueHandDrawn
       };
     }
   } catch (error) {
@@ -243,7 +245,8 @@ function getStoredReadingMode() {
 function loadAdvancedReadingSelection() {
   const fallback = {
     spreadId: DEFAULT_ADVANCED_SPREAD_ID,
-    readerId: SIMPLE_READER_ID
+    readerId: SIMPLE_READER_ID,
+    rahdueHandDrawn: false
   };
 
   if (typeof wx === "undefined" || !wx.getStorageSync) {
@@ -261,7 +264,8 @@ function loadAdvancedReadingSelection() {
 
     return {
       spreadId,
-      readerId
+      readerId,
+      rahdueHandDrawn: spreadId === RAHDUE_SPREAD_ID && Boolean(selection.rahdueHandDrawn)
     };
   } catch (error) {
     return fallback;
@@ -272,7 +276,8 @@ function saveAdvancedReadingSelection(selection) {
   wx.setStorageSync(READING_MODE_STORAGE_KEY, "advanced");
   wx.setStorageSync(ADVANCED_READING_SELECTION_STORAGE_KEY, {
     spreadId: selection.spreadId,
-    readerId: selection.readerId
+    readerId: selection.readerId,
+    rahdueHandDrawn: selection.spreadId === RAHDUE_SPREAD_ID && Boolean(selection.rahdueHandDrawn)
   });
 }
 
@@ -280,7 +285,8 @@ function saveSimpleReadingMode() {
   wx.setStorageSync(READING_MODE_STORAGE_KEY, "simple");
   wx.setStorageSync(ADVANCED_READING_SELECTION_STORAGE_KEY, {
     spreadId: SIMPLE_SPREAD_ID,
-    readerId: SIMPLE_READER_ID
+    readerId: SIMPLE_READER_ID,
+    rahdueHandDrawn: false
   });
 }
 
@@ -288,7 +294,8 @@ function createSimpleModeSelection() {
   return {
     mode: "simple",
     spreadId: SIMPLE_SPREAD_ID,
-    readerId: SIMPLE_READER_ID
+    readerId: SIMPLE_READER_ID,
+    rahdueHandDrawn: false
   };
 }
 
@@ -370,6 +377,7 @@ function createRahduePositions(language) {
 }
 
 module.exports = {
+  RAHDUE_MANUAL_DRAW_MODE,
   RAHDUE_SPREAD_ID,
   SIMPLE_READER_ID,
   SIMPLE_SPREAD_ID,

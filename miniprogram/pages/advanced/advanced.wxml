@@ -18,6 +18,17 @@
         <text wx:if="{{item.warning}}" class="option-warning">{{item.warning}}</text>
       </button>
     </view>
+    <view wx:if="{{selectedSpreadId === 'rahdueWheel'}}" class="rahdue-handdrawn-option">
+      <checkbox-group bindchange="toggleRahdueHandDrawn">
+        <label class="rahdue-handdrawn-label">
+          <checkbox value="handDrawn" checked="{{rahdueHandDrawn}}" color="#5b3fa3" />
+          <view class="rahdue-handdrawn-copy">
+            <text class="rahdue-handdrawn-title">{{ui.rahdueHandDrawnLabel}}</text>
+            <text class="rahdue-handdrawn-hint">{{ui.rahdueHandDrawnHint}}</text>
+          </view>
+        </label>
+      </checkbox-group>
+    </view>
   </view>
 
   <view class="advanced-panel">
