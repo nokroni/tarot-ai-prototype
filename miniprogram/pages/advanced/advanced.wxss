@@ -1,0 +1,134 @@
+.advanced-page {
+  min-height: 100vh;
+  padding: 52rpx 32rpx 72rpx;
+  background:
+    linear-gradient(90deg, rgba(91, 63, 163, 0.08) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(91, 63, 163, 0.06) 1px, transparent 1px),
+    #f3edf8;
+  background-size: 36rpx 36rpx;
+  box-sizing: border-box;
+}
+
+.advanced-header {
+  margin-bottom: 34rpx;
+}
+
+.advanced-title {
+  display: block;
+  color: #26231f;
+  font-size: 46rpx;
+  font-weight: 900;
+  line-height: 1.08;
+}
+
+.advanced-copy {
+  display: block;
+  margin-top: 12rpx;
+  color: #70685d;
+  font-size: 25rpx;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.advanced-panel {
+  margin-bottom: 28rpx;
+}
+
+.advanced-label {
+  display: block;
+  margin: 0 0 14rpx 6rpx;
+  color: #70685d;
+  font-size: 22rpx;
+  font-weight: 900;
+}
+
+.option-grid {
+  display: grid;
+  gap: 10rpx;
+  padding: 10rpx;
+  overflow: hidden;
+  border: 2rpx solid #d8c5e8;
+  border-radius: 18rpx;
+  background: rgba(234, 223, 247, 0.94);
+  box-sizing: border-box;
+}
+
+.spread-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.reader-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.option-button {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 82rpx;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0 14rpx;
+  border-radius: 14rpx;
+  background: transparent;
+  box-sizing: border-box;
+  color: #70685d;
+  font-size: 28rpx;
+  font-weight: 850;
+  line-height: 1.18;
+  overflow: hidden;
+  text-align: center;
+}
+
+.option-button text {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.option-button::after {
+  border: 0;
+}
+
+.option-button.active {
+  background: #fffaf0;
+  color: #26231f;
+  box-shadow: 0 8rpx 24rpx rgba(64, 45, 24, 0.12);
+}
+
+.primary-action,
+.secondary-action {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 88rpx;
+  align-items: center;
+  justify-content: center;
+  margin: 24rpx 0 0;
+  border-radius: 18rpx;
+  box-sizing: border-box;
+  font-size: 30rpx;
+  font-weight: 900;
+  overflow: hidden;
+}
+
+.primary-action {
+  background: #5b3fa3;
+  color: #fffaf0;
+}
+
+.secondary-action {
+  border: 2rpx solid rgba(91, 63, 163, 0.22);
+  background: rgba(255, 250, 240, 0.78);
+  color: #5b3fa3;
+}
+
+.primary-action::after,
+.secondary-action::after {
+  border: 0;
+}

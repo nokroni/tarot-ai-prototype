@@ -22,7 +22,6 @@ const {
   hasCloudRun
 } = require("../../services/cloudrun");
 const {
-  DEFAULT_READER_PROFILE_ID,
   getReaderProfileOption,
   readerProfileOptions
 } = require("../../services/reader-profiles");
@@ -32,6 +31,13 @@ const {
   languageOptions,
   normalizeLanguageCode
 } = require("../../services/language");
+const {
+  SIMPLE_READER_ID,
+  SIMPLE_SPREAD_ID,
+  createSpreads,
+  getSpreadById,
+  getStoredReadingMode
+} = require("../../services/reading-options");
 
 const LANGUAGE_STORAGE_KEY = "tarot_language";
 const uiCopy = {
@@ -40,19 +46,14 @@ const uiCopy = {
     assetGateLoading: "正在加载牌面与音乐",
     assetRetry: "重新加载",
     title: "塔罗牌",
+    modeChange: "完整牌阵 / 读牌人",
+    modeSimple: "单牌 · Misty",
+    modeAdvanced: "完整模式",
+    deckPrompt: "牌组会在这里展开",
     musicOnLabel: "关闭音乐",
     musicOffLabel: "开启音乐",
-    decisionInputLabel: "问题与两个方案",
-    questionInputLabel: "你的问题",
-    decisionQuestionPlaceholder: "写清你真正要判断的问题",
-    planAPlaceholder: "写清方案 A",
-    planBPlaceholder: "写清方案 B",
-    questionPlaceholder: "想和Muse沟通什么话题呢",
-    spreadLabel: "牌阵",
-    readerLabel: "读牌人",
-    drawButton: "抽牌",
-    interpretButton: "解读",
-    drawnEyebrow: "已抽取",
+    questionPlaceholder: "想问 Misty 什么呢",
+    submitButton: "提交",
     readingTitle: "解读",
     overallLabel: "整体讯息",
     actionLabel: "行动提醒",
@@ -88,19 +89,14 @@ const uiCopy = {
     assetGateLoading: "Loading cards and music",
     assetRetry: "Retry",
     title: "Tarot",
+    modeChange: "Full Spreads / Readers",
+    modeSimple: "Single · Misty",
+    modeAdvanced: "Full Mode",
+    deckPrompt: "The deck opens here",
     musicOnLabel: "Mute music",
     musicOffLabel: "Play music",
-    decisionInputLabel: "Question and two plans",
-    questionInputLabel: "Your question",
-    decisionQuestionPlaceholder: "Write the real question",
-    planAPlaceholder: "Describe Plan A",
-    planBPlaceholder: "Describe Plan B",
-    questionPlaceholder: "What do you want to ask Muse?",
-    spreadLabel: "Spread",
-    readerLabel: "Reader",
-    drawButton: "Draw",
-    interpretButton: "Read",
-    drawnEyebrow: "Drawn",
+    questionPlaceholder: "What do you want to ask Misty?",
+    submitButton: "Submit",
     readingTitle: "Reading",
     overallLabel: "Overall message",
     actionLabel: "Action reminder",
@@ -133,56 +129,6 @@ const uiCopy = {
   }
 };
 
-const spreadTemplates = [
-  {
-    id: "oneCard",
-    title: {
-      zh: "单张牌",
-      en: "Single Card"
-    },
-    positions: {
-      zh: ["指引"],
-      en: ["Guidance"]
-    },
-    insight: "- Light another candle"
-  },
-  {
-    id: "threeCard",
-    title: {
-      zh: "三张牌",
-      en: "Three Cards"
-    },
-    positions: {
-      zh: ["现状", "挑战", "建议"],
-      en: ["Situation", "Challenge", "Advice"]
-    },
-    insight: "- Everything in its right place"
-  },
-  {
-    id: "timeFlow",
-    title: {
-      zh: "时间流",
-      en: "Time Flow"
-    },
-    positions: {
-      zh: ["过去", "现在", "未来"],
-      en: ["Past", "Now", "Future"]
-    },
-    insight: "- Yesterday I woke up sucking a lemon"
-  },
-  {
-    id: "decisionPair",
-    title: {
-      zh: "决策双牌",
-      en: "Decision Pair"
-    },
-    positions: {
-      zh: ["方案 A", "方案 B"],
-      en: ["Plan A", "Plan B"]
-    },
-    insight: "- There are two colours in my head"
-  }
-];
 const READING_START_ATTEMPTS = 2;
 const READING_START_RECOVERY_ATTEMPTS = 4;
 const READING_VALID_JSON_ATTEMPTS = 3;
@@ -1045,15 +991,14 @@ function getCardInfo(cardId) {
 
 localizeTarotDeck(tarotDeck);
 
-function createSpreads(language) {
-  const languageCode = normalizeLanguageCode(language);
+function createModeSummary(spread, reader, mode, language) {
+  const ui = getUiCopy(language);
 
-  return spreadTemplates.map((spread) => ({
-    id: spread.id,
-    title: spread.title[languageCode] || spread.title.zh,
-    positions: spread.positions[languageCode] || spread.positions.zh,
-    insight: spread.insight
-  }));
+  if (mode !== "advanced") {
+    return ui.modeSimple;
+  }
+
+  return `${ui.modeAdvanced} · ${spread.title} · ${reader.title}`;
 }
 
 function getUiCopy(language) {
@@ -1135,11 +1080,13 @@ Page({
       planB: ""
     },
     spreads: initialSpreads,
-    selectedSpreadId: "threeCard",
-    selectedSpread: initialSpreads[1],
+    selectedSpreadId: SIMPLE_SPREAD_ID,
+    selectedSpread: initialSpreads[0],
     readerProfiles: readerProfileOptions,
-    selectedReaderId: DEFAULT_READER_PROFILE_ID,
-    selectedReader: getReaderProfileOption(DEFAULT_READER_PROFILE_ID),
+    selectedReaderId: SIMPLE_READER_ID,
+    selectedReader: getReaderProfileOption(SIMPLE_READER_ID),
+    readingMode: "simple",
+    modeSummary: getUiCopy(initialLanguage).modeSimple,
     drawnCards: [],
     wheelCards: [],
     wheel: createClosedWheelState(),
@@ -1170,7 +1117,12 @@ Page({
 
   onLoad() {
     this.refreshOAuthSession();
+    this.applyReadingModeFromStorage();
     loadRemoteAssets(this);
+  },
+
+  onShow() {
+    this.applyReadingModeFromStorage();
   },
 
   onReady() {
@@ -1211,7 +1163,19 @@ Page({
 
   onQuestionInput(event) {
     this.setData({
-      question: event.detail.value
+      question: event.detail.value,
+      interpretation: null,
+      errorMessage: ""
+    });
+  },
+
+  goAdvancedMode() {
+    if (typeof wx === "undefined" || !wx.navigateTo) {
+      return;
+    }
+
+    wx.navigateTo({
+      url: "/pages/advanced/advanced"
     });
   },
 
@@ -1231,11 +1195,12 @@ Page({
 
   selectSpread(event) {
     const spreadId = event.currentTarget.dataset.spreadId;
-    const selectedSpread = this.data.spreads.find((spread) => spread.id === spreadId) || this.data.spreads[1];
+    const selectedSpread = getSpreadById(this.data.spreads, spreadId);
 
     this.setData({
       selectedSpreadId: spreadId,
       selectedSpread,
+      modeSummary: createModeSummary(selectedSpread, this.data.selectedReader, this.data.readingMode, this.data.language),
       drawnCards: [],
       interpretation: null,
       errorMessage: ""
@@ -1250,7 +1215,7 @@ Page({
     }
 
     const localizedSpreads = createSpreads(language);
-    const selectedSpread = localizedSpreads.find((spread) => spread.id === this.data.selectedSpreadId) || localizedSpreads[1];
+    const selectedSpread = getSpreadById(localizedSpreads, this.data.selectedSpreadId);
     const localizedDrawnCards = localizeDrawnCardsForLanguage(this.data.drawnCards, selectedSpread, language);
     const localizedWheelCards = this.data.wheelCards && this.data.wheelCards.length
       ? localizeWheelCardsForLanguage(this.data.wheelCards, language)
@@ -1264,6 +1229,7 @@ Page({
       ui,
       spreads: localizedSpreads,
       selectedSpread,
+      modeSummary: createModeSummary(selectedSpread, this.data.selectedReader, this.data.readingMode, language),
       drawnCards: localizedDrawnCards,
       wheelCards: localizedWheelCards,
       interpretation: null,
@@ -1291,6 +1257,47 @@ Page({
     this.setData({
       selectedReaderId: selectedReader.id,
       selectedReader,
+      modeSummary: createModeSummary(this.data.selectedSpread, selectedReader, this.data.readingMode, this.data.language),
+      interpretation: null,
+      errorMessage: ""
+    });
+  },
+
+  applyReadingModeFromStorage() {
+    if (this.data.wheel && this.data.wheel.isOpen) {
+      return;
+    }
+
+    const mode = getStoredReadingMode();
+    const spreadId = mode.mode === "advanced" ? mode.spreadId : SIMPLE_SPREAD_ID;
+    const readerId = mode.mode === "advanced" ? mode.readerId : SIMPLE_READER_ID;
+    const selectedSpread = getSpreadById(this.data.spreads, spreadId);
+    const selectedReader = getReaderProfileOption(readerId);
+
+    if (
+      selectedSpread.id === this.data.selectedSpreadId &&
+        selectedReader.id === this.data.selectedReaderId &&
+        mode.mode === this.data.readingMode
+    ) {
+      return;
+    }
+
+    this.setData({
+      readingMode: mode.mode,
+      selectedSpreadId: selectedSpread.id,
+      selectedSpread,
+      selectedReaderId: selectedReader.id,
+      selectedReader,
+      modeSummary: createModeSummary(selectedSpread, selectedReader, mode.mode, this.data.language),
+      decisionOptions: mode.mode === "advanced" && selectedSpread.id === "decisionPair"
+        ? this.data.decisionOptions
+        : {
+            planA: "",
+            planB: ""
+          },
+      drawnCards: [],
+      wheelCards: [],
+      wheel: createClosedWheelState(this._assetPaths),
       interpretation: null,
       errorMessage: ""
     });
@@ -1798,7 +1805,7 @@ function createRequestId() {
   return `reading-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function createClosedWheelState() {
+function createClosedWheelState(assetPaths) {
   return {
     isOpen: false,
     scrollLeft: 0,
@@ -1810,7 +1817,7 @@ function createClosedWheelState() {
     drawnCount: 0,
     currentDrawNumber: 0,
     currentDrawPosition: "",
-    cardBackSrc: getCardBackPath(null),
+    cardBackSrc: getCardBackPath(assetPaths),
     revealedCard: null,
     flightCard: null
   };
@@ -2234,7 +2241,7 @@ function startWheelFinishAnimation(page, wheelCards, centerPosition) {
     page._wheelFinishTimer = null;
 
     page.setData({
-      wheel: createClosedWheelState()
+      wheel: createClosedWheelState(page._assetPaths)
     });
     page.interpretReading();
   }, WHEEL_STACK_COLLAPSE_MS);

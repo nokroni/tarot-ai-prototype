@@ -12,6 +12,7 @@ const requiredFiles = [
   "miniprogram/services/cloudrun.js",
   "miniprogram/services/language.js",
   "miniprogram/services/oauth.js",
+  "miniprogram/services/reading-options.js",
   "miniprogram/services/reading-schema.js",
   "miniprogram/pages/index/index.js",
   "miniprogram/pages/index/index.json",
