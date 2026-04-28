@@ -1351,6 +1351,14 @@ Page({
     dismissIntroRainForDraw(this);
   },
 
+  tapDeckStage() {
+    if (this.data.wheel.isOpen) {
+      return;
+    }
+
+    this.drawCards();
+  },
+
   onWheelNativeScroll(event) {
     if (!canSpinWheel(this.data.wheel)) {
       return;

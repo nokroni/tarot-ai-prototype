@@ -174,6 +174,7 @@ const context = {
     this.data = nextData;
   },
   applyReadingModeFromStorage: pageDefinition.applyReadingModeFromStorage,
+  drawCards: pageDefinition.drawCards,
   interpretReading() {
     this._interpreted = true;
   }
@@ -333,14 +334,21 @@ assert.strictEqual(context.data.language, "zh", "Language selector should switch
 assert.strictEqual(context.data.ui.title, "塔罗牌", "Chinese UI copy should restore the hero title.");
 
 const idleWheelCardIds = context.data.wheelCards.map((slot) => slot.id).join("|");
-pageDefinition.drawCards.call(context);
+pageDefinition.tapDeckStage.call(context);
 
 assert.strictEqual(context.data.buildLabel, "0.9.1 双语版本", "Build label should identify the 0.9.1 bilingual build.");
-assert.strictEqual(context.data.wheel.isOpen, true, "Wheel should mount immediately from the idle pile.");
+assert.strictEqual(context.data.wheel.isOpen, true, "Tapping the closed pile should mount the wheel like the submit button.");
 assert.strictEqual(
   context.data.wheelCards.map((slot) => slot.id).join("|"),
   idleWheelCardIds,
   "Drawing should reuse the same keyed card nodes that formed the idle pile."
+);
+const openedWheelCardIds = context.data.wheelCards.map((slot) => slot.id).join("|");
+pageDefinition.tapDeckStage.call(context);
+assert.strictEqual(
+  context.data.wheelCards.map((slot) => slot.id).join("|"),
+  openedWheelCardIds,
+  "Tapping the draw region while the wheel is open should not rebuild the deck."
 );
 assert.strictEqual(context.data.wheel.requiredCount, 1, "Simple home mode should require one selection.");
 assert.strictEqual(context.data.wheel.scrollLeft, 0, "Wheel should start at the first preassigned slot.");
@@ -612,7 +620,8 @@ assert(
     pageMarkup.includes('placeholder="{{ui.planBPlaceholder}}"') &&
     pageMarkup.includes('class="submit-button {{isInterpreting ? \'disabled\' : \'\'}}"') &&
     pageMarkup.includes('bindtap="drawCards"') &&
-    pageMarkup.includes('class="deck-stage {{wheel.isOpen ? \'deck-stage-wheel\' : \'\'}}"') &&
+    pageMarkup.includes('class="deck-stage {{wheel.isOpen ? \'deck-stage-wheel\' : \'deck-stage-idle\'}}"') &&
+    pageMarkup.includes('bindtap="tapDeckStage"') &&
     pageMarkup.includes("wheel-overlay-idle") &&
     pageMarkup.includes('wx:for="{{wheelCards}}"') &&
     pageMarkup.includes('style="{{item.slotStyle}}"') &&
@@ -650,9 +659,13 @@ assert(
     pageStyles.includes("width: auto;") &&
     pageStyles.includes("flex: 0 0 auto;") &&
     pageStyles.includes(".deck-stage") &&
+    pageStyles.includes("border: 2rpx solid rgba(91, 63, 163, 0.18);") &&
     pageStyles.includes("isolation: isolate;") &&
+    pageStyles.includes(".deck-stage-idle") &&
+    pageStyles.includes("border-style: dashed;") &&
     pageStyles.includes(".wheel-motion-idle .wheel-scroll") &&
     pageStyles.includes(".wheel-motion-idle .wheel-card-arc") &&
+    pageScript.includes("tapDeckStage()") &&
     !pageStyles.includes(".idle-deck") &&
     !pageStyles.includes(".idle-card-shell") &&
     !pageStyles.includes("0 18rpx 28rpx rgba(38, 35, 31") &&

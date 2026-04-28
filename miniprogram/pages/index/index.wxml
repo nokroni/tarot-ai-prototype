@@ -94,7 +94,7 @@
       </view>
     </view>
 
-    <view class="deck-stage {{wheel.isOpen ? 'deck-stage-wheel' : ''}}">
+    <view class="deck-stage {{wheel.isOpen ? 'deck-stage-wheel' : 'deck-stage-idle'}}" bindtap="tapDeckStage">
       <view class="wheel-overlay {{wheel.isOpen ? 'wheel-overlay-open' : 'wheel-overlay-idle'}} wheel-motion-{{wheel.motion}}">
         <view wx:if="{{wheel.isOpen}}" class="wheel-aperture-ring"></view>
         <view wx:if="{{wheel.isOpen}}" class="wheel-status">
