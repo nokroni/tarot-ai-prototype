@@ -1,6 +1,14 @@
 const assert = require("assert");
 const fs = require("fs");
 const sharp = require("sharp");
+const {
+  assertValidReading,
+  createFallbackReading,
+  createReadingRequest,
+  normalizeReading,
+  readingJsonSchema
+} = require("../miniprogram/services/reading-schema");
+const { buildReadingMessages } = require("../miniprogram/prompts/system-prompt");
 
 let pageDefinition = null;
 const originalSetTimeout = global.setTimeout;
@@ -319,7 +327,7 @@ assert.strictEqual(context.data.ui.title, "塔罗牌", "Chinese UI copy should r
 const idleWheelCardIds = context.data.wheelCards.map((slot) => slot.id).join("|");
 pageDefinition.drawCards.call(context);
 
-assert.strictEqual(context.data.buildLabel, "0.9.0 双语版本", "Build label should identify the 0.9.0 bilingual build.");
+assert.strictEqual(context.data.buildLabel, "0.9.1 双语版本", "Build label should identify the 0.9.1 bilingual build.");
 assert.strictEqual(context.data.wheel.isOpen, true, "Wheel should mount immediately from the idle pile.");
 assert.strictEqual(
   context.data.wheelCards.map((slot) => slot.id).join("|"),
@@ -643,6 +651,102 @@ assert(
     advancedMarkup.includes('data-reader-id="{{item.id}}"'),
   "Decision-pair prompt support should remain available for complete mode selections."
 );
+
+const promptSpread = {
+  id: "oneCard",
+  title: "单张牌",
+  positions: ["指引"]
+};
+const promptDrawnCards = [
+  {
+    id: "the_fool-指引",
+    position: "指引",
+    orientation: "upright",
+    keywords: ["开始", "冒险", "轻装"],
+    card: {
+      id: "the_fool",
+      name: "愚者",
+      arcana: "major",
+      imageSrc: "cards/thefool.jpeg"
+    }
+  }
+];
+const promptRequest = createReadingRequest({
+  question: "我该怎样开始这个项目？",
+  spread: promptSpread,
+  drawnCards: promptDrawnCards,
+  readerProfile: "misty",
+  decisionOptions: null,
+  language: "zh"
+});
+const promptFallback = createFallbackReading({
+  question: "我该怎样开始这个项目？",
+  spread: promptSpread,
+  drawnCards: promptDrawnCards,
+  sourceLabel: "原型演示",
+  readerProfile: "misty",
+  language: "zh"
+});
+const slimReading = {
+  schemaVersion: "tarot.reading.v1",
+  sourceLabel: "HY · Misty",
+  summary: "这张牌提示你先把第一步放小，再让方向慢慢显出来。",
+  cards: [
+    {
+      id: "the_fool-指引",
+      interpretation: "愚者正位落在指引位，像是在提醒你从轻一点的试探开始。它支持新的开端，但不要求你一次押上全部。"
+    }
+  ],
+  overallMessage: "整体讯息是先行动一点点，再根据现实回声修正路线。",
+  practicalReflection: "今天只写下一个可以在十分钟内开始的小动作。",
+  journalQuestion: "我可以怎样让开始变得更轻？",
+  caveat: "AI生成内容，仅供娱乐和自我反思。"
+};
+
+assert.doesNotThrow(() => {
+  assertValidReading(slimReading, promptRequest);
+}, "Slim AI readings should validate with only card id and interpretation.");
+
+const normalizedSlimReading = normalizeReading(slimReading, promptFallback, "zh");
+
+assert.deepStrictEqual(
+  Object.keys(readingJsonSchema().schema.properties.cards.items.properties),
+  ["id", "interpretation"],
+  "JSON schema should only ask AI cards for id and interpretation."
+);
+assert.deepStrictEqual(
+  readingJsonSchema().schema.properties.cards.items.required,
+  ["id", "interpretation"],
+  "AI card schema should not require copied metadata."
+);
+assert.strictEqual(normalizedSlimReading.cards[0].name, "愚者", "Normalized slim card should hydrate card name from fallback metadata.");
+assert.strictEqual(normalizedSlimReading.cards[0].position, "指引", "Normalized slim card should hydrate position from fallback metadata.");
+assert.strictEqual(normalizedSlimReading.cards[0].orientationText, "正位", "Normalized slim card should hydrate orientation text.");
+assert.deepStrictEqual(normalizedSlimReading.cards[0].keywords, ["开始", "冒险", "轻装"], "Normalized slim card should hydrate keywords.");
+
+const promptMessages = buildReadingMessages({
+  sourceLabel: "HY",
+  readingRequest: promptRequest
+});
+const serializedPromptPayload = JSON.parse(promptMessages[1].content.slice(promptMessages[1].content.indexOf("{")));
+
+assert(
+  promptMessages[0].content.includes("cards 数组每项只输出 id 与 interpretation") &&
+    promptMessages[0].content.includes("summary 只给主线、状态或提醒") &&
+    fs.existsSync("miniprogram/prompts/system-prompt.js") &&
+    fs.existsSync("miniprogram/prompts/conditional-rules.js"),
+  "Prompt pipeline should centralize output contract and resolved classifier guidance under miniprogram/prompts."
+);
+assert(
+  !Object.prototype.hasOwnProperty.call(serializedPromptPayload, "questionFocus") &&
+    !Object.prototype.hasOwnProperty.call(serializedPromptPayload, "questionScale") &&
+    !Object.prototype.hasOwnProperty.call(serializedPromptPayload, "answerGuidance") &&
+    serializedPromptPayload.readerProfile &&
+    !Object.prototype.hasOwnProperty.call(serializedPromptPayload.readerProfile, "responseShape") &&
+    serializedPromptPayload.drawnCards[0].keywordsText === "开始、冒险、轻装",
+  "Prompt user payload should stay slim while preserving card reading metadata."
+);
+
 assert(
   pageMarkup.includes('class="page {{wheel.isOpen ? \'page-wheel-active\' : \'\'}}"') &&
     pageMarkup.includes('class="wheel-aperture-ring"') &&
