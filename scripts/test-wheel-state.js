@@ -24,6 +24,7 @@ const {
 const { buildReadingMessages } = require("../miniprogram/prompts/system-prompt");
 
 let pageDefinition = null;
+let advancedPageDefinition = null;
 const originalSetTimeout = global.setTimeout;
 const originalClearTimeout = global.clearTimeout;
 const WHEEL_TEST_SCROLL_LEFT = 48;
@@ -94,9 +95,16 @@ global.clearTimeout = (id) => {
 require("../miniprogram/pages/index/index.js");
 
 assert(pageDefinition, "Page definition should be registered.");
-assert.strictEqual(releasePackageJson.version, "0.9.6", "Package version should be bumped for this update.");
-assert.strictEqual(releasePackageLock.version, "0.9.6", "Package lock top-level version should match the release.");
-assert.strictEqual(releasePackageLock.packages[""].version, "0.9.6", "Package lock root package version should match the release.");
+const registerIndexPage = global.Page;
+global.Page = (definition) => {
+  advancedPageDefinition = definition;
+};
+require("../miniprogram/pages/advanced/advanced.js");
+global.Page = registerIndexPage;
+assert(advancedPageDefinition, "Advanced page definition should be registered.");
+assert.strictEqual(releasePackageJson.version, "0.9.7", "Package version should be bumped for this update.");
+assert.strictEqual(releasePackageLock.version, "0.9.7", "Package lock top-level version should match the release.");
+assert.strictEqual(releasePackageLock.packages[""].version, "0.9.7", "Package lock root package version should match the release.");
 assert.strictEqual(typeof createCloudBaseRahdueSequentialReading, "function", "Rahdue sequential CloudBase reader should be exported.");
 assert.strictEqual(pageDefinition.data.language, "zh", "Miniapp should default to Chinese.");
 assert.deepStrictEqual(
@@ -335,6 +343,95 @@ assert(
 pendingTimers = pendingTimers.slice(0, manualRahdueTimerBaseline);
 delete wxStorage.tarot_reading_mode;
 delete wxStorage.tarot_advanced_reading_selection;
+
+const advancedContext = {
+  data: clone(advancedPageDefinition.data),
+  setData(update) {
+    const nextData = clone(this.data);
+
+    Object.keys(update).forEach((key) => {
+      setDataPath(nextData, key, clone(update[key]));
+    });
+
+    this.data = nextData;
+  }
+};
+let advancedHomeSyncCount = 0;
+const previousGetCurrentPages = global.getCurrentPages;
+global.getCurrentPages = () => [
+  {
+    applyReadingModeFromStorage() {
+      advancedHomeSyncCount += 1;
+    }
+  },
+  advancedContext
+];
+
+advancedPageDefinition.onLoad.call(advancedContext);
+advancedPageDefinition.selectSpread.call(advancedContext, {
+  currentTarget: {
+    dataset: {
+      spreadId: "decisionPair"
+    }
+  }
+});
+assert.strictEqual(wxStorage.tarot_reading_mode, "advanced", "Advanced spread taps should switch storage to advanced mode immediately.");
+assert.deepStrictEqual(
+  wxStorage.tarot_advanced_reading_selection,
+  {
+    spreadId: "decisionPair",
+    readerId: "misty",
+    rahdueHandDrawn: false
+  },
+  "Advanced spread taps should persist the selected spread without waiting for the home button."
+);
+assert.strictEqual(advancedHomeSyncCount, 1, "Advanced spread taps should ask the previous home page to refresh immediately.");
+
+advancedPageDefinition.selectReader.call(advancedContext, {
+  currentTarget: {
+    dataset: {
+      readerId: "donovan"
+    }
+  }
+});
+assert.strictEqual(wxStorage.tarot_advanced_reading_selection.readerId, "donovan", "Advanced reader taps should persist immediately.");
+assert.strictEqual(advancedHomeSyncCount, 2, "Advanced reader taps should sync the previous home page immediately.");
+
+advancedPageDefinition.selectSpread.call(advancedContext, {
+  currentTarget: {
+    dataset: {
+      spreadId: RAHDUE_SPREAD_ID
+    }
+  }
+});
+advancedPageDefinition.toggleRahdueHandDrawn.call(advancedContext, {
+  detail: {
+    value: ["handDrawn"]
+  }
+});
+assert.strictEqual(wxStorage.tarot_advanced_reading_selection.spreadId, RAHDUE_SPREAD_ID, "Rahdue spread taps should persist immediately.");
+assert.strictEqual(wxStorage.tarot_advanced_reading_selection.readerId, "donovan", "Immediate spread persistence should preserve the selected reader.");
+assert.strictEqual(wxStorage.tarot_advanced_reading_selection.rahdueHandDrawn, true, "Rahdue handdrawn changes should persist immediately after confirmation.");
+assert.strictEqual(advancedHomeSyncCount, 4, "Rahdue spread and handdrawn taps should both sync the previous home page.");
+
+advancedPageDefinition.selectSpread.call(advancedContext, {
+  currentTarget: {
+    dataset: {
+      spreadId: "threeCard"
+    }
+  }
+});
+assert.strictEqual(advancedContext.data.rahdueHandDrawn, false, "Leaving Rahdue should clear the handdrawn flag in page state.");
+assert.strictEqual(wxStorage.tarot_advanced_reading_selection.rahdueHandDrawn, false, "Leaving Rahdue should persist a cleared handdrawn flag immediately.");
+
+navigatedToUrl = "";
+advancedPageDefinition.returnHome.call(advancedContext);
+assert.strictEqual(navigatedToUrl, "/pages/index/index", "Advanced return-home button should navigate back to the home page without applying delayed changes.");
+
+global.getCurrentPages = previousGetCurrentPages;
+delete wxStorage.tarot_reading_mode;
+delete wxStorage.tarot_advanced_reading_selection;
+
 assert.deepStrictEqual(
   pageDefinition.data.readerProfiles.map((reader) => reader.id),
   ["misty", "johnny", "donovan"],
@@ -536,7 +633,7 @@ assert.strictEqual(context.data.questionPlaceholder, "想问 Johnny 什么呢", 
 const idleWheelCardIds = context.data.wheelCards.map((slot) => slot.id).join("|");
 pageDefinition.tapDeckStage.call(context);
 
-assert.strictEqual(context.data.buildLabel, "0.9.6 双语版本", "Build label should identify the 0.9.6 bilingual build.");
+assert.strictEqual(context.data.buildLabel, "0.9.7 双语版本", "Build label should identify the 0.9.7 bilingual build.");
 assert.strictEqual(context.data.wheel.isOpen, true, "Tapping the closed pile should mount the wheel like the submit button.");
 assert.strictEqual(
   context.data.wheelCards.map((slot) => slot.id).join("|"),
@@ -793,7 +890,8 @@ assert(
     advancedJson.includes('"navigationBarTitleText": "所有牌阵"') &&
     advancedScript.includes('title: "所有牌阵"') &&
     advancedScript.includes('copy: "在这里切换完整牌阵和读牌人。"') &&
-    advancedScript.includes('apply: "确认"') &&
+    advancedScript.includes('returnHome: "回到首页"') &&
+    !advancedScript.includes('apply: "确认"') &&
     advancedScript.indexOf("const spreadQuestionGuides") < advancedScript.indexOf("Page({") &&
     advancedScript.indexOf("const readerGuides") < advancedScript.indexOf("Page({") &&
     advancedMarkup.includes('class="option-grid spread-grid"') &&
@@ -803,7 +901,9 @@ assert(
     advancedMarkup.includes('class="rahdue-handdrawn-option"') &&
     advancedMarkup.includes('checkbox value="handDrawn"') &&
     advancedMarkup.includes('bindchange="toggleRahdueHandDrawn"') &&
-    advancedMarkup.includes('bindtap="applyAdvancedMode"') &&
+    advancedMarkup.includes('bindtap="returnHome"') &&
+    advancedMarkup.includes("{{ui.returnHome}}") &&
+    !advancedMarkup.includes('bindtap="applyAdvancedMode"') &&
     !advancedMarkup.includes('bindtap="returnSimpleMode"') &&
     !advancedMarkup.includes("secondary-action") &&
     advancedStyles.includes(".reader-grid") &&
@@ -813,6 +913,8 @@ assert(
     advancedStyles.includes("max-width: 100%;") &&
     advancedStyles.includes("text-overflow: ellipsis;") &&
     advancedScript.includes("saveAdvancedReadingSelection") &&
+    advancedScript.includes("saveAndSyncAdvancedSelection") &&
+    advancedScript.includes("syncPreviousIndexPage") &&
     advancedScript.includes('rahdueHandDrawnLabel: "完整手选"') &&
     advancedScript.includes('rahdueLongNotice: "拉杜之轮会使用完整 78 张牌并分区生成解读，等待时间可能明显长于普通牌阵。"') &&
     advancedScript.includes('rahdueHandDrawnConfirmTitle: "真的确定吗？"') &&

@@ -35,7 +35,7 @@ Page({
       rahdueHandDrawnConfirmCopy: "完整手选模式需要在解读前一张一张选完全部 78 张牌，过程会很长。",
       rahdueHandDrawnConfirmYes: "确定",
       rahdueHandDrawnConfirmCancel: "取消",
-      apply: "确认"
+      returnHome: "回到首页"
     },
     spreads: createPageSpreadOptions(),
     readers: createPageReaderOptions(),
@@ -56,25 +56,33 @@ Page({
 
   selectSpread(event) {
     const selectedSpreadId = event.currentTarget.dataset.spreadId;
+    const rahdueHandDrawn = selectedSpreadId === RAHDUE_SPREAD_ID ? this.data.rahdueHandDrawn : false;
 
     this.setData({
       selectedSpreadId,
-      rahdueHandDrawn: selectedSpreadId === RAHDUE_SPREAD_ID ? this.data.rahdueHandDrawn : false
+      rahdueHandDrawn
+    });
+    saveAndSyncAdvancedSelection({
+      spreadId: selectedSpreadId,
+      readerId: this.data.selectedReaderId,
+      rahdueHandDrawn
     });
   },
 
   selectReader(event) {
+    const selectedReaderId = event.currentTarget.dataset.readerId;
+
     this.setData({
-      selectedReaderId: event.currentTarget.dataset.readerId
+      selectedReaderId
+    });
+    saveAndSyncAdvancedSelection({
+      spreadId: this.data.selectedSpreadId,
+      readerId: selectedReaderId,
+      rahdueHandDrawn: this.data.rahdueHandDrawn
     });
   },
 
-  applyAdvancedMode() {
-    saveAdvancedReadingSelection({
-      spreadId: this.data.selectedSpreadId,
-      readerId: this.data.selectedReaderId,
-      rahdueHandDrawn: this.data.selectedSpreadId === RAHDUE_SPREAD_ID && this.data.rahdueHandDrawn
-    });
+  returnHome() {
     navigateBackToIndex();
   },
 
@@ -86,11 +94,21 @@ Page({
       this.setData({
         rahdueHandDrawn: false
       });
+      saveAndSyncAdvancedSelection({
+        spreadId: this.data.selectedSpreadId,
+        readerId: this.data.selectedReaderId,
+        rahdueHandDrawn: false
+      });
       return;
     }
 
     if (typeof wx === "undefined" || !wx.showModal) {
       this.setData({
+        rahdueHandDrawn: true
+      });
+      saveAndSyncAdvancedSelection({
+        spreadId: this.data.selectedSpreadId,
+        readerId: this.data.selectedReaderId,
         rahdueHandDrawn: true
       });
       return;
@@ -102,12 +120,24 @@ Page({
       confirmText: this.data.ui.rahdueHandDrawnConfirmYes,
       cancelText: this.data.ui.rahdueHandDrawnConfirmCancel,
       success: (result) => {
+        const rahdueHandDrawn = Boolean(result && result.confirm);
+
         this.setData({
-          rahdueHandDrawn: Boolean(result && result.confirm)
+          rahdueHandDrawn
+        });
+        saveAndSyncAdvancedSelection({
+          spreadId: this.data.selectedSpreadId,
+          readerId: this.data.selectedReaderId,
+          rahdueHandDrawn
         });
       },
       fail: () => {
         this.setData({
+          rahdueHandDrawn: false
+        });
+        saveAndSyncAdvancedSelection({
+          spreadId: this.data.selectedSpreadId,
+          readerId: this.data.selectedReaderId,
           rahdueHandDrawn: false
         });
       }
@@ -125,6 +155,20 @@ function createPageReaderOptions() {
   return createReaderOptions().map((reader) => Object.assign({}, reader, {
     guide: readerGuides[reader.id] || ""
   }));
+}
+
+function saveAndSyncAdvancedSelection(selection) {
+  saveAdvancedReadingSelection(selection);
+  syncPreviousIndexPage();
+}
+
+function syncPreviousIndexPage() {
+  const pages = typeof getCurrentPages === "function" ? getCurrentPages() : [];
+  const previousPage = pages.length > 1 ? pages[pages.length - 2] : null;
+
+  if (previousPage && typeof previousPage.applyReadingModeFromStorage === "function") {
+    previousPage.applyReadingModeFromStorage();
+  }
 }
 
 function navigateBackToIndex() {

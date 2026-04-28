@@ -69,5 +69,5 @@
     </view>
   </view>
 
-  <button class="primary-action" bindtap="applyAdvancedMode">{{ui.apply}}</button>
+  <button class="primary-action" bindtap="returnHome">{{ui.returnHome}}</button>
 </view>
