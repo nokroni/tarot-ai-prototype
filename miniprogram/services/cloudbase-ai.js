@@ -14,6 +14,9 @@ const {
 } = require("../prompts/system-prompt");
 
 const RAHDUE_SEQUENTIAL_ATTEMPTS = 2;
+const RAHDUE_SCHEMA_LABEL_PATTERN = /\b(schemaVersion|sourceLabel|summary|overallMessage|practicalReflection|journalQuestion|caveat|cards|sections|drawnCards)\s*[:：]/i;
+const RAHDUE_ACTION_PATTERN = /(行动提醒|实践提醒|小仪式|今晚|明天|下一步|小行动|关掉顶灯|点一盏|点灯|写下|喝[一半]?口|喝[一半]?杯|温水|呼吸|放下手机|练习)|\b(tonight|tomorrow|today|ritual|homework|next step|write down|journal|drink water|breathe|light a candle|put the phone down)\b/i;
+const RAHDUE_LEANING_PATTERN = /(我会.{0,12}偏向|偏向于是|偏向不是|lean yes|lean no|would lean)/i;
 
 function hasCloudBaseAI(cloudAIConfig) {
   return Boolean(
@@ -180,9 +183,7 @@ async function requestRahdueSynthesisAttempt(options) {
       })
     });
 
-    return synthesis && typeof synthesis === "object" && !Array.isArray(synthesis)
-      ? synthesis
-      : {};
+    return normalizeRahdueSynthesisResult(synthesis, options.readingRequest);
   } catch (error) {
     if (options.attemptNumber >= RAHDUE_SEQUENTIAL_ATTEMPTS) {
       throw error;
@@ -227,9 +228,13 @@ function normalizeRahdueSectionResult(sectionResult, expectedSection, expectedCa
     throw createInvalidReadingError(`Rahdue 分区 ${expectedSection.title} 返回了错误 id。`);
   }
 
-  if (!textOr(section.interpretation, "")) {
+  const sectionInterpretation = textOr(section.interpretation, "");
+
+  if (!sectionInterpretation) {
     throw createInvalidReadingError(`Rahdue 分区 ${expectedSection.title} 缺少 interpretation。`);
   }
+
+  validateRahdueGeneratedText(sectionInterpretation, `Rahdue 分区 ${expectedSection.title} interpretation`);
 
   if (cards.length !== expectedCards.length) {
     throw createInvalidReadingError(`Rahdue 分区 ${expectedSection.title} cards 数量不匹配。`);
@@ -238,13 +243,17 @@ function normalizeRahdueSectionResult(sectionResult, expectedSection, expectedCa
   const normalizedCards = cards.map((card, index) => {
     const expectedCard = expectedCards[index];
 
-    if (!card || card.id !== expectedCard.id || !textOr(card.interpretation, "")) {
+    const cardInterpretation = textOr(card && card.interpretation, "");
+
+    if (!card || card.id !== expectedCard.id || !cardInterpretation) {
       throw createInvalidReadingError(`Rahdue 分区 ${expectedSection.title} 第 ${index + 1} 张牌无效。`);
     }
 
+    validateRahdueGeneratedText(cardInterpretation, `Rahdue 分区 ${expectedSection.title} 第 ${index + 1} 张牌`);
+
     return {
       id: expectedCard.id,
-      interpretation: card.interpretation
+      interpretation: cardInterpretation
     };
   });
 
@@ -252,11 +261,70 @@ function normalizeRahdueSectionResult(sectionResult, expectedSection, expectedCa
     section: {
       id: expectedSection.id,
       title: textOr(section.title, expectedSection.title),
-      interpretation: section.interpretation,
+      interpretation: sectionInterpretation,
       keyCards: Array.isArray(section.keyCards) ? section.keyCards : []
     },
     cards: normalizedCards
   };
+}
+
+function normalizeRahdueSynthesisResult(synthesis, readingRequest) {
+  const result = synthesis && typeof synthesis === "object" && !Array.isArray(synthesis)
+    ? synthesis
+    : {};
+  const languageCode = normalizeLanguageCode(readingRequest && readingRequest.language);
+
+  return {
+    summary: validateRahdueGeneratedText(
+      textOr(result.summary, createRahdueFallbackSummary([], languageCode)),
+      "Rahdue summary"
+    ),
+    overallMessage: validateRahdueGeneratedText(
+      textOr(result.overallMessage, createRahdueFallbackOverall([], languageCode)),
+      "Rahdue overallMessage"
+    ),
+    practicalReflection: validateRahdueQuietReflection(
+      textOr(result.practicalReflection, createRahdueFallbackPractical(languageCode)),
+      languageCode
+    ),
+    journalQuestion: validateRahdueGeneratedText(
+      textOr(result.journalQuestion, createRahdueFallbackJournal(languageCode)),
+      "Rahdue journalQuestion"
+    ),
+    caveat: result.caveat
+  };
+}
+
+function validateRahdueQuietReflection(text, language) {
+  const value = textOr(text, createRahdueFallbackPractical(language));
+
+  if (RAHDUE_SCHEMA_LABEL_PATTERN.test(value) || RAHDUE_ACTION_PATTERN.test(value) || RAHDUE_LEANING_PATTERN.test(value)) {
+    return createRahdueFallbackPractical(language);
+  }
+
+  return value;
+}
+
+function validateRahdueGeneratedText(text, fieldName) {
+  const value = textOr(text, "");
+
+  if (!value) {
+    throw createInvalidReadingError(`${fieldName} 不能为空。`);
+  }
+
+  if (RAHDUE_SCHEMA_LABEL_PATTERN.test(value)) {
+    throw createInvalidReadingError(`${fieldName} 包含内部 schema 标签。`);
+  }
+
+  if (RAHDUE_ACTION_PATTERN.test(value)) {
+    throw createInvalidReadingError(`${fieldName} 包含行动提醒。`);
+  }
+
+  if (RAHDUE_LEANING_PATTERN.test(value)) {
+    throw createInvalidReadingError(`${fieldName} 包含普通决策牌阵倾向话术。`);
+  }
+
+  return value;
 }
 
 function getRahdueSectionCards(readingRequest, section) {

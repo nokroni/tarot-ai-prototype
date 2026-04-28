@@ -19,24 +19,23 @@
 
       <view class="rahdue-canvas-panel">
         <canvas canvas-id="rahdue-wheel-canvas" id="rahdue-wheel-canvas" class="rahdue-wheel-canvas"></canvas>
-        <view class="rahdue-card-map" aria-hidden="true">
+        <cover-view class="rahdue-card-map">
           <block wx:for="{{rahdueCanvasSlots}}" wx:key="id">
-            <image
+            <cover-image
               wx:if="{{item.imageSrc}}"
               class="rahdue-map-card {{item.solidifier ? 'solidifier' : ''}}"
               src="{{item.imageSrc}}"
-              mode="aspectFit"
               style="{{item.style}}"
-            />
-            <view
+            ></cover-image>
+            <cover-view
               wx:else
               class="rahdue-map-card rahdue-map-card-placeholder {{item.solidifier ? 'solidifier' : ''}}"
               style="{{item.style}}"
             >
               {{item.position}}
-            </view>
+            </cover-view>
           </block>
-        </view>
+        </cover-view>
       </view>
 
       <view class="section-summary-list rahdue-section-summary-list">

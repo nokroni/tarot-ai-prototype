@@ -17,6 +17,10 @@ const {
 const { createReaderSourceLabel } = require("../prompts/reader-prompts");
 const { createSpreadGuidance } = require("../prompts/spread-guidance");
 
+const RAHDUE_SCHEMA_LABEL_PATTERN = /\b(schemaVersion|sourceLabel|summary|overallMessage|practicalReflection|journalQuestion|caveat|cards|sections|drawnCards)\s*[:：]/i;
+const RAHDUE_ACTION_PATTERN = /(行动提醒|实践提醒|小仪式|今晚|明天|下一步|小行动|关掉顶灯|点一盏|点灯|写下|喝[一半]?口|喝[一半]?杯|温水|呼吸|放下手机|练习)|\b(tonight|tomorrow|today|ritual|homework|next step|write down|journal|drink water|breathe|light a candle|put the phone down)\b/i;
+const RAHDUE_LEANING_PATTERN = /(我会.{0,12}偏向|偏向于是|偏向不是|lean yes|lean no|would lean)/i;
+
 function normalizeReading(rawReading, fallbackReading, language) {
   const reading = rawReading && typeof rawReading === "object" ? rawReading : {};
   const fallback = fallbackReading || {};
@@ -105,6 +109,7 @@ function mergeCardWithMetadata(card, fallbackCards, index, languageCode, languag
 function createFallbackReading({ question, spread, drawnCards, sourceLabel, readerProfile, language }) {
   const languageCode = normalizeLanguageCode(language);
   const languageConfig = getLanguageConfig(languageCode);
+  const isRahdueFallback = isRahdueSpread(spread);
   const safeQuestion = createSafeQuestion(question, spread, languageCode) || (languageCode === "en" ? "what needs to be understood today" : "今天需要理解的事情");
   const primaryThemes = drawnCards.map((drawn) => drawn.keywords[0]).join(languageConfig.keywordJoiner);
   const readerProfileRequest = createReaderProfileRequest(readerProfile);
@@ -141,11 +146,15 @@ function createFallbackReading({ question, spread, drawnCards, sourceLabel, read
       directionalFallback.overallMessage ||
       createGeneralFallbackOverall(primaryThemes, readerProfileRequest, languageCode),
     practicalReflection:
-      directionalFallback.practicalReflection ||
-      createGeneralFallbackPractical(readerProfileRequest, languageCode),
+      isRahdueFallback
+        ? createRahdueQuietPractical(languageCode)
+        : directionalFallback.practicalReflection ||
+          createGeneralFallbackPractical(readerProfileRequest, languageCode),
     journalQuestion:
-      directionalFallback.journalQuestion ||
-      createGeneralFallbackJournal(safeQuestion, readerProfileRequest, languageCode),
+      isRahdueFallback
+        ? createRahdueQuietJournal(languageCode)
+        : directionalFallback.journalQuestion ||
+          createGeneralFallbackJournal(safeQuestion, readerProfileRequest, languageCode),
     caveat: `${languageConfig.fullCaveat}${languageCode === "en" ? " " : ""}${languageConfig.professionalCaveat}`
   };
 }
@@ -543,6 +552,18 @@ function createFallbackSections(spread, drawnCards, language) {
       keyCards
     };
   });
+}
+
+function createRahdueQuietPractical(language) {
+  return normalizeLanguageCode(language) === "en"
+    ? "Let the completed wheel remain as a quiet symbolic mirror of the pattern that asked to be seen."
+    : "让完整轮盘安静地停留为一面象征镜子，照见此刻请求被理解的模式。";
+}
+
+function createRahdueQuietJournal(language) {
+  return normalizeLanguageCode(language) === "en"
+    ? "Which section felt familiar before you tried to explain it?"
+    : "哪一个分区在你解释它之前，就已经让你觉得熟悉？";
 }
 
 function createFallbackCardInterpretation(drawn, readerProfile, language) {
@@ -1166,6 +1187,14 @@ function getReadingStyleValidationError(reading, expectedRequest) {
     return "English readings must not leak Chinese UI or prompt phrases";
   }
 
+  if (isRahdueRequest(expectedRequest)) {
+    const rahdueStyleError = getRahdueReadingStyleValidationError(textFields);
+
+    if (rahdueStyleError) {
+      return rahdueStyleError;
+    }
+  }
+
   if (expectedCardCount === 1 && /三张牌|这几张牌|这些牌/.test(combinedText)) {
     return "单牌解读不得写成多牌";
   }
@@ -1188,6 +1217,27 @@ function getReadingStyleValidationError(reading, expectedRequest) {
 
     if (lengthError) {
       return lengthError;
+    }
+  }
+
+  return "";
+}
+
+function getRahdueReadingStyleValidationError(textFields) {
+  for (let index = 0; index < textFields.length; index += 1) {
+    const field = textFields[index];
+    const text = field.text || "";
+
+    if (RAHDUE_SCHEMA_LABEL_PATTERN.test(text)) {
+      return `${field.name} 不得暴露 Rahdue schema 标签`;
+    }
+
+    if (RAHDUE_ACTION_PATTERN.test(text)) {
+      return `${field.name} 不得包含 Rahdue 行动提醒`;
+    }
+
+    if (RAHDUE_LEANING_PATTERN.test(text)) {
+      return `${field.name} 不得包含 Rahdue 决策倾向话术`;
     }
   }
 

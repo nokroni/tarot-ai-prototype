@@ -90,9 +90,24 @@ function buildRahdueSectionMessages({ sourceLabel, readingRequest, section, sect
       ? "Write each card interpretation as one concise but complete sentence; do not truncate with ellipses."
       : "每张牌写成一句简洁但完整的话；不要用省略号截断。",
     languageCode === "en"
+      ? "This partial JSON is not a full reading. Do not write schema labels such as summary:, overallMessage:, practicalReflection:, journalQuestion:, caveat:, cards:, or sections: inside any user-facing text."
+      : "这是分区局部 JSON，不是完整解读。任何面向用户文字里都不要写 summary:、overallMessage:、practicalReflection:、journalQuestion:、caveat:、cards:、sections: 等 schema 标签。",
+    languageCode === "en"
+      ? "Ignore the normal reader response-shape rules for summary/cards/overall/practicalReflection. Keep only the reader's tone lightly; this section must be section-level interpretation only."
+      : "忽略普通读牌人的 summary/cards/overall/practicalReflection 输出结构规则，只轻微保留语气；本分区只能写分区层级解读。",
+    languageCode === "en"
+      ? "Do not give action reminders, rituals, homework, journaling prompts, candle/water/breathing/phone instructions, or next steps in section.interpretation or cards[].interpretation."
+      : "section.interpretation 与 cards[].interpretation 不要写行动提醒、仪式、作业、书写提示、点灯/喝水/呼吸/放手机/今晚要做什么或下一步建议。",
+    languageCode === "en"
+      ? "Do not use yes/no or choice-spread leaning language such as I would lean yes/no. Rahdue sections are not decision readings."
+      : "不要使用是/否或二选一牌阵的倾向话术，例如“我会偏向是/不是/此刻探索”。拉杜分区不是决策牌阵。",
+    languageCode === "en"
+      ? "section.interpretation should be two or three complete sentences about this section's symbolic layer. cards[].interpretation should be one complete sentence per card."
+      : "section.interpretation 写两到三句完整中文，只解释本分区的象征层；cards[].interpretation 每张牌只写一句完整提示。",
+    languageCode === "en"
       ? "This is symbolic past-life insight and inner wisdom, not certain past-life fact or professional advice."
       : "这是象征性的前世洞见与内在智慧探索，不是确定前世事实或专业建议。",
-    createReaderPromptGuidance(readerProfile, languageCode)
+    createRahdueReaderToneGuidance(readerProfile, languageCode)
   ].filter((segment) => typeof segment === "string" && segment.length > 0);
   const userPayload = {
     schemaVersion: readingRequest && readingRequest.schemaVersion,
@@ -144,9 +159,12 @@ function buildRahdueSynthesisMessages({ sourceLabel, readingRequest, sections })
       ? "Do not provide a user-facing Action reminder. practicalReflection is schema compatibility only: write one quiet closing observation, not an action step."
       : "不要提供面向用户显示的“行动提醒”。practicalReflection 只为 schema 兼容保留，写成一句安静的收束观察，不要写行动建议。",
     languageCode === "en"
+      ? "Do not put schema labels inside user-facing strings. Do not write rituals, homework, candle/water/breathing/phone instructions, or tonight/tomorrow action steps in summary, overallMessage, practicalReflection, or journalQuestion."
+      : "不要把 schema 标签写进面向用户文字。summary、overallMessage、practicalReflection、journalQuestion 里都不要写仪式、作业、点灯/喝水/呼吸/放手机，或今晚/明天要做的行动步骤。",
+    languageCode === "en"
       ? "Frame Rahdue's Wheel as symbolic past-life insight and inner wisdom, never certain past-life fact."
       : "把拉杜之轮写成象征性的前世洞见与内在智慧探索，不要写成确定前世事实。",
-    createReaderPromptGuidance(readerProfile, languageCode)
+    createRahdueReaderToneGuidance(readerProfile, languageCode)
   ].filter((segment) => typeof segment === "string" && segment.length > 0);
   const userPayload = {
     schemaVersion: readingRequest && readingRequest.schemaVersion,
@@ -180,6 +198,18 @@ function createRahduePromptGuidance(language) {
   }
 
   return "This is highly experimental and unstable; do not present it as certain prediction, past-life fact, medical/legal/financial guidance, or authoritative Rahdue doctrine. Rahdue’s Wheel 在这里属于高度实验且不稳定的数字化专用阅读模板，用于象征性探索前世洞见与内在智慧；不得把它写成确定预言、前世事实、医疗/法律/财务建议，或权威 Rahdue 教义。按 Layered Summary 输出：阅读页会显示轮盘式 canvas、summary 主线、sections[] 分区层级、完整 78 张 cards[] 和 overallMessage。cards[] 必须覆盖全部 78 张并与 drawnCards 顺序一致，但每张 interpretation 只能是一条很短的提示；主要分析放在 sections[]，每个 spread.sections 分区输出 id、title、interpretation、keyCards。Rahdue 阅读页不显示“行动提醒”；practicalReflection 只为 schema 兼容保留，必须写成一句安静的收束观察，不要写行动建议。";
+}
+
+function createRahdueReaderToneGuidance(readerProfile, language) {
+  const profile = readerProfile || {};
+  const title = profile.title || profile.id || "Reader";
+  const subtitle = profile.subtitle || "";
+
+  if (normalizeLanguageCode(language) === "en") {
+    return `Reader tone only: ${title}${subtitle ? ` (${subtitle})` : ""}. Keep the voice, but do not use this reader's normal response shape, examples, action prompts, or practicalReflection habits.`;
+  }
+
+  return `读牌人语气只作轻微参考：${title}${subtitle ? `（${subtitle}）` : ""}。保留声音气质，但不要套用普通读牌人的输出结构、示例句、行动提示或 practicalReflection 习惯。`;
 }
 
 function serializeReadingRequest(readingRequest) {

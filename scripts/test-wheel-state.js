@@ -2,6 +2,8 @@ const assert = require("assert");
 const fs = require("fs");
 const sharp = require("sharp");
 const appConfig = require("../miniprogram/config");
+const releasePackageJson = require("../package.json");
+const releasePackageLock = require("../package-lock.json");
 const {
   RAHDUE_SPREAD_ID,
   createSpreads,
@@ -92,6 +94,9 @@ global.clearTimeout = (id) => {
 require("../miniprogram/pages/index/index.js");
 
 assert(pageDefinition, "Page definition should be registered.");
+assert.strictEqual(releasePackageJson.version, "0.9.2", "Package version should be bumped for this update.");
+assert.strictEqual(releasePackageLock.version, "0.9.2", "Package lock top-level version should match the release.");
+assert.strictEqual(releasePackageLock.packages[""].version, "0.9.2", "Package lock root package version should match the release.");
 assert.strictEqual(typeof createCloudBaseRahdueSequentialReading, "function", "Rahdue sequential CloudBase reader should be exported.");
 assert.strictEqual(pageDefinition.data.language, "zh", "Miniapp should default to Chinese.");
 assert.deepStrictEqual(
@@ -474,7 +479,7 @@ assert.strictEqual(context.data.ui.title, "塔罗牌", "Chinese UI copy should r
 const idleWheelCardIds = context.data.wheelCards.map((slot) => slot.id).join("|");
 pageDefinition.tapDeckStage.call(context);
 
-assert.strictEqual(context.data.buildLabel, "0.9.1 双语版本", "Build label should identify the 0.9.1 bilingual build.");
+assert.strictEqual(context.data.buildLabel, "0.9.2 双语版本", "Build label should identify the 0.9.2 bilingual build.");
 assert.strictEqual(context.data.wheel.isOpen, true, "Tapping the closed pile should mount the wheel like the submit button.");
 assert.strictEqual(
   context.data.wheelCards.map((slot) => slot.id).join("|"),
@@ -785,6 +790,11 @@ assert(
     cloudBaseScript.includes("completedCards.push") &&
     systemPromptScript.includes("buildRahdueSectionMessages") &&
     systemPromptScript.includes("buildRahdueSynthesisMessages") &&
+    systemPromptScript.includes("不要把 schema 标签写进面向用户文字") &&
+    systemPromptScript.includes("不要套用普通读牌人的输出结构") &&
+    cloudBaseScript.includes("RAHDUE_SCHEMA_LABEL_PATTERN") &&
+    cloudBaseScript.includes("RAHDUE_ACTION_PATTERN") &&
+    cloudBaseScript.includes("validateRahdueGeneratedText") &&
     pageMarkup.includes("{{wheel.flightCard.caption}}") &&
     pageMarkup.includes('class="message {{isInterpreting ? \'waiting\' : \'error\'}}"') &&
     !pageMarkup.includes('wx:if="{{interpretation}}" class="reading"') &&
@@ -804,7 +814,8 @@ assert(
     readingScript.includes('url: "/pages/index/index"') &&
     readingMarkup.includes('wx:if="{{isRahdueReading}}" class="rahdue-reading-template"') &&
     readingMarkup.includes('canvas-id="rahdue-wheel-canvas"') &&
-    readingMarkup.includes('class="rahdue-card-map"') &&
+    readingMarkup.includes('<cover-view class="rahdue-card-map">') &&
+    readingMarkup.includes("<cover-image") &&
     readingMarkup.includes('class="rahdue-map-card {{item.solidifier ? \'solidifier\' : \'\'}}"') &&
     readingMarkup.includes('wx:else class="standard-reading-template"') &&
     readingMarkup.includes('wx:if="{{showActionReminder}}"') &&
@@ -1137,7 +1148,7 @@ const rahdueSlimReading = {
     interpretation: `${drawn.position}给出一条短提示。`
   })),
   overallMessage: "整体讯息是把这次完整牌组当作地图，而不是把每张牌都写成确定答案。",
-  practicalReflection: "今天只挑一个反复出现的主题，写下一个可撤回的小行动。",
+  practicalReflection: "让完整轮盘安静地停留为一面象征镜子，照见此刻请求被理解的模式。",
   journalQuestion: "哪一层主题最像我最近反复绕回来的问题？",
   caveat: "AI生成内容，仅供娱乐和自我反思。"
 };
@@ -1174,6 +1185,15 @@ assert.strictEqual(
 assert.doesNotThrow(() => {
   assertValidReading(rahdueSlimReading, rahduePromptRequest);
 }, "Rahdue readings should validate with section summaries and slim 78-card entries.");
+assert.throws(() => {
+  assertValidReading(Object.assign({}, rahdueSlimReading, {
+    sections: rahdueSlimReading.sections.map((section, index) => index === 0
+      ? Object.assign({}, section, {
+          interpretation: "summary: 我会轻轻偏向此刻探索。practicalReflection: 今晚关掉顶灯，写下一句话。"
+        })
+      : section)
+  }), rahduePromptRequest);
+}, /Rahdue/, "Rahdue readings should reject schema-label leaks and action reminders inside section prose.");
 assert.throws(() => {
   assertValidReading(Object.assign({}, rahdueSlimReading, {
     sections: []
@@ -1484,7 +1504,7 @@ async function assertRahdueSequentialReader() {
   const previousCloud = global.wx.cloud;
   const progressEvents = [];
   const streamCalls = [];
-  let streamIndex = 0;
+  const sectionAttemptCounts = {};
 
   global.wx.cloud = {
     extend: {
@@ -1495,18 +1515,13 @@ async function assertRahdueSequentialReader() {
           return {
             streamText(options) {
               const data = options && options.data ? options.data : {};
-              const currentIndex = streamIndex;
+              const payload = parsePromptPayload(data.messages[1].content);
 
-              streamIndex += 1;
               streamCalls.push(data);
 
               return Promise.resolve({
                 textStream: [
-                  JSON.stringify(
-                    currentIndex < initialRahdueSpread.sections.length
-                      ? createMockRahdueSectionResponse(initialRahdueSpread.sections[currentIndex])
-                      : createMockRahdueSynthesisResponse()
-                  )
+                  JSON.stringify(createMockRahdueStreamResponse(payload, sectionAttemptCounts))
                 ]
               });
             }
@@ -1525,7 +1540,7 @@ async function assertRahdueSequentialReader() {
       }
     });
 
-    assert.strictEqual(streamCalls.length, initialRahdueSpread.sections.length + 1, "Sequential Rahdue reader should call the model once per section plus synthesis.");
+    assert.strictEqual(streamCalls.length, initialRahdueSpread.sections.length + 2, "Sequential Rahdue reader should retry a section that leaks schema or action-reminder text.");
     assert.deepStrictEqual(
       progressEvents.map((event) => event.phase),
       initialRahdueSpread.sections.map(() => "section").concat("synthesis"),
@@ -1539,7 +1554,9 @@ async function assertRahdueSequentialReader() {
     assert.strictEqual(progressEvents[0].sectionTitle, initialRahdueSpread.sections[0].title, "First Rahdue progress event should name the first section.");
     assert.strictEqual(progressEvents[progressEvents.length - 1].total, initialRahdueSpread.sections.length + 1, "Rahdue progress should include synthesis in the total.");
 
-    const secondSectionPayload = parsePromptPayload(streamCalls[1].messages[1].content);
+    const secondSectionPayload = streamCalls
+      .map((call) => parsePromptPayload(call.messages[1].content))
+      .find((payload) => payload.currentSection && payload.currentSection.id === "solidifier1");
     const synthesisPayload = parsePromptPayload(streamCalls[streamCalls.length - 1].messages[1].content);
 
     assert.strictEqual(secondSectionPayload.previousSections.length, 1, "Sequential Rahdue section prompts should carry completed prior sections.");
@@ -1564,6 +1581,40 @@ function createMockRahdueSectionResponse(section) {
       title: section.title,
       interpretation: `${section.title}按顺序显出一层可被整合的象征线索。`,
       keyCards: sectionCards.slice(0, 2).map((card) => card.name)
+    },
+    cards: sectionCards.map((card) => ({
+      id: card.id,
+      interpretation: `${card.position}给出一句完整的顺序提示。`
+    }))
+  };
+}
+
+function createMockRahdueStreamResponse(payload, sectionAttemptCounts) {
+  if (payload && payload.currentSection) {
+    const section = payload.currentSection;
+    const attempts = sectionAttemptCounts[section.id] || 0;
+
+    sectionAttemptCounts[section.id] = attempts + 1;
+
+    if (section.id === "innerWheel" && attempts === 0) {
+      return createInvalidMockRahdueSectionResponse(section);
+    }
+
+    return createMockRahdueSectionResponse(section);
+  }
+
+  return createMockRahdueSynthesisResponse();
+}
+
+function createInvalidMockRahdueSectionResponse(section) {
+  const sectionCards = rahduePromptRequest.drawnCards.slice(section.start - 1, section.end);
+
+  return {
+    section: {
+      id: section.id,
+      title: section.title,
+      interpretation: "summary: 我会轻轻偏向此刻探索。practicalReflection: 今晚关掉顶灯，写下一句话。",
+      keyCards: []
     },
     cards: sectionCards.map((card) => ({
       id: card.id,

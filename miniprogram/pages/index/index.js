@@ -88,7 +88,7 @@ const uiCopy = {
     oauthDisconnected: "未连接",
     oauthBackupReady: "备用后端已就绪",
     oauthMissingKey: "模型密钥缺失",
-    buildLabel: "0.9.1 双语版本"
+    buildLabel: "0.9.2 双语版本"
   },
   en: {
     assetGateTitle: "Setting the table",
@@ -131,7 +131,7 @@ const uiCopy = {
     oauthDisconnected: "Disconnected",
     oauthBackupReady: "backup ready",
     oauthMissingKey: "model key missing",
-    buildLabel: "0.9.1 bilingual"
+    buildLabel: "0.9.2 bilingual"
   }
 };
 
