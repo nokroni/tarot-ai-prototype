@@ -47,7 +47,7 @@ npm run upload:mp
 Optional upload metadata:
 
 ```sh
-WECHAT_UPLOAD_VERSION=0.8.1 WECHAT_UPLOAD_DESC="Compact home tarot flow" npm run upload:mp
+WECHAT_UPLOAD_VERSION=0.9.0 WECHAT_UPLOAD_DESC="Compact home tarot flow" npm run upload:mp
 ```
 
 Publishing to public users still requires the WeChat Mini Program admin review/release flow after upload.

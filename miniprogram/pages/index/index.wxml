@@ -59,22 +59,9 @@
     </view>
 
     <view class="deck-stage {{wheel.isOpen ? 'deck-stage-wheel' : ''}}">
-      <view wx:if="{{!wheel.isOpen}}" class="idle-deck">
-        <view class="idle-card idle-card-3">
-          <image class="idle-card-back" src="{{wheel.cardBackSrc}}" mode="aspectFill" />
-        </view>
-        <view class="idle-card idle-card-2">
-          <image class="idle-card-back" src="{{wheel.cardBackSrc}}" mode="aspectFill" />
-        </view>
-        <view class="idle-card idle-card-1">
-          <image class="idle-card-back" src="{{wheel.cardBackSrc}}" mode="aspectFill" />
-        </view>
-        <text class="idle-deck-caption">{{ui.deckPrompt}}</text>
-      </view>
-
-      <view wx:if="{{wheel.isOpen}}" class="wheel-overlay wheel-motion-{{wheel.motion}}">
-        <view class="wheel-aperture-ring"></view>
-        <view class="wheel-status">
+      <view class="wheel-overlay {{wheel.isOpen ? 'wheel-overlay-open' : 'wheel-overlay-idle'}} wheel-motion-{{wheel.motion}}">
+        <view wx:if="{{wheel.isOpen}}" class="wheel-aperture-ring"></view>
+        <view wx:if="{{wheel.isOpen}}" class="wheel-status">
           <text class="wheel-eyebrow">{{selectedSpread.title}}</text>
           <text class="wheel-title">{{ui.wheelDrawPrefix}}{{wheel.currentDrawNumber}}{{ui.wheelDrawMiddle}}{{wheel.requiredCount}}{{ui.wheelDrawSuffix}}{{wheel.currentDrawPosition}}</text>
         </view>
@@ -88,15 +75,18 @@
             bounces="{{true}}"
             fast-deceleration="{{false}}"
             show-scrollbar="{{false}}"
-            scroll-with-animation="{{false}}"
+            scroll-with-animation="{{wheel.scrollWithAnimation}}"
+            scroll-into-view="{{wheel.scrollIntoView}}"
             bindscroll="onWheelNativeScroll"
           >
             <view class="wheel-track">
-              <view class="wheel-spacer wheel-spacer-start"></view>
+              <view id="wheel-scroll-home" class="wheel-spacer wheel-spacer-start"></view>
               <view
                 wx:for="{{wheelCards}}"
                 wx:key="id"
-                class="wheel-card-slot {{index === wheel.activeIndex ? 'active' : ''}} {{index === wheel.selectedIndex ? 'popped' : ''}} {{item.drawn ? 'drawn' : ''}}"
+                id="wheel-slot-{{index}}"
+                class="wheel-card-slot {{wheel.isOpen && index === wheel.activeIndex ? 'active' : ''}} {{wheel.isOpen && index === wheel.selectedIndex ? 'popped' : ''}} {{item.drawn ? 'drawn' : ''}}"
+                style="{{item.slotStyle}}"
                 data-index="{{index}}"
                 bindtap="onWheelCardTap"
               >
@@ -132,7 +122,7 @@
           </view>
         </view>
 
-        <view class="wheel-copy">
+        <view wx:if="{{wheel.isOpen}}" class="wheel-copy">
           <text wx:if="{{wheel.phase === 'popped'}}">{{ui.wheelTapAgain}}</text>
           <text wx:elif="{{wheel.phase === 'drawing' && wheel.flightCard}}">{{wheel.flightCard.position}} · {{wheel.flightCard.card.name}}</text>
           <text wx:elif="{{wheel.phase === 'closing'}}">{{ui.wheelComplete}}</text>

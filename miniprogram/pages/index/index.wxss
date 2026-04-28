@@ -214,8 +214,7 @@
 }
 
 .message,
-.reading,
-.note {
+.reading {
   margin-top: 28rpx;
   padding: 28rpx 32rpx;
   border: 2rpx solid #d8c5e8;
@@ -276,9 +275,15 @@
 }
 
 .note {
+  display: block;
+  margin: 34rpx auto 0;
+  padding: 0 18rpx;
+  border: 0;
+  background: transparent;
   color: #70685d;
-  font-size: 24rpx;
-  line-height: 1.55;
+  font-size: 21rpx;
+  line-height: 1.48;
+  text-align: center;
 }
 
 .provider-footer {
@@ -286,19 +291,19 @@
   align-items: center;
   justify-content: center;
   gap: 12rpx;
-  margin-top: 24rpx;
-  color: #70685d;
-  font-size: 22rpx;
+  margin-top: 10rpx;
+  color: #8f887f;
+  font-size: 21rpx;
   line-height: 1.4;
 }
 
 .provider-status {
-  color: #5b3fa3;
-  font-weight: 850;
+  color: #8f887f;
+  font-weight: 750;
 }
 
 .provider-build {
-  color: #9c958c;
+  color: #aaa39b;
 }
 
 .main-flow {
@@ -311,6 +316,7 @@
 .wheel-overlay {
   position: relative;
   inset: auto;
+  z-index: 3;
   width: 100%;
   min-height: 700rpx;
   overflow: hidden;
@@ -320,17 +326,6 @@
   color: #fffaf0;
   animation: none;
   will-change: auto;
-}
-
-.wheel-overlay::before {
-  position: absolute;
-  inset: -120rpx -80rpx;
-  z-index: 0;
-  content: "";
-  background:
-    radial-gradient(circle at 50% 54%, rgba(255, 250, 240, 0.15), transparent 20%),
-    radial-gradient(circle at 50% 56%, transparent 0 34%, rgba(20, 9, 39, 0.22) 58%, rgba(20, 9, 39, 0.5) 100%);
-  pointer-events: none;
 }
 
 .wheel-aperture-ring {
@@ -351,11 +346,13 @@
   animation: wheel-aperture-ring-open 1120ms cubic-bezier(0.12, 0.78, 0.16, 1) forwards;
 }
 
-.wheel-motion-closing {
+.wheel-motion-closing,
+.wheel-motion-closing-spin {
   pointer-events: none;
   animation: none;
 }
 
+.wheel-motion-closing-spin .wheel-aperture-ring,
 .wheel-motion-closing .wheel-aperture-ring {
   animation: wheel-aperture-ring-close 660ms cubic-bezier(0.3, 0, 0.2, 1) forwards;
 }
@@ -404,8 +401,10 @@
   white-space: nowrap;
 }
 
+.wheel-motion-idle .wheel-scroll,
 .wheel-motion-stack .wheel-scroll,
 .wheel-motion-spreading .wheel-scroll,
+.wheel-motion-closing-spin .wheel-scroll,
 .wheel-motion-closing .wheel-scroll {
   pointer-events: none;
 }
@@ -446,12 +445,12 @@
 
 .wheel-card-slot.active {
   z-index: 20;
-  filter: drop-shadow(0 22rpx 30rpx rgba(0, 0, 0, 0.42)) drop-shadow(0 0 24rpx rgba(243, 221, 170, 0.88));
+  filter: drop-shadow(0 0 22rpx rgba(243, 221, 170, 0.74));
 }
 
 .wheel-card-slot.drawn {
-  opacity: 0.18;
-  filter: grayscale(1);
+  opacity: 0.68;
+  filter: none;
 }
 
 .wheel-card-slot.popped {
@@ -471,19 +470,32 @@
   transition: none;
 }
 
+.wheel-motion-idle .wheel-stage {
+  animation: none;
+}
+
+.wheel-motion-idle .wheel-card-arc {
+  transition: transform 420ms cubic-bezier(0.2, 0.82, 0.16, 1), opacity 240ms ease;
+}
+
 .wheel-motion-spreading .wheel-card-arc {
   transition:
     transform 1120ms cubic-bezier(0.18, 0.82, 0.22, 1),
     opacity 720ms ease;
 }
 
-.wheel-motion-closing .wheel-card-arc {
+.wheel-motion-closing-spin .wheel-card-arc {
   transition:
-    transform 520ms cubic-bezier(0.28, 0, 0.18, 1),
-    opacity 300ms ease;
+    transform 280ms cubic-bezier(0.12, 0.84, 0.12, 1),
+    opacity 220ms ease;
 }
 
-.wheel-motion-closing .wheel-stage,
+.wheel-motion-closing .wheel-card-arc {
+  transition:
+    transform 660ms cubic-bezier(0.18, 0.78, 0.16, 1),
+    opacity 320ms ease;
+}
+
 .wheel-motion-closing .wheel-status,
 .wheel-motion-closing .wheel-copy {
   animation: wheel-content-exit 540ms cubic-bezier(0.3, 0, 0.2, 1) forwards;
@@ -737,6 +749,7 @@
 
 .mode-summary {
   display: block;
+  flex: 1 1 auto;
   min-width: 0;
   color: #70685d;
   font-size: 23rpx;
@@ -750,7 +763,8 @@
 
 .mode-link {
   display: flex;
-  width: 100%;
+  width: auto;
+  flex: 0 0 auto;
   min-width: 212rpx;
   max-width: 100%;
   height: 54rpx;
@@ -811,9 +825,11 @@
 
 .deck-stage {
   position: relative;
+  z-index: 2;
+  isolation: isolate;
   display: flex;
   width: 100%;
-  min-height: 520rpx;
+  min-height: 700rpx;
   align-items: center;
   justify-content: center;
   margin-top: 26rpx;
@@ -825,60 +841,4 @@
 .deck-stage-wheel {
   min-height: 700rpx;
   align-items: stretch;
-}
-
-.idle-deck {
-  position: relative;
-  width: 230rpx;
-  height: 420rpx;
-}
-
-.idle-card {
-  position: absolute;
-  top: 22rpx;
-  left: 50%;
-  width: 188rpx;
-  height: 330rpx;
-  overflow: hidden;
-  border-radius: 14rpx;
-  box-shadow: 0 18rpx 34rpx rgba(38, 35, 31, 0.18);
-  transform-origin: center 86%;
-}
-
-.idle-card-1 {
-  z-index: 3;
-  transform: translateX(-50%) rotate(0deg);
-}
-
-.idle-card-2 {
-  z-index: 2;
-  transform: translateX(-50%) rotate(-7deg) translateY(12rpx);
-}
-
-.idle-card-3 {
-  z-index: 1;
-  transform: translateX(-50%) rotate(7deg) translateY(14rpx);
-}
-
-.idle-card-back {
-  display: block;
-  width: 100%;
-  height: 100%;
-  border-radius: 14rpx;
-}
-
-.idle-deck-caption {
-  position: absolute;
-  right: -80rpx;
-  bottom: 0;
-  left: -80rpx;
-  color: #70685d;
-  font-size: 24rpx;
-  font-weight: 850;
-  line-height: 1.35;
-  text-align: center;
-}
-
-.page-wheel-active .idle-deck-caption {
-  color: #f3ddaa;
 }

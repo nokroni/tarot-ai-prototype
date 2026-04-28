@@ -116,6 +116,20 @@ assert.strictEqual(pageDefinition.data.selectedSpreadId, "oneCard", "The home pa
 assert.deepStrictEqual(pageDefinition.data.selectedSpread.positions, ["指引"], "Single-card mode should use one guidance position.");
 assert.strictEqual(pageDefinition.data.readingMode, "simple", "The home page should open in simple mode.");
 assert.strictEqual(pageDefinition.data.modeSummary, "单牌 · Misty", "The compact mode summary should describe the simple home mode.");
+assert.strictEqual(pageDefinition.data.wheelCards.length, 78, "Idle deck should render through the complete wheel deck.");
+assert.strictEqual(pageDefinition.data.wheel.motion, "idle", "Initial deck should use the idle wheel state.");
+assert(
+  pageDefinition.data.wheelCards[0].slotStyle.includes("z-index: 78") &&
+    pageDefinition.data.wheelCards[0].arcStyle.includes("translate(0rpx, 32rpx)") &&
+    pageDefinition.data.wheelCards[0].arcStyle.includes("rotate(0.0deg)") &&
+    pageDefinition.data.wheelCards[7].slotStyle.includes("z-index: 71") &&
+    pageDefinition.data.wheelCards[7].arcStyle.includes("translate(-222rpx, 28rpx)") &&
+    pageDefinition.data.wheelCards[7].arcStyle.includes("rotate(0.4deg)") &&
+    pageDefinition.data.wheelCards[77].slotStyle.includes("z-index: 1") &&
+    pageDefinition.data.wheelCards[77].arcStyle.includes("translate(-2440rpx, -8rpx)") &&
+    pageDefinition.data.wheelCards[77].arcStyle.includes("rotate(4.8deg)"),
+  "Idle deck should be the wheel deck itself, tightly piled and rising toward the right."
+);
 assert.deepStrictEqual(
   pageDefinition.data.readerProfiles.map((reader) => reader.id),
   ["misty", "johnny", "donovan"],
@@ -302,20 +316,26 @@ pageDefinition.selectLanguage.call(context, {
 assert.strictEqual(context.data.language, "zh", "Language selector should switch back to Chinese.");
 assert.strictEqual(context.data.ui.title, "塔罗牌", "Chinese UI copy should restore the hero title.");
 
+const idleWheelCardIds = context.data.wheelCards.map((slot) => slot.id).join("|");
 pageDefinition.drawCards.call(context);
 
-assert.strictEqual(context.data.wheel.isOpen, true, "Wheel should open when drawing starts.");
-assert.strictEqual(context.data.buildLabel, "0.8.0 双语版本", "Build label should identify the 0.8.0 bilingual build.");
+assert.strictEqual(context.data.buildLabel, "0.9.0 双语版本", "Build label should identify the 0.9.0 bilingual build.");
+assert.strictEqual(context.data.wheel.isOpen, true, "Wheel should mount immediately from the idle pile.");
+assert.strictEqual(
+  context.data.wheelCards.map((slot) => slot.id).join("|"),
+  idleWheelCardIds,
+  "Drawing should reuse the same keyed card nodes that formed the idle pile."
+);
 assert.strictEqual(context.data.wheel.requiredCount, 1, "Simple home mode should require one selection.");
 assert.strictEqual(context.data.wheel.scrollLeft, 0, "Wheel should start at the first preassigned slot.");
+assert.strictEqual(context.data.wheel.scrollIntoView, "", "Wheel should not control native scroll during normal choosing.");
+assert.strictEqual(context.data.wheel.scrollWithAnimation, false, "Wheel should not animate native scroll during normal choosing.");
 assert.strictEqual(context.data.wheel.activeIndex, 0, "Wheel should start with the first slot highlighted.");
-assert.strictEqual(context.data.wheel.motion, "stack", "Wheel should open as a stacked deck before spreading.");
+assert.strictEqual(context.data.wheel.motion, "spreading", "Wheel should directly expand from the partial idle arc.");
 assert.strictEqual(context.data.wheel.currentDrawPosition, "指引", "Wheel caption should include the single-card guidance position.");
 assert.strictEqual(context._rainDismissed, true, "Starting a draw should dismiss the intro rain bed.");
 assert(pendingTimers.some((timer) => timer.delay === 120), "Starting a draw should schedule a gentle rain fade.");
 const initialRainVolume = activeRainAudio.volume;
-runNextTimerByDelay(120);
-assert(activeRainAudio.volume < initialRainVolume, "Intro rain fade should step the volume down before stopping.");
 assert.strictEqual(context.data.wheelCards.length, 78, "Wheel should contain the complete 78-card deck.");
 assert.strictEqual(context.data.wheel.cardBackSrc, `${REMOTE_ASSET_BASE_URL}/cards/card-back.png`, "Wheel should use the remote card back.");
 assert.deepStrictEqual(
@@ -356,15 +376,17 @@ assert.deepStrictEqual(
 );
 assert(
   context.data.wheelCards[0].arcStyle.includes("translate(0rpx, 32rpx)") &&
-    context.data.wheelCards[7].arcStyle.includes("translate(-224rpx, 32rpx)") &&
-    context.data.wheelCards[7].arcStyle.includes("rotate(0.0deg)"),
-  "Wheel cards should initially cancel native slot spacing into a stack."
+    context.data.wheelCards[7].arcStyle.includes("translate(-222rpx, 28rpx)") &&
+    context.data.wheelCards[7].arcStyle.includes("rotate(0.4deg)") &&
+    context.data.wheelCards[77].arcStyle.includes("translate(-2440rpx, -8rpx)") &&
+    context.data.wheelCards[77].arcStyle.includes("rotate(4.8deg)"),
+  "Wheel cards should initially match the same tight idle pile."
 );
-assert(pendingTimers.some((timer) => timer.delay === 680), "Wheel should linger in the initial stack twice as long before spreading.");
+assert(pendingTimers.some((timer) => timer.delay === 80), "Wheel should schedule the direct arc expansion on the next visual beat.");
 
-runNextTimerByDelay(680);
+runNextTimerByDelay(80);
 
-assert.strictEqual(context.data.wheel.motion, "spreading", "Wheel should animate from the stack into the arc.");
+assert.strictEqual(context.data.wheel.motion, "spreading", "Wheel should animate from the partial idle arc into the full arc.");
 assert(pendingTimers.some((timer) => timer.delay === 1120), "Wheel spread should take twice as long before the rail becomes interactive.");
 assert(
   context.data.wheelCards[0].arcStyle.includes("translate(0rpx, 32rpx)") &&
@@ -372,6 +394,8 @@ assert(
     context.data.wheelCards[7].arcStyle.includes("rotate(57.0deg)"),
   "Spreading cards should target the exposed upper-left 60-degree circle arc."
 );
+runNextTimerByDelay(120);
+assert(activeRainAudio.volume < initialRainVolume, "Intro rain fade should step the volume down before stopping.");
 
 runNextTimerByDelay(1120);
 
@@ -503,8 +527,13 @@ assert(
     pageMarkup.includes('class="submit-button"') &&
     pageMarkup.includes('bindtap="drawCards"') &&
     pageMarkup.includes('class="deck-stage {{wheel.isOpen ? \'deck-stage-wheel\' : \'\'}}"') &&
-    pageMarkup.includes('class="idle-deck"') &&
-    pageMarkup.includes("{{ui.deckPrompt}}") &&
+    pageMarkup.includes("wheel-overlay-idle") &&
+    pageMarkup.includes('wx:for="{{wheelCards}}"') &&
+    pageMarkup.includes('style="{{item.slotStyle}}"') &&
+    pageMarkup.includes('style="{{item.arcStyle}}"') &&
+    !pageMarkup.includes("{{ui.deckPrompt}}") &&
+    !pageMarkup.includes("idleDeckCards") &&
+    !pageStyles.includes(".idle-deck-caption") &&
     !pageMarkup.includes('class="spread-control"') &&
     !pageMarkup.includes('class="reader-control"') &&
     !pageMarkup.includes('class="interpret-button"') &&
@@ -515,10 +544,32 @@ assert(
     pageStyles.includes("grid-template-columns: minmax(0, 1fr) minmax(96rpx, 116rpx);") &&
     pageStyles.includes(".submit-button") &&
     pageStyles.includes("max-width: 100%;") &&
+    pageStyles.includes("width: auto;") &&
+    pageStyles.includes("flex: 0 0 auto;") &&
     pageStyles.includes(".deck-stage") &&
-    pageStyles.includes(".idle-deck") &&
-    pageStyles.includes(".idle-card-back"),
+    pageStyles.includes("isolation: isolate;") &&
+    pageStyles.includes(".wheel-motion-idle .wheel-scroll") &&
+    pageStyles.includes(".wheel-motion-idle .wheel-card-arc") &&
+    !pageStyles.includes(".idle-deck") &&
+    !pageStyles.includes(".idle-card-shell") &&
+    !pageStyles.includes("0 18rpx 28rpx rgba(38, 35, 31") &&
+    !pageStyles.includes(".idle-card-1") &&
+    !pageStyles.includes(".idle-card-2") &&
+    !pageStyles.includes(".idle-card-3"),
   "Home page should stay compact: question bar, submit, mode change, and a persistent deck display."
+);
+const safetyNoteStyle = pageStyles.match(/\.note\s*{[^}]+}/);
+assert(
+  safetyNoteStyle &&
+    safetyNoteStyle[0].includes("background: transparent;") &&
+    safetyNoteStyle[0].includes("border: 0;") &&
+    safetyNoteStyle[0].includes("color: #70685d;") &&
+    pageStyles.includes(".provider-footer") &&
+    pageStyles.includes("color: #8f887f;") &&
+    pageMarkup.includes("{{ui.safetyNote}}") &&
+    pageMarkup.includes("{{oauthStatus}}") &&
+    pageMarkup.includes("{{buildLabel}}"),
+  "Safety and provider text should be a quiet grey footer with no panel background or border."
 );
 assert(
   pageMarkup.includes('class="music-toggle {{music.enabled ? \'active\' : \'muted\'}}"') &&
@@ -608,6 +659,7 @@ assert(
     pageStyles.includes("position: relative;") &&
     pageStyles.includes("background: transparent;") &&
     pageStyles.includes("animation: none;") &&
+    !pageStyles.includes(".wheel-overlay::before") &&
     pageStyles.includes(".wheel-stage") &&
     pageStyles.includes("top: 80rpx;") &&
     pageStyles.includes("overflow: hidden;") &&
@@ -616,19 +668,24 @@ assert(
   "Wheel should sit under the question dock while the page background gently blooms behind existing text."
 );
 assert(
-  pageMarkup.includes('scroll-with-animation="{{false}}"') &&
+    pageMarkup.includes('scroll-with-animation="{{wheel.scrollWithAnimation}}"') &&
+    pageMarkup.includes('scroll-into-view="{{wheel.scrollIntoView}}"') &&
+    pageMarkup.includes('id="wheel-scroll-home"') &&
+    pageMarkup.includes('id="wheel-slot-{{index}}"') &&
     pageMarkup.includes('fast-deceleration="{{false}}"') &&
     !pageMarkup.includes("scroll-left=") &&
     pageMarkup.includes('enhanced="{{true}}"'),
-  "Arc motion should use uncontrolled native inertia without animated snap or separate hidden gesture layers."
+  "Arc motion should use free native inertia, with scroll-into-view reserved for the close animation."
 );
 assert(
   pageStyles.includes(".wheel-motion-spreading .wheel-card-arc") &&
+    pageStyles.includes(".wheel-motion-closing-spin .wheel-card-arc") &&
     pageStyles.includes(".wheel-motion-closing .wheel-card-arc") &&
     pageStyles.includes("@keyframes wheel-aperture-ring-open") &&
     pageStyles.includes("@keyframes wheel-content-exit") &&
     pageStyles.includes("animation: wheel-aperture-ring-open 1120ms") &&
     pageStyles.includes("transform 1120ms cubic-bezier(0.18, 0.82, 0.22, 1)") &&
+    !pageStyles.includes(".wheel-motion-closing .wheel-stage") &&
     pageMarkup.includes('class="wheel-flight-card-draw"') &&
     pageStyles.includes("@keyframes wheel-card-pop-move") &&
     pageStyles.includes("@keyframes wheel-card-draw-back-flip") &&
@@ -709,14 +766,31 @@ for (let drawIndex = 0; drawIndex < totalDraws; drawIndex += 1) {
     assert.strictEqual(context.data.wheel.flightCard, null, "Draw flight overlay should clear after the card reaches the top-left corner.");
   } else {
     runNextTimerByDelay(1120);
-    assert.strictEqual(context.data.wheel.isOpen, true, "Final draw flight should pile cards back before closing.");
-    assert.strictEqual(context.data.wheel.motion, "closing", "Final draw flight should trigger the pile-back motion.");
+    assert.strictEqual(context.data.wheel.isOpen, true, "Final draw flight should keep the wheel visible while it closes.");
+    assert.strictEqual(context.data.wheel.motion, "closing-spin", "Final draw flight should spin the wheel right before piling back.");
     assert.strictEqual(context.data.wheel.phase, "closing", "Wheel should enter closing phase before interpretation.");
     assert.strictEqual(context._interpreted, false, "Interpretation should wait for the pile-back animation.");
     assert(
-      context.data.wheelCards[activeIndex].arcStyle.includes("translate(0rpx, 32rpx)") &&
-        context.data.wheelCards[activeIndex + 1].arcStyle.includes("translate(-32rpx, 32rpx)"),
-      "Pile-back animation should collapse neighboring cards into the selected stack position."
+        context.data.wheel.activeIndex === 0 &&
+        context.data.wheel.scrollLeft === 0 &&
+        context.data.wheel.scrollIntoView === "wheel-scroll-home" &&
+        context.data.wheel.scrollWithAnimation === true &&
+        context._wheelScrollLeft === 0 &&
+        context.data.wheelCards[0].arcStyle.includes("translate(0rpx, 32rpx)") &&
+        context.data.wheelCards[1].arcStyle.includes("translate(43rpx, -36rpx)") &&
+        context.data.wheelCards[1].arcStyle.includes("rotate(8.1deg)"),
+      "Close should first drive native scroll right until the leftmost card is centered."
+    );
+    runNextTimerByDelay(280);
+    assert.strictEqual(context.data.wheel.motion, "closing", "Right-side cards should then pile back into the idle deck shape.");
+    assert.strictEqual(context.data.wheel.activeIndex, 0, "Pile-back should return to the home deck anchor.");
+    assert.strictEqual(context.data.wheel.scrollIntoView, "wheel-scroll-home", "Pile-back should keep the native scroll anchored at the leftmost card.");
+    assert.strictEqual(context.data.wheel.scrollWithAnimation, false, "Pile-back should stop native scroll animation before collapsing the right side.");
+    assert(
+      context.data.wheelCards[0].arcStyle.includes("translate(0rpx, 32rpx)") &&
+        context.data.wheelCards[77].arcStyle.includes("translate(-2440rpx, -8rpx)") &&
+        context.data.wheelCards[77].arcStyle.includes("rotate(4.8deg)"),
+      "Pile-back animation should collapse the right side into the tight idle deck instead of disappearing."
     );
     runNextTimerByDelay(660);
   }
@@ -725,6 +799,12 @@ for (let drawIndex = 0; drawIndex < totalDraws; drawIndex += 1) {
 assert.strictEqual(context.data.wheel.isOpen, false, "Wheel should close after the spread is complete.");
 assert.strictEqual(context._interpreted, true, "Final draw should automatically start interpretation.");
 assert.strictEqual(context.data.wheel.cardBackSrc, `${REMOTE_ASSET_BASE_URL}/cards/card-back.png`, "Idle deck should keep the loaded card back after the wheel closes.");
+assert(
+  context.data.wheelCards.map((slot) => slot.id).join("|") === idleWheelCardIds &&
+    context.data.wheelCards[77].arcStyle.includes("translate(-2440rpx, -8rpx)") &&
+    context.data.wheelCards[77].slotStyle.includes("z-index: 1"),
+  "Closed wheel should restore the same tight idle wheel deck."
+);
 
 pageDefinition.onUnload.call(context);
 assert.strictEqual(activeMusicAudio.destroyed, true, "Page unload should destroy the active background music context.");

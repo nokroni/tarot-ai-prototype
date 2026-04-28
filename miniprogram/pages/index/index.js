@@ -49,7 +49,6 @@ const uiCopy = {
     modeChange: "完整牌阵 / 读牌人",
     modeSimple: "单牌 · Misty",
     modeAdvanced: "完整模式",
-    deckPrompt: "牌组会在这里展开",
     musicOnLabel: "关闭音乐",
     musicOffLabel: "开启音乐",
     questionPlaceholder: "想问 Misty 什么呢",
@@ -82,7 +81,7 @@ const uiCopy = {
     oauthDisconnected: "未连接",
     oauthBackupReady: "备用后端已就绪",
     oauthMissingKey: "模型密钥缺失",
-    buildLabel: "0.8.0 双语版本"
+    buildLabel: "0.9.0 双语版本"
   },
   en: {
     assetGateTitle: "Setting the table",
@@ -92,7 +91,6 @@ const uiCopy = {
     modeChange: "Full Spreads / Readers",
     modeSimple: "Single · Misty",
     modeAdvanced: "Full Mode",
-    deckPrompt: "The deck opens here",
     musicOnLabel: "Mute music",
     musicOffLabel: "Play music",
     questionPlaceholder: "What do you want to ask Misty?",
@@ -125,7 +123,7 @@ const uiCopy = {
     oauthDisconnected: "Disconnected",
     oauthBackupReady: "backup ready",
     oauthMissingKey: "model key missing",
-    buildLabel: "0.8.0 bilingual"
+    buildLabel: "0.9.0 bilingual"
   }
 };
 
@@ -151,8 +149,11 @@ const WHEEL_ARC_START_DEGREES = 180;
 const WHEEL_ARC_END_DEGREES = 120;
 const WHEEL_ARC_CENTER_DEGREES = (WHEEL_ARC_START_DEGREES + WHEEL_ARC_END_DEGREES) / 2;
 const WHEEL_ARC_ACTIVE_Y_RPX = 32;
-const WHEEL_STACK_HOLD_MS = 680;
-const WHEEL_STACK_SPREAD_MS = 1120;
+const WHEEL_ENTRY_ARC_FRACTION = 1 / 12;
+const WHEEL_ENTRY_EXPAND_DELAY_MS = 80;
+const WHEEL_ARC_SPREAD_MS = 1120;
+const WHEEL_FINISH_RIGHT_SPIN_MS = 280;
+const WHEEL_HOME_ANCHOR_ID = "wheel-scroll-home";
 const WHEEL_STACK_COLLAPSE_MS = 660;
 const WHEEL_DRAW_FLIGHT_MS = 1120;
 const WHEEL_VIBRATE_THROTTLE_MS = 55;
@@ -1068,6 +1069,7 @@ function getInitialLanguage() {
 
 const initialLanguage = getInitialLanguage();
 const initialSpreads = createSpreads(initialLanguage);
+const initialWheelCards = createWheelCards(null, initialLanguage);
 
 Page({
   data: {
@@ -1088,7 +1090,7 @@ Page({
     readingMode: "simple",
     modeSummary: getUiCopy(initialLanguage).modeSimple,
     drawnCards: [],
-    wheelCards: [],
+    wheelCards: initialWheelCards,
     wheel: createClosedWheelState(),
     interpretation: null,
     oauthSession: null,
@@ -1132,6 +1134,7 @@ Page({
   },
 
   onUnload() {
+    clearWheelAnimationTimers(this);
     destroyMusic(this);
     destroyIntroRain(this);
   },
@@ -1296,7 +1299,7 @@ Page({
             planB: ""
           },
       drawnCards: [],
-      wheelCards: [],
+      wheelCards: prepareWheelCardsForIdle(this.data.wheelCards, this._assetPaths, this.data.language),
       wheel: createClosedWheelState(this._assetPaths),
       interpretation: null,
       errorMessage: ""
@@ -1304,11 +1307,11 @@ Page({
   },
 
   drawCards() {
-    if (!this.data.assets.ready) {
+    if (!this.data.assets.ready || this.data.wheel.isOpen) {
       return;
     }
 
-    const wheelCards = createWheelCards(this._assetPaths, this.data.language);
+    const wheelCards = prepareWheelCardsForDraw(this.data.wheelCards, this._assetPaths, this.data.language);
     const wheel = createOpenWheelState(this.data.selectedSpread, this._assetPaths);
 
     clearWheelAnimationTimers(this);
@@ -1809,6 +1812,8 @@ function createClosedWheelState(assetPaths) {
   return {
     isOpen: false,
     scrollLeft: 0,
+    scrollIntoView: "",
+    scrollWithAnimation: false,
     activeIndex: 0,
     selectedIndex: -1,
     phase: "idle",
@@ -1829,10 +1834,12 @@ function createOpenWheelState(spread, assetPaths) {
   return {
     isOpen: true,
     scrollLeft: 0,
+    scrollIntoView: "",
+    scrollWithAnimation: false,
     activeIndex: 0,
     selectedIndex: -1,
     phase: "choosing",
-    motion: "stack",
+    motion: "spreading",
     requiredCount: positions.length,
     drawnCount: 0,
     currentDrawNumber: 1,
@@ -1844,27 +1851,69 @@ function createOpenWheelState(spread, assetPaths) {
 }
 
 function createWheelCards(assetPaths, language) {
-  const wheelCards = shuffle(tarotDeck.slice()).map((card, index) => {
-    const localizedCard = createLocalizedCard(card, language);
-    const orientation = Math.random() >= 0.5 ? "upright" : "reversed";
-    const keywords = orientation === "upright" ? localizedCard.uprightMeanings : localizedCard.reversedMeanings;
+  const wheelCards = shuffle(tarotDeck.slice()).map((card, index) => (
+    createWheelCardSlot(card, index, assetPaths, language)
+  ));
 
-    return {
-      id: `wheel-${index}-${card.id}`,
-      cardId: card.id,
-      name: localizedCard.name,
-      arcana: localizedCard.arcana,
-      imageSrc: getCardFacePath(card.id, assetPaths),
-      uprightMeanings: localizedCard.uprightMeanings,
-      reversedMeanings: localizedCard.reversedMeanings,
-      orientation,
-      orientationLabel: formatOrientation(orientation, language),
-      keywords,
-      drawn: false
-    };
+  return updateWheelCardPresentation(wheelCards, 0, "entry");
+}
+
+function prepareWheelCardsForDraw(wheelCards, assetPaths, language) {
+  const preparedCards = createWheelCardsFromExistingOrder(wheelCards, assetPaths, language, true);
+
+  return updateWheelCardPresentation(preparedCards, 0, "entry");
+}
+
+function prepareWheelCardsForIdle(wheelCards, assetPaths, language) {
+  const preparedCards = createWheelCardsFromExistingOrder(wheelCards, assetPaths, language, false);
+
+  return updateWheelCardPresentation(preparedCards, 0, "entry");
+}
+
+function refreshWheelCardAssets(wheelCards, assetPaths) {
+  return wheelCards.map((slot) => Object.assign({}, slot, {
+    imageSrc: getCardFacePath(slot.cardId, assetPaths)
+  }));
+}
+
+function createWheelCardsFromExistingOrder(wheelCards, assetPaths, language, shouldRefreshOrientation) {
+  const sourceSlots = Array.isArray(wheelCards) && wheelCards.length ? wheelCards : createWheelCards(assetPaths, language);
+
+  return sourceSlots.map((slot, index) => {
+    const card = tarotDeck.find((deckCard) => deckCard.id === slot.cardId) || tarotDeck[index % tarotDeck.length];
+    const orientation = shouldRefreshOrientation
+      ? createWheelCardOrientation()
+      : slot.orientation;
+
+    return createWheelCardSlot(card, index, assetPaths, language, {
+      id: slot.id,
+      orientation
+    });
   });
+}
 
-  return updateWheelCardPresentation(wheelCards, 0, "stack");
+function createWheelCardSlot(card, index, assetPaths, language, options) {
+  const localizedCard = createLocalizedCard(card, language);
+  const orientation = options && options.orientation ? options.orientation : createWheelCardOrientation();
+  const keywords = orientation === "upright" ? localizedCard.uprightMeanings : localizedCard.reversedMeanings;
+
+  return {
+    id: options && options.id ? options.id : `wheel-${index}-${card.id}`,
+    cardId: card.id,
+    name: localizedCard.name,
+    arcana: localizedCard.arcana,
+    imageSrc: getCardFacePath(card.id, assetPaths),
+    uprightMeanings: localizedCard.uprightMeanings,
+    reversedMeanings: localizedCard.reversedMeanings,
+    orientation,
+    orientationLabel: formatOrientation(orientation, language),
+    keywords,
+    drawn: false
+  };
+}
+
+function createWheelCardOrientation() {
+  return Math.random() >= 0.5 ? "upright" : "reversed";
 }
 
 function localizeWheelCardsForLanguage(wheelCards, language) {
@@ -2101,18 +2150,36 @@ function findNearestAvailableIndex(wheelCards, targetIndex) {
 function updateWheelCardPresentation(wheelCards, centerPosition, mode) {
   return wheelCards.map((slot, index) => {
     const distance = index - centerPosition;
-    const arcStyle = mode === "stack"
-      ? createWheelCardStackStyle(distance)
-      : createWheelCardArcStyle(distance);
+    const arcStyle = createWheelCardStyle(distance, mode, wheelCards.length);
+    const slotStyle = createWheelCardSlotStyle(distance, wheelCards.length);
 
-    if (slot.arcStyle === arcStyle) {
+    if (slot.arcStyle === arcStyle && slot.slotStyle === slotStyle) {
       return slot;
     }
 
     return Object.assign({}, slot, {
-      arcStyle
+      arcStyle,
+      slotStyle
     });
   });
+}
+
+function createWheelCardSlotStyle(distance, count) {
+  const normalizedDistance = Math.min(Math.max(0, Math.round(Math.abs(distance))), Math.max(0, count - 1));
+
+  return `z-index: ${Math.max(1, count - normalizedDistance)};`;
+}
+
+function createWheelCardStyle(distance, mode, count) {
+  if (mode === "stack") {
+    return createWheelCardStackStyle(distance);
+  }
+
+  if (mode === "entry") {
+    return createWheelCardEntryArcStyle(distance, count);
+  }
+
+  return createWheelCardArcStyle(distance);
 }
 
 function createWheelCardStackStyle(distance) {
@@ -2121,10 +2188,32 @@ function createWheelCardStackStyle(distance) {
   return `transform: translate(${translateX}rpx, ${WHEEL_ARC_ACTIVE_Y_RPX}rpx) rotate(0.0deg) scale(0.980); opacity: 1.00;`;
 }
 
+function createWheelCardEntryArcStyle(distance, count) {
+  const geometry = createWheelArcGeometry(createWheelEntryDistance(distance, count), WHEEL_ENTRY_ARC_FRACTION);
+  const translateX = Math.round(geometry.translateX - distance * WHEEL_CARD_STRIDE_RPX);
+
+  return `transform: translate(${translateX}rpx, ${Math.round(geometry.translateY)}rpx) rotate(${geometry.rotation.toFixed(1)}deg) scale(${geometry.scale.toFixed(3)}); opacity: 1.00;`;
+}
+
 function createWheelCardArcStyle(distance) {
+  const geometry = createWheelArcGeometry(distance, 1);
+
+  return `transform: translate(${Math.round(geometry.translateX)}rpx, ${Math.round(geometry.translateY)}rpx) rotate(${geometry.rotation.toFixed(1)}deg) scale(${geometry.scale.toFixed(3)}); opacity: ${geometry.opacity.toFixed(2)};`;
+}
+
+function createWheelEntryDistance(distance, count) {
+  const availableCount = Math.max(1, (Number(count) || tarotDeck.length) - 1);
+  const direction = distance < 0 ? -1 : 1;
+  const progress = Math.min(1, Math.abs(distance) / availableCount);
+
+  return direction * progress * WHEEL_ARC_MAX_DISTANCE;
+}
+
+function createWheelArcGeometry(distance, arcFraction) {
   const clampedDistance = Math.max(-WHEEL_ARC_MAX_DISTANCE, Math.min(WHEEL_ARC_MAX_DISTANCE, distance));
-  const absoluteDistance = Math.abs(clampedDistance);
-  const arcProgress = clampedDistance / WHEEL_ARC_MAX_DISTANCE;
+  const effectiveDistance = clampedDistance * arcFraction;
+  const absoluteDistance = Math.abs(effectiveDistance);
+  const arcProgress = effectiveDistance / WHEEL_ARC_MAX_DISTANCE;
   const angleDegrees = WHEEL_ARC_CENTER_DEGREES - arcProgress * ((WHEEL_ARC_START_DEGREES - WHEEL_ARC_END_DEGREES) / 2);
   const angleRadians = (angleDegrees * Math.PI) / 180;
   const centerRadians = (WHEEL_ARC_CENTER_DEGREES * Math.PI) / 180;
@@ -2138,7 +2227,13 @@ function createWheelCardArcStyle(distance) {
   const scale = Math.max(0.72, 1.08 - absoluteDistance * 0.042);
   const opacity = Math.max(0.48, 1 - absoluteDistance * 0.052);
 
-  return `transform: translate(${translateX}rpx, ${translateY}rpx) rotate(${rotation.toFixed(1)}deg) scale(${scale.toFixed(3)}); opacity: ${opacity.toFixed(2)};`;
+  return {
+    translateX,
+    translateY,
+    rotation,
+    scale,
+    opacity
+  };
 }
 
 function handleWheelNativeScroll(page, scrollLeft) {
@@ -2191,7 +2286,7 @@ function startWheelIntroAnimation(page) {
   page._wheelIntroTimer = setTimeout(() => {
     page._wheelIntroTimer = null;
 
-    if (!page.data.wheel.isOpen || page.data.wheel.motion !== "stack") {
+    if (!page.data.wheel.isOpen || page.data.wheel.motion !== "spreading") {
       return;
     }
 
@@ -2213,8 +2308,8 @@ function startWheelIntroAnimation(page) {
       page.setData({
         "wheel.motion": "arc"
       });
-    }, WHEEL_STACK_SPREAD_MS);
-  }, WHEEL_STACK_HOLD_MS);
+    }, WHEEL_ARC_SPREAD_MS);
+  }, WHEEL_ENTRY_EXPAND_DELAY_MS);
 }
 
 function startWheelFinishAnimation(page, wheelCards, centerPosition) {
@@ -2222,16 +2317,22 @@ function startWheelFinishAnimation(page, wheelCards, centerPosition) {
   clearWheelFinishTimer(page);
   clearWheelDrawFlightTimer(page);
 
+  const spinCenterPosition = 0;
+
   page._lastWheelPresentationAt = Date.now();
-  page._lastWheelPresentationPosition = centerPosition;
+  page._lastWheelPresentationPosition = spinCenterPosition;
+  page._wheelScrollLeft = 0;
 
   page.setData({
-    wheelCards: updateWheelCardPresentation(wheelCards, centerPosition, "stack"),
+    wheelCards: updateWheelCardPresentation(wheelCards, spinCenterPosition),
     wheel: Object.assign({}, page.data.wheel, {
-      activeIndex: centerPosition,
+      scrollLeft: 0,
+      scrollIntoView: WHEEL_HOME_ANCHOR_ID,
+      scrollWithAnimation: true,
+      activeIndex: spinCenterPosition,
       selectedIndex: -1,
       phase: "closing",
-      motion: "closing",
+      motion: "closing-spin",
       revealedCard: null,
       flightCard: null
     })
@@ -2241,10 +2342,30 @@ function startWheelFinishAnimation(page, wheelCards, centerPosition) {
     page._wheelFinishTimer = null;
 
     page.setData({
-      wheel: createClosedWheelState(page._assetPaths)
+      wheelCards: updateWheelCardPresentation(page.data.wheelCards, 0, "entry"),
+      wheel: Object.assign({}, page.data.wheel, {
+        scrollLeft: 0,
+        scrollIntoView: WHEEL_HOME_ANCHOR_ID,
+        scrollWithAnimation: false,
+        activeIndex: 0,
+        selectedIndex: -1,
+        phase: "closing",
+        motion: "closing",
+        revealedCard: null,
+        flightCard: null
+      })
     });
-    page.interpretReading();
-  }, WHEEL_STACK_COLLAPSE_MS);
+
+    page._wheelFinishTimer = setTimeout(() => {
+      page._wheelFinishTimer = null;
+
+      page.setData({
+        wheelCards: prepareWheelCardsForIdle(page.data.wheelCards, page._assetPaths, page.data.language),
+        wheel: createClosedWheelState(page._assetPaths)
+      });
+      page.interpretReading();
+    }, WHEEL_STACK_COLLAPSE_MS);
+  }, WHEEL_FINISH_RIGHT_SPIN_MS);
 }
 
 function clearWheelAnimationTimers(page) {
@@ -2646,7 +2767,8 @@ function activateRemoteAssets(page, assetPaths, loadToken) {
       message: assetPaths.fallback ? pageText(page, "assetLocalReady") : pageText(page, "assetReady"),
       resourceLabel: assetPaths.fallback ? pageText(page, "resourceLocal") : pageText(page, "resourceRemote")
     },
-    "wheel.cardBackSrc": assetPaths.cardBack
+    "wheel.cardBackSrc": assetPaths.cardBack,
+    wheelCards: refreshWheelCardAssets(page.data.wheelCards, assetPaths)
   });
   startAmbientAudioWhenReady(page);
 }
