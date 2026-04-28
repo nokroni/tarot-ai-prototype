@@ -38,6 +38,7 @@ const {
   SIMPLE_READER_ID,
   SIMPLE_SPREAD_ID,
   createSpreads,
+  getRahdueDefaultQuestion,
   getSpreadById,
   getStoredReadingMode
 } = require("../../services/reading-options");
@@ -158,6 +159,8 @@ const WHEEL_HOME_ANCHOR_ID = "wheel-scroll-home";
 const WHEEL_STACK_COLLAPSE_MS = 660;
 const WHEEL_DRAW_FLIGHT_MS = 1120;
 const WHEEL_VIBRATE_THROTTLE_MS = 55;
+const WHEEL_ENDGAME_AUTO_CENTER_COUNT = 8;
+const WHEEL_SCROLL_SETTLE_TOLERANCE_PX = 3;
 const MUSIC_TRACK_PATHS = {
   intro: createRemoteAssetUrl("music", "bgm_intro.m4a"),
   introBar: createRemoteAssetUrl("music", "bgm_intro_bar.m4a")
@@ -1044,6 +1047,10 @@ function createLocalizedCard(card, language) {
 function createReadingQuestion({ question, spread, decisionOptions, language }) {
   const safeQuestion = String(question || "").trim();
   const languageCode = normalizeLanguageCode(language);
+
+  if (spread && spread.id === RAHDUE_SPREAD_ID && !safeQuestion) {
+    return getRahdueDefaultQuestion(languageCode);
+  }
 
   if (!spread || spread.id !== "decisionPair") {
     return safeQuestion;
@@ -2220,6 +2227,7 @@ function confirmWheelCard(page, index) {
     const currentActiveIndex = page.data.wheel.activeIndex === index
       ? nextActiveIndex
       : findNearestAvailableIndex(page.data.wheelCards, page.data.wheel.activeIndex);
+    const shouldAutoCenter = shouldAutoCenterRemainingWheel(page.data.wheelCards);
 
     page._lastWheelPresentationPosition = currentActiveIndex;
 
@@ -2229,6 +2237,8 @@ function confirmWheelCard(page, index) {
         activeIndex: currentActiveIndex,
         selectedIndex: -1,
         phase: "choosing",
+        scrollIntoView: shouldAutoCenter ? getWheelSlotAnchor(currentActiveIndex) : "",
+        scrollWithAnimation: shouldAutoCenter,
         currentDrawNumber: nextDrawnCards.length + 1,
         currentDrawPosition: getWheelDrawPosition(page.data.selectedSpread, nextDrawnCards.length),
         revealedCard: null,
@@ -2344,6 +2354,20 @@ function findNearestAvailableIndex(wheelCards, targetIndex) {
   return normalizedTarget;
 }
 
+function countAvailableWheelCards(wheelCards) {
+  return wheelCards.filter((slot) => slot && !slot.drawn).length;
+}
+
+function shouldAutoCenterRemainingWheel(wheelCards) {
+  const remainingCount = countAvailableWheelCards(wheelCards);
+
+  return remainingCount > 0 && remainingCount <= WHEEL_ENDGAME_AUTO_CENTER_COUNT;
+}
+
+function getWheelSlotAnchor(index) {
+  return `wheel-slot-${index}`;
+}
+
 function updateWheelCardPresentation(wheelCards, centerPosition, mode) {
   return wheelCards.map((slot, index) => {
     const distance = index - centerPosition;
@@ -2449,11 +2473,13 @@ function handleWheelNativeScroll(page, scrollLeft) {
   }
 
   const now = Date.now();
-
+  const previousScrollLeft = Number(page._wheelScrollLeft) || 0;
   page._wheelScrollLeft = nextScrollLeft;
 
   const targetIndex = getWheelIndexFromScrollLeft(page, nextScrollLeft);
   const activeIndex = findNearestAvailableIndex(page.data.wheelCards, targetIndex);
+  const scrollDelta = Math.abs(nextScrollLeft - previousScrollLeft);
+  const scrollMovedMeaningfully = scrollDelta > WHEEL_SCROLL_SETTLE_TOLERANCE_PX;
   const shouldUpdatePresentation =
     activeIndex !== page.data.wheel.activeIndex ||
     !page._lastWheelPresentationAt;
@@ -2465,7 +2491,10 @@ function handleWheelNativeScroll(page, scrollLeft) {
     updates.wheelCards = updateWheelCardPresentation(page.data.wheelCards, activeIndex);
   }
 
-  if (page.data.wheel.selectedIndex !== -1 || page.data.wheel.phase === "popped") {
+  if (
+    (page.data.wheel.selectedIndex !== -1 || page.data.wheel.phase === "popped") &&
+      (activeIndex !== page.data.wheel.activeIndex || scrollMovedMeaningfully)
+  ) {
     updates["wheel.selectedIndex"] = -1;
     updates["wheel.phase"] = "choosing";
     updates["wheel.revealedCard"] = null;

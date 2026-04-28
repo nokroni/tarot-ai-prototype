@@ -10,7 +10,10 @@ const {
   getLanguageConfig,
   normalizeLanguageCode
 } = require("./language");
-const { RAHDUE_SPREAD_ID } = require("./reading-options");
+const {
+  RAHDUE_SPREAD_ID,
+  getRahdueDefaultQuestion
+} = require("./reading-options");
 const { createReaderSourceLabel } = require("../prompts/reader-prompts");
 const { createSpreadGuidance } = require("../prompts/spread-guidance");
 
@@ -102,7 +105,7 @@ function mergeCardWithMetadata(card, fallbackCards, index, languageCode, languag
 function createFallbackReading({ question, spread, drawnCards, sourceLabel, readerProfile, language }) {
   const languageCode = normalizeLanguageCode(language);
   const languageConfig = getLanguageConfig(languageCode);
-  const safeQuestion = String(question || "").trim() || (languageCode === "en" ? "what needs to be understood today" : "今天需要理解的事情");
+  const safeQuestion = createSafeQuestion(question, spread, languageCode) || (languageCode === "en" ? "what needs to be understood today" : "今天需要理解的事情");
   const primaryThemes = drawnCards.map((drawn) => drawn.keywords[0]).join(languageConfig.keywordJoiner);
   const readerProfileRequest = createReaderProfileRequest(readerProfile);
   const questionFocus = createQuestionFocusRequest(safeQuestion, languageCode);
@@ -150,7 +153,7 @@ function createFallbackReading({ question, spread, drawnCards, sourceLabel, read
 function createReadingRequest({ question, spread, drawnCards, readerProfile, decisionOptions, language }) {
   const languageCode = normalizeLanguageCode(language);
   const languageConfig = getLanguageConfig(languageCode);
-  const safeQuestion = String(question || "").trim();
+  const safeQuestion = createSafeQuestion(question, spread, languageCode);
   const decisionOptionRequest = createDecisionOptionsRequest(spread, decisionOptions, languageCode);
   const questionFocus = createQuestionFocusRequest(safeQuestion, languageCode);
   const questionScale = createQuestionScaleRequest(safeQuestion, decisionOptionRequest, languageCode);
@@ -195,6 +198,20 @@ function createReadingRequest({ question, spread, drawnCards, readerProfile, dec
       keywords: drawn.keywords
     }))
   };
+}
+
+function createSafeQuestion(question, spread, language) {
+  const safeQuestion = String(question || "").trim();
+
+  if (safeQuestion) {
+    return safeQuestion;
+  }
+
+  if (isRahdueSpread(spread)) {
+    return getRahdueDefaultQuestion(language);
+  }
+
+  return "";
 }
 
 function createQuestionFocusRequest(question, language) {

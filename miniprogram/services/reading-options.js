@@ -11,6 +11,10 @@ const SIMPLE_READER_ID = DEFAULT_READER_PROFILE_ID;
 const DEFAULT_ADVANCED_SPREAD_ID = "threeCard";
 const RAHDUE_SPREAD_ID = "rahdueWheel";
 const RAHDUE_MANUAL_DRAW_MODE = "fullDeckManual";
+const rahdueDefaultQuestions = {
+  zh: "我想透过拉杜之轮理解前世洞见、业力模式与此刻可触及的内在智慧。",
+  en: "What past-life insight, karmic pattern, and inner wisdom can Rahdue's Wheel reflect for me now?"
+};
 
 const rahdueSectionTemplates = [
   {
@@ -184,8 +188,8 @@ const spreadTemplates = [
     },
     insight: "- Highly experimental full-deck wheel",
     guide: {
-      zh: "适合问：需要用完整牌组观察长期模式、灵魂主题或复杂人生结构时。",
-      en: "Ask when you want a full-deck experimental view of long patterns, soul themes, or complex life structure."
+      zh: "适合问：需要用完整牌组象征性观察前世洞见、业力模式、内在智慧或复杂人生结构时。",
+      en: "Ask when you want a full-deck symbolic view of past-life insight, karmic patterns, inner wisdom, or complex life structure."
     },
     warning: {
       zh: "高度实验 / 不稳定",
@@ -212,6 +216,12 @@ function createReaderOptions() {
     id: reader.id,
     title: reader.title
   }));
+}
+
+function getRahdueDefaultQuestion(language) {
+  const languageCode = normalizeLanguageCode(language);
+
+  return rahdueDefaultQuestions[languageCode] || rahdueDefaultQuestions.zh;
 }
 
 function getSpreadById(spreads, spreadId) {
@@ -385,6 +395,7 @@ module.exports = {
   createRahdueSections,
   createReaderOptions,
   createSpreads,
+  getRahdueDefaultQuestion,
   getSpreadById,
   getStoredReadingMode,
   loadAdvancedReadingSelection,

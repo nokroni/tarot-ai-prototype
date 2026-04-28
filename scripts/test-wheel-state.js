@@ -4,7 +4,8 @@ const sharp = require("sharp");
 const appConfig = require("../miniprogram/config");
 const {
   RAHDUE_SPREAD_ID,
-  createSpreads
+  createSpreads,
+  getRahdueDefaultQuestion
 } = require("../miniprogram/services/reading-options");
 const {
   resolveCloudAIModel,
@@ -629,6 +630,27 @@ pageDefinition.onWheelNativeScroll.call(context, {
   }
 });
 
+pageDefinition.onWheelCardTap.call(context, {
+  currentTarget: {
+    dataset: {
+      index: context.data.wheel.activeIndex
+    }
+  }
+});
+assert.strictEqual(context.data.wheel.phase, "popped", "Tapped wheel cards should remain in the confirmable popped state.");
+pageDefinition.onWheelNativeScroll.call(context, {
+  detail: {
+    scrollLeft: WHEEL_TEST_SCROLL_LEFT + 1
+  }
+});
+assert.strictEqual(context.data.wheel.phase, "popped", "Tiny native scroll-settle events should not cancel the second-tap confirmation state.");
+pageDefinition.onWheelNativeScroll.call(context, {
+  detail: {
+    scrollLeft: WHEEL_TEST_SCROLL_LEFT + 16
+  }
+});
+assert.strictEqual(context.data.wheel.phase, "choosing", "Intentional native scroll movement should still clear a popped card.");
+
 const uniqueCards = new Set(context.data.wheelCards.map((slot) => slot.cardId));
 assert.strictEqual(uniqueCards.size, 78, "Wheel slots should map to unique card faces.");
 
@@ -744,6 +766,7 @@ assert(
     pageScript.includes("openReadingResult({ interpretation, question, notice })") &&
     pageScript.includes('url: "/pages/reading/reading"') &&
     pageScript.includes("createWheelFlightCaption(drawnCard)") &&
+    pageScript.includes("getRahdueDefaultQuestion(languageCode)") &&
     pageMarkup.includes("{{wheel.flightCard.caption}}") &&
     pageMarkup.includes('class="message {{isInterpreting ? \'waiting\' : \'error\'}}"') &&
     !pageMarkup.includes('wx:if="{{interpretation}}" class="reading"') &&
@@ -754,6 +777,9 @@ assert(
     readingScript.includes("createDisplayCards") &&
     readingScript.includes("drawRahdueWheelCanvas") &&
     readingScript.includes('RAHDUE_CANVAS_ID = "rahdue-wheel-canvas"') &&
+    readingScript.includes("getRahdueCanvasMetrics(page)") &&
+    readingScript.includes("appendCardRowRightToLeft") &&
+    readingScript.includes("resolveRahdueDownloadedImagePath") &&
     readingScript.includes('isReversed: orientation === "reversed"') &&
     readingScript.includes("wx.navigateBack") &&
     readingScript.includes('url: "/pages/index/index"') &&
@@ -766,7 +792,8 @@ assert(
     readingMarkup.includes('bindtap="returnHome"') &&
     readingMarkup.includes("{{interpretation.summary}}") &&
     readingStyles.includes(".rahdue-wheel-canvas") &&
-    readingStyles.includes("height: 980rpx;") &&
+    readingStyles.includes("width: 650rpx;") &&
+    readingStyles.includes("height: 1040rpx;") &&
     readingStyles.includes(".drawn-card-image.reversed") &&
     readingStyles.includes("transform: rotate(180deg);") &&
     readingStyles.includes("grid-template-columns: 128rpx minmax(0, 1fr);") &&
@@ -1053,6 +1080,14 @@ const rahduePromptRequest = createReadingRequest({
   decisionOptions: null,
   language: "zh"
 });
+const rahdueDefaultPromptRequest = createReadingRequest({
+  question: "",
+  spread: initialRahdueSpread,
+  drawnCards: rahdueDrawnCardsForPrompt,
+  readerProfile: "misty",
+  decisionOptions: null,
+  language: "zh"
+});
 const rahdueSourceLabel = resolveCloudAISourceLabel(appConfig.cloudAI, rahduePromptRequest);
 const rahdueFallback = createFallbackReading({
   question: "我需要看见长期生命模式里的主线是什么？",
@@ -1100,6 +1135,11 @@ assert.strictEqual(
   "Rahdue's Wheel should use the configured experimental source label override."
 );
 assert.strictEqual(rahduePromptRequest.drawnCards.length, 78, "Rahdue prompt requests should include all 78 drawn cards.");
+assert.strictEqual(
+  rahdueDefaultPromptRequest.question,
+  getRahdueDefaultQuestion("zh"),
+  "Rahdue's Wheel should use its past-life insight and inner-wisdom default question when the user leaves the prompt empty."
+);
 assert.strictEqual(rahduePromptRequest.spread.sections.length, 13, "Rahdue prompt requests should include the section map.");
 assert.strictEqual(rahduePromptRequest.spread.drawMode, "fullDeckAuto", "Rahdue prompt requests should preserve the full-deck draw mode.");
 assert.strictEqual(rahduePromptRequest.spreadGuidance.kind, "rahdue_wheel_full_deck", "Rahdue spread guidance should identify the layered full-deck behavior.");
@@ -1301,6 +1341,14 @@ for (let drawIndex = 0; drawIndex < totalDraws; drawIndex += 1) {
     runNextTimerByDelay(1120);
     assert.strictEqual(context.data.wheel.motion, "arc", "Wheel should remain interactive between selections.");
     assert.strictEqual(context.data.wheel.phase, "choosing", "Wheel should return to choosing after a non-final draw flight.");
+    if (totalDraws - (drawIndex + 1) <= 8) {
+      assert.strictEqual(
+        context.data.wheel.scrollIntoView,
+        `wheel-slot-${context.data.wheel.activeIndex}`,
+        "The last few remaining cards should be auto-centered so manual Rahdue drawing cannot strand the next active card offscreen."
+      );
+      assert.strictEqual(context.data.wheel.scrollWithAnimation, true, "Endgame auto-centering should animate to the next remaining card.");
+    }
     assert.strictEqual(
       context.data.wheel.currentDrawPosition,
       context.data.selectedSpread.positions[drawIndex + 1],

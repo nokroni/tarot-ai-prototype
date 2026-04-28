@@ -7,10 +7,11 @@ const { RAHDUE_SPREAD_ID } = require("../../services/reading-options");
 const { loadLatestReadingResult } = require("../../services/reading-result");
 
 const RAHDUE_CANVAS_ID = "rahdue-wheel-canvas";
-const RAHDUE_CANVAS_WIDTH = 686;
-const RAHDUE_CANVAS_HEIGHT = 980;
-const RAHDUE_CANVAS_CARD_WIDTH = 24;
-const RAHDUE_CANVAS_CARD_HEIGHT = 42;
+const RAHDUE_CANVAS_BASE_WIDTH = 650;
+const RAHDUE_CANVAS_BASE_HEIGHT = 1040;
+const RAHDUE_CANVAS_BASE_CARD_WIDTH = 26;
+const RAHDUE_CANVAS_BASE_CARD_HEIGHT = 44;
+const RAHDUE_CANVAS_IMAGE_BATCH_SIZE = 6;
 
 const uiCopy = {
   zh: {
@@ -199,54 +200,151 @@ function drawRahdueWheelCanvas(page, cards) {
     return;
   }
 
-  drawRahdueWheelCanvasWithImagePaths(page, cards, {});
+  getRahdueCanvasMetrics(page).then((metrics) => {
+    drawRahdueWheelCanvasWithImagePaths(page, cards, {}, metrics);
 
-  if (!wx.getImageInfo || typeof Promise === "undefined") {
-    return;
-  }
+    if (typeof Promise === "undefined") {
+      return;
+    }
 
-  resolveRahdueCanvasImagePaths(cards).then((imagePaths) => {
-    drawRahdueWheelCanvasWithImagePaths(page, cards, imagePaths);
-  }).catch(() => {
-    drawRahdueWheelCanvasWithImagePaths(page, cards, {});
+    resolveRahdueCanvasImagePaths(cards, (imagePaths) => {
+      drawRahdueWheelCanvasWithImagePaths(page, cards, imagePaths, metrics);
+    }).then((imagePaths) => {
+      drawRahdueWheelCanvasWithImagePaths(page, cards, imagePaths, metrics);
+    }).catch(() => {
+      drawRahdueWheelCanvasWithImagePaths(page, cards, {}, metrics);
+    });
   });
 }
 
-function drawRahdueWheelCanvasWithImagePaths(page, cards, imagePaths) {
+function drawRahdueWheelCanvasWithImagePaths(page, cards, imagePaths, metrics) {
   const ctx = wx.createCanvasContext(RAHDUE_CANVAS_ID, page);
+  const canvasMetrics = metrics || createFallbackRahdueCanvasMetrics();
 
   if (!ctx) {
     return;
   }
 
-  const layout = createRahdueCanvasLayout(cards);
+  const layout = createRahdueCanvasLayout(cards, canvasMetrics);
 
-  ctx.clearRect(0, 0, RAHDUE_CANVAS_WIDTH, RAHDUE_CANVAS_HEIGHT);
+  ctx.clearRect(0, 0, canvasMetrics.width, canvasMetrics.height);
   ctx.setFillStyle("#f8f1fb");
-  ctx.fillRect(0, 0, RAHDUE_CANVAS_WIDTH, RAHDUE_CANVAS_HEIGHT);
+  ctx.fillRect(0, 0, canvasMetrics.width, canvasMetrics.height);
   ctx.setStrokeStyle("rgba(91, 63, 163, 0.16)");
-  ctx.setLineWidth(2);
-  drawRahdueGuideGeometry(ctx);
-  layout.forEach((slot) => drawRahdueCanvasCard(ctx, slot, imagePaths));
+  ctx.setLineWidth(scaleRahdueMetric(canvasMetrics, 2));
+  drawRahdueGuideGeometry(ctx, canvasMetrics);
+  layout.forEach((slot) => drawRahdueCanvasCard(ctx, slot, imagePaths, canvasMetrics));
   ctx.draw(false);
 }
 
-function resolveRahdueCanvasImagePaths(cards) {
-  return Promise.all(cards.map((card) => resolveRahdueCanvasImagePath(card))).then((entries) => (
-    entries.reduce((paths, entry) => {
-      if (entry && entry.id && entry.path) {
-        paths[entry.id] = entry.path;
+function getRahdueCanvasMetrics(page) {
+  if (typeof Promise === "undefined") {
+    return {
+      then(callback) {
+        callback(createFallbackRahdueCanvasMetrics());
       }
+    };
+  }
 
-      return paths;
-    }, {})
-  ));
+  return new Promise((resolve) => {
+    if (typeof wx === "undefined" || !wx.createSelectorQuery) {
+      resolve(createFallbackRahdueCanvasMetrics());
+      return;
+    }
+
+    try {
+      const query = wx.createSelectorQuery().in(page);
+
+      query.select(`#${RAHDUE_CANVAS_ID}`).boundingClientRect((rect) => {
+        resolve(createRahdueCanvasMetrics(rect));
+      }).exec();
+    } catch (error) {
+      resolve(createFallbackRahdueCanvasMetrics());
+    }
+  });
+}
+
+function createRahdueCanvasMetrics(rect) {
+  const fallback = createFallbackRahdueCanvasSize();
+  const width = rect && Number(rect.width) > 0 ? Number(rect.width) : fallback.width;
+  const height = rect && Number(rect.height) > 0
+    ? Number(rect.height)
+    : width * (RAHDUE_CANVAS_BASE_HEIGHT / RAHDUE_CANVAS_BASE_WIDTH);
+
+  return {
+    width,
+    height,
+    scale: width / RAHDUE_CANVAS_BASE_WIDTH,
+    cardWidth: RAHDUE_CANVAS_BASE_CARD_WIDTH * (width / RAHDUE_CANVAS_BASE_WIDTH),
+    cardHeight: RAHDUE_CANVAS_BASE_CARD_HEIGHT * (width / RAHDUE_CANVAS_BASE_WIDTH)
+  };
+}
+
+function createFallbackRahdueCanvasMetrics() {
+  return createRahdueCanvasMetrics(createFallbackRahdueCanvasSize());
+}
+
+function createFallbackRahdueCanvasSize() {
+  let ratio = 0.5;
+
+  if (typeof wx !== "undefined" && wx.getSystemInfoSync) {
+    try {
+      const systemInfo = wx.getSystemInfoSync();
+
+      if (systemInfo && systemInfo.windowWidth) {
+        ratio = systemInfo.windowWidth / 750;
+      }
+    } catch (error) {
+      ratio = 0.5;
+    }
+  }
+
+  return {
+    width: RAHDUE_CANVAS_BASE_WIDTH * ratio,
+    height: RAHDUE_CANVAS_BASE_HEIGHT * ratio
+  };
+}
+
+function scaleRahdueMetric(metrics, value) {
+  return value * metrics.scale;
+}
+
+function resolveRahdueCanvasImagePaths(cards, onBatch) {
+  const paths = {};
+  const queue = cards.slice();
+  let chain = Promise.resolve();
+
+  while (queue.length) {
+    const batch = queue.splice(0, RAHDUE_CANVAS_IMAGE_BATCH_SIZE);
+
+    chain = chain.then(() => Promise.all(batch.map((card) => resolveRahdueCanvasImagePath(card))).then((entries) => {
+      entries.forEach((entry) => {
+        if (entry && entry.id && entry.path) {
+          paths[entry.id] = entry.path;
+        }
+      });
+
+      if (typeof onBatch === "function") {
+        onBatch(Object.assign({}, paths));
+      }
+    }));
+  }
+
+  return chain.then(() => paths);
 }
 
 function resolveRahdueCanvasImagePath(card) {
   return new Promise((resolve) => {
     if (!card || !card.id || !card.imageSrc) {
       resolve(null);
+      return;
+    }
+
+    if (!wx.getImageInfo) {
+      resolve({
+        id: card.id,
+        path: isRemoteRahdueImagePath(card.imageSrc) ? "" : card.imageSrc
+      });
       return;
     }
 
@@ -259,97 +357,152 @@ function resolveRahdueCanvasImagePath(card) {
         });
       },
       fail: () => {
-        resolve({
-          id: card.id,
-          path: card.imageSrc
-        });
+        resolveRahdueDownloadedImagePath(card, resolve);
       }
     });
   });
 }
 
-function drawRahdueGuideGeometry(ctx) {
-  const centerX = RAHDUE_CANVAS_WIDTH / 2;
-  const centerY = 274;
+function resolveRahdueDownloadedImagePath(card, resolve) {
+  if (!wx.downloadFile || !isRemoteRahdueImagePath(card.imageSrc)) {
+    resolve({
+      id: card.id,
+      path: isRemoteRahdueImagePath(card.imageSrc) ? "" : card.imageSrc
+    });
+    return;
+  }
 
-  [92, 150, 208].forEach((radius) => {
+  wx.downloadFile({
+    url: card.imageSrc,
+    success: (result) => {
+      if (result && (!result.statusCode || (result.statusCode >= 200 && result.statusCode < 300)) && result.tempFilePath) {
+        resolve({
+          id: card.id,
+          path: result.tempFilePath
+        });
+        return;
+      }
+
+      resolve({
+        id: card.id,
+        path: ""
+      });
+    },
+    fail: () => {
+      resolve({
+        id: card.id,
+        path: ""
+      });
+    }
+  });
+}
+
+function isRemoteRahdueImagePath(path) {
+  return /^https?:\/\//.test(String(path || ""));
+}
+
+function drawRahdueGuideGeometry(ctx, metrics) {
+  const centerX = metrics.width / 2;
+  const centerY = scaleRahdueMetric(metrics, 270);
+
+  [72, 122, 172].forEach((radius) => {
     ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.arc(centerX, centerY, scaleRahdueMetric(metrics, radius), 0, Math.PI * 2);
     ctx.stroke();
   });
 
+  drawRahdueGuideLine(ctx, metrics, 54, 388, 54, 738);
+  drawRahdueGuideLine(ctx, metrics, 596, 388, 596, 738);
+  drawRahdueGuideLine(ctx, metrics, 92, 792, 558, 792);
+  drawRahdueGuideLine(ctx, metrics, 92, 928, 558, 928);
+
   ctx.setFillStyle("rgba(91, 63, 163, 0.72)");
-  ctx.setFontSize(18);
-  ctx.fillText("Inner / Center / Outer", centerX - 86, 36);
-  ctx.fillText("Shor", 82, 430);
-  ctx.fillText("Dagim", centerX - 28, 474);
-  ctx.fillText("Taleh", 548, 430);
-  ctx.fillText("Malkuth", centerX - 38, 752);
+  ctx.setFontSize(scaleRahdueMetric(metrics, 20));
+  ctx.fillText("Inner / Center / Outer", centerX - scaleRahdueMetric(metrics, 104), scaleRahdueMetric(metrics, 38));
+  ctx.fillText("Shor", scaleRahdueMetric(metrics, 32), scaleRahdueMetric(metrics, 360));
+  ctx.fillText("Taleh", scaleRahdueMetric(metrics, 552), scaleRahdueMetric(metrics, 360));
+  ctx.fillText("Dagim", centerX - scaleRahdueMetric(metrics, 34), scaleRahdueMetric(metrics, 760));
+  ctx.fillText("Malkuth", centerX - scaleRahdueMetric(metrics, 44), scaleRahdueMetric(metrics, 900));
 }
 
-function createRahdueCanvasLayout(cards) {
-  const layout = [];
-  const centerX = RAHDUE_CANVAS_WIDTH / 2;
-  const centerY = 274;
+function drawRahdueGuideLine(ctx, metrics, startX, startY, endX, endY) {
+  ctx.beginPath();
+  ctx.moveTo(scaleRahdueMetric(metrics, startX), scaleRahdueMetric(metrics, startY));
+  ctx.lineTo(scaleRahdueMetric(metrics, endX), scaleRahdueMetric(metrics, endY));
+  ctx.stroke();
+}
 
-  appendWheelRing(layout, cards, 1, 12, centerX, centerY, 92);
-  appendSolidifier(layout, cards, 13, centerX + 246, centerY - 62);
-  appendWheelRing(layout, cards, 14, 25, centerX, centerY, 150);
-  appendSolidifier(layout, cards, 26, centerX + 270, centerY - 21);
-  appendWheelRing(layout, cards, 27, 38, centerX, centerY, 208);
-  appendSolidifier(layout, cards, 39, centerX + 246, centerY + 20);
-  appendCardGrid(layout, cards, 40, 48, centerX - 44, 498, 3, 30, 50);
-  appendSolidifier(layout, cards, 49, centerX + 64, 548);
-  appendCardColumn(layout, cards, 50, 58, 552, 456, 48);
-  appendSolidifier(layout, cards, 59, 594, 628);
-  appendCardColumn(layout, cards, 60, 68, 110, 456, 48);
-  appendSolidifier(layout, cards, 69, 68, 628);
-  appendCardGrid(layout, cards, 70, 78, centerX - 44, 780, 3, 30, 50);
+function createRahdueCanvasLayout(cards, metrics) {
+  const layout = [];
+  const centerX = metrics.width / 2;
+  const centerY = scaleRahdueMetric(metrics, 270);
+
+  appendWheelRing(layout, cards, 1, 12, centerX, centerY, scaleRahdueMetric(metrics, 72), metrics);
+  appendWheelRing(layout, cards, 14, 25, centerX, centerY, scaleRahdueMetric(metrics, 122), metrics);
+  appendWheelRing(layout, cards, 27, 38, centerX, centerY, scaleRahdueMetric(metrics, 172), metrics);
+  appendSolidifier(layout, cards, 13, centerX, scaleRahdueMetric(metrics, 220), metrics);
+  appendSolidifier(layout, cards, 26, centerX - scaleRahdueMetric(metrics, 48), scaleRahdueMetric(metrics, 326), metrics);
+  appendSolidifier(layout, cards, 39, centerX + scaleRahdueMetric(metrics, 48), scaleRahdueMetric(metrics, 326), metrics);
+  appendCardColumnUp(layout, cards, 50, 58, scaleRahdueMetric(metrics, 584), scaleRahdueMetric(metrics, 720), scaleRahdueMetric(metrics, 42), metrics);
+  appendSolidifier(layout, cards, 59, scaleRahdueMetric(metrics, 584), scaleRahdueMetric(metrics, 334), metrics);
+  appendCardColumn(layout, cards, 60, 68, scaleRahdueMetric(metrics, 40), scaleRahdueMetric(metrics, 388), scaleRahdueMetric(metrics, 42), metrics);
+  appendSolidifier(layout, cards, 69, scaleRahdueMetric(metrics, 40), scaleRahdueMetric(metrics, 774), metrics);
+  appendCardRowRightToLeft(layout, cards, 40, 48, scaleRahdueMetric(metrics, 542), scaleRahdueMetric(metrics, 800), scaleRahdueMetric(metrics, 56), metrics);
+  appendSolidifier(layout, cards, 49, centerX, scaleRahdueMetric(metrics, 844), metrics);
+  appendCardRow(layout, cards, 70, 78, scaleRahdueMetric(metrics, 82), scaleRahdueMetric(metrics, 936), scaleRahdueMetric(metrics, 56), metrics);
 
   return layout;
 }
 
-function appendWheelRing(layout, cards, start, end, centerX, centerY, radius) {
-  const count = end - start + 1;
-
+function appendWheelRing(layout, cards, start, end, centerX, centerY, radius, metrics) {
   for (let position = start; position <= end; position += 1) {
     const offset = position - start;
-    const angle = (-Math.PI / 2) + (offset / count) * Math.PI * 2;
-    const x = centerX + Math.cos(angle) * radius - RAHDUE_CANVAS_CARD_WIDTH / 2;
-    const y = centerY + Math.sin(angle) * radius - RAHDUE_CANVAS_CARD_HEIGHT / 2;
+    const angle = ((offset + 1) / 12) * Math.PI * 2 - Math.PI / 2;
+    const x = centerX + Math.cos(angle) * radius - metrics.cardWidth / 2;
+    const y = centerY + Math.sin(angle) * radius - metrics.cardHeight / 2;
 
-    appendCanvasCard(layout, cards, position, x, y, angle + Math.PI / 2);
+    appendCanvasCard(layout, cards, position, x, y, angle + Math.PI / 2, false, metrics);
   }
 }
 
-function appendCardGrid(layout, cards, start, end, originX, originY, columns, gapX, gapY) {
+function appendCardRow(layout, cards, start, end, originX, originY, gapX, metrics) {
   for (let position = start; position <= end; position += 1) {
-    const offset = position - start;
-    const column = offset % columns;
-    const row = Math.floor(offset / columns);
-
-    appendCanvasCard(
-      layout,
-      cards,
-      position,
-      originX + column * gapX,
-      originY + row * gapY,
-      0
-    );
+    appendCanvasCard(layout, cards, position, originX + (position - start) * gapX, originY, 0, false, metrics);
   }
 }
 
-function appendCardColumn(layout, cards, start, end, originX, originY, gapY) {
+function appendCardRowRightToLeft(layout, cards, start, end, originX, originY, gapX, metrics) {
   for (let position = start; position <= end; position += 1) {
-    appendCanvasCard(layout, cards, position, originX, originY + (position - start) * gapY, 0);
+    appendCanvasCard(layout, cards, position, originX - (position - start) * gapX, originY, 0, false, metrics);
   }
 }
 
-function appendSolidifier(layout, cards, position, x, y) {
-  appendCanvasCard(layout, cards, position, x, y, 0, true);
+function appendCardColumn(layout, cards, start, end, originX, originY, gapY, metrics) {
+  for (let position = start; position <= end; position += 1) {
+    appendCanvasCard(layout, cards, position, originX, originY + (position - start) * gapY, 0, false, metrics);
+  }
 }
 
-function appendCanvasCard(layout, cards, position, x, y, rotation, solidifier) {
+function appendCardColumnUp(layout, cards, start, end, originX, originY, gapY, metrics) {
+  for (let position = start; position <= end; position += 1) {
+    appendCanvasCard(layout, cards, position, originX, originY - (position - start) * gapY, 0, false, metrics);
+  }
+}
+
+function appendSolidifier(layout, cards, position, centerX, centerY, metrics) {
+  appendCanvasCard(
+    layout,
+    cards,
+    position,
+    centerX - metrics.cardWidth / 2,
+    centerY - metrics.cardHeight / 2,
+    0,
+    true,
+    metrics
+  );
+}
+
+function appendCanvasCard(layout, cards, position, x, y, rotation, solidifier, metrics) {
   const card = cards[position - 1];
 
   if (!card) {
@@ -361,29 +514,43 @@ function appendCanvasCard(layout, cards, position, x, y, rotation, solidifier) {
     position,
     x,
     y,
+    width: metrics.cardWidth,
+    height: metrics.cardHeight,
     rotation: rotation || 0,
     solidifier: Boolean(solidifier)
   });
 }
 
-function drawRahdueCanvasCard(ctx, slot, imagePaths) {
+function drawRahdueCanvasCard(ctx, slot, imagePaths, metrics) {
   const rotation = slot.rotation + (slot.card.isReversed ? Math.PI : 0);
-  const centerX = slot.x + RAHDUE_CANVAS_CARD_WIDTH / 2;
-  const centerY = slot.y + RAHDUE_CANVAS_CARD_HEIGHT / 2;
-  const imageSrc = imagePaths && imagePaths[slot.card.id] ? imagePaths[slot.card.id] : slot.card.imageSrc;
+  const centerX = slot.x + slot.width / 2;
+  const centerY = slot.y + slot.height / 2;
+  const imageSrc = imagePaths && imagePaths[slot.card.id] ? imagePaths[slot.card.id] : "";
 
   ctx.save();
   ctx.translate(centerX, centerY);
   ctx.rotate(rotation);
   ctx.setFillStyle(slot.solidifier ? "#fff3d5" : "#fffaf0");
   ctx.setStrokeStyle(slot.solidifier ? "rgba(151, 73, 56, 0.62)" : "rgba(91, 63, 163, 0.28)");
-  ctx.setLineWidth(slot.solidifier ? 2 : 1);
-  ctx.fillRect(-RAHDUE_CANVAS_CARD_WIDTH / 2, -RAHDUE_CANVAS_CARD_HEIGHT / 2, RAHDUE_CANVAS_CARD_WIDTH, RAHDUE_CANVAS_CARD_HEIGHT);
+  ctx.setLineWidth(scaleRahdueMetric(metrics, slot.solidifier ? 2 : 1));
+  ctx.fillRect(-slot.width / 2, -slot.height / 2, slot.width, slot.height);
 
   if (imageSrc) {
-    ctx.drawImage(imageSrc, -RAHDUE_CANVAS_CARD_WIDTH / 2, -RAHDUE_CANVAS_CARD_HEIGHT / 2, RAHDUE_CANVAS_CARD_WIDTH, RAHDUE_CANVAS_CARD_HEIGHT);
+    try {
+      ctx.drawImage(imageSrc, -slot.width / 2, -slot.height / 2, slot.width, slot.height);
+    } catch (error) {
+      drawRahdueCanvasCardNumber(ctx, slot, metrics);
+    }
+  } else {
+    drawRahdueCanvasCardNumber(ctx, slot, metrics);
   }
 
-  ctx.strokeRect(-RAHDUE_CANVAS_CARD_WIDTH / 2, -RAHDUE_CANVAS_CARD_HEIGHT / 2, RAHDUE_CANVAS_CARD_WIDTH, RAHDUE_CANVAS_CARD_HEIGHT);
+  ctx.strokeRect(-slot.width / 2, -slot.height / 2, slot.width, slot.height);
   ctx.restore();
+}
+
+function drawRahdueCanvasCardNumber(ctx, slot, metrics) {
+  ctx.setFillStyle(slot.solidifier ? "rgba(151, 73, 56, 0.78)" : "rgba(91, 63, 163, 0.62)");
+  ctx.setFontSize(scaleRahdueMetric(metrics, 12));
+  ctx.fillText(String(slot.position), -slot.width / 2 + scaleRahdueMetric(metrics, 3), scaleRahdueMetric(metrics, 4));
 }
