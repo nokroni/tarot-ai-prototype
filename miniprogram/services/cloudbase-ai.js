@@ -63,7 +63,7 @@ async function createCloudBaseReading({ cloudAIConfig, readingRequest }) {
   }
 }
 
-async function createCloudBaseRahdueSequentialReading({ cloudAIConfig, readingRequest, onProgress }) {
+async function createCloudBaseRahdueSequentialReading({ cloudAIConfig, readingRequest, onProgress, resumeState }) {
   if (!hasCloudBaseAI(cloudAIConfig)) {
     throw new Error("云开发 AI 尚未配置。");
   }
@@ -91,7 +91,8 @@ async function createCloudBaseRahdueSequentialReading({ cloudAIConfig, readingRe
     sourceLabel,
     readingRequest,
     sections,
-    onProgress
+    onProgress,
+    resumeState
   });
   const completedSections = sectionResults.map((result) => result.section);
   const completedCards = sectionResults.reduce((cards, result) => cards.concat(result.cards), []);
@@ -145,6 +146,9 @@ async function requestRahdueSectionAttempt(options) {
     return normalizeRahdueSectionResult(sectionResult, options.section, options.sectionCards);
   } catch (error) {
     if (options.attemptNumber >= RAHDUE_SEQUENTIAL_ATTEMPTS) {
+      error.rahdueRetryScope = "section";
+      error.rahdueSectionId = options.section && options.section.id;
+      error.rahdueSectionTitle = options.section && options.section.title;
       throw error;
     }
 
@@ -156,15 +160,24 @@ async function requestRahdueSectionAttempt(options) {
 
 async function requestRahdueSectionsInParallel(options) {
   const sections = options.sections || [];
-  const sectionResults = new Array(sections.length);
+  const resumeState = options.resumeState && typeof options.resumeState === "object"
+    ? options.resumeState
+    : null;
+  const cachedSectionResults = resumeState && Array.isArray(resumeState.sectionResults)
+    ? resumeState.sectionResults
+    : [];
+  const sectionResults = sections.map((_, index) => cachedSectionResults[index] || null);
   const workerCount = Math.min(RAHDUE_SECTION_CONCURRENCY, sections.length);
   let nextIndex = 0;
-  let completedCount = 0;
+  let completedCount = sectionResults.filter(Boolean).length;
 
   async function requestNextSection() {
-    const index = nextIndex;
+    const index = getNextPendingRahdueSectionIndex(sectionResults, sections.length, () => {
+      const value = nextIndex;
 
-    nextIndex += 1;
+      nextIndex += 1;
+      return value;
+    });
 
     if (index >= sections.length) {
       return;
@@ -184,6 +197,9 @@ async function requestRahdueSectionsInParallel(options) {
     });
 
     sectionResults[index] = sectionResult;
+    if (resumeState) {
+      resumeState.sectionResults = sectionResults.slice();
+    }
     completedCount += 1;
     emitRahdueProgress(options.onProgress, {
       phase: "section",
@@ -195,9 +211,33 @@ async function requestRahdueSectionsInParallel(options) {
     return requestNextSection();
   }
 
-  await Promise.all(Array.from({ length: workerCount }, () => requestNextSection()));
+  const workerResults = await Promise.all(Array.from({ length: workerCount }, () => (
+    requestNextSection().then(
+      () => ({ status: "fulfilled" }),
+      (reason) => ({ status: "rejected", reason })
+    )
+  )));
+  const failedWorker = workerResults.find((result) => result.status === "rejected");
+
+  if (failedWorker) {
+    throw failedWorker.reason;
+  }
 
   return sectionResults;
+}
+
+function getNextPendingRahdueSectionIndex(sectionResults, sectionCount, takeNextIndex) {
+  while (true) {
+    const index = takeNextIndex();
+
+    if (index >= sectionCount) {
+      return sectionCount;
+    }
+
+    if (!sectionResults[index]) {
+      return index;
+    }
+  }
 }
 
 async function requestRahdueSynthesisAttempt(options) {

@@ -94,9 +94,9 @@ global.clearTimeout = (id) => {
 require("../miniprogram/pages/index/index.js");
 
 assert(pageDefinition, "Page definition should be registered.");
-assert.strictEqual(releasePackageJson.version, "0.9.4", "Package version should be bumped for this update.");
-assert.strictEqual(releasePackageLock.version, "0.9.4", "Package lock top-level version should match the release.");
-assert.strictEqual(releasePackageLock.packages[""].version, "0.9.4", "Package lock root package version should match the release.");
+assert.strictEqual(releasePackageJson.version, "0.9.5", "Package version should be bumped for this update.");
+assert.strictEqual(releasePackageLock.version, "0.9.5", "Package lock top-level version should match the release.");
+assert.strictEqual(releasePackageLock.packages[""].version, "0.9.5", "Package lock root package version should match the release.");
 assert.strictEqual(typeof createCloudBaseRahdueSequentialReading, "function", "Rahdue sequential CloudBase reader should be exported.");
 assert.strictEqual(pageDefinition.data.language, "zh", "Miniapp should default to Chinese.");
 assert.deepStrictEqual(
@@ -532,7 +532,7 @@ assert.strictEqual(context.data.ui.title, "塔罗牌", "Chinese UI copy should r
 const idleWheelCardIds = context.data.wheelCards.map((slot) => slot.id).join("|");
 pageDefinition.tapDeckStage.call(context);
 
-assert.strictEqual(context.data.buildLabel, "0.9.4 双语版本", "Build label should identify the 0.9.4 bilingual build.");
+assert.strictEqual(context.data.buildLabel, "0.9.5 双语版本", "Build label should identify the 0.9.5 bilingual build.");
 assert.strictEqual(context.data.wheel.isOpen, true, "Tapping the closed pile should mount the wheel like the submit button.");
 assert.strictEqual(
   context.data.wheelCards.map((slot) => slot.id).join("|"),
@@ -845,6 +845,9 @@ assert(
     cloudBaseScript.includes("RAHDUE_SECTION_CONCURRENCY = 3") &&
     cloudBaseScript.includes("requestRahdueSectionsInParallel") &&
     cloudBaseScript.includes("Promise.all(Array.from({ length: workerCount }") &&
+    cloudBaseScript.includes("resumeState") &&
+    cloudBaseScript.includes("getNextPendingRahdueSectionIndex") &&
+    pageScript.includes("只重试这一部分") &&
     cloudBaseScript.includes("buildRahdueSectionMessages") &&
     cloudBaseScript.includes("buildRahdueSynthesisMessages") &&
     cloudBaseScript.includes("sectionResults.map") &&
@@ -1567,6 +1570,7 @@ async function assertRahdueSequentialReader() {
   const progressEvents = [];
   const streamCalls = [];
   const sectionAttemptCounts = {};
+  let activeFailurePlan = { innerWheel: 1 };
 
   global.wx.cloud = {
     extend: {
@@ -1583,7 +1587,7 @@ async function assertRahdueSequentialReader() {
 
               return Promise.resolve({
                 textStream: [
-                  JSON.stringify(createMockRahdueStreamResponse(payload, sectionAttemptCounts))
+                  JSON.stringify(createMockRahdueStreamResponse(payload, sectionAttemptCounts, activeFailurePlan))
                 ]
               });
             }
@@ -1633,6 +1637,75 @@ async function assertRahdueSequentialReader() {
     assert.doesNotThrow(() => {
       assertValidReading(reading, rahduePromptRequest);
     }, "Sequential Rahdue reading should satisfy the reading schema.");
+
+    streamCalls.length = 0;
+    progressEvents.length = 0;
+    Object.keys(sectionAttemptCounts).forEach((key) => {
+      delete sectionAttemptCounts[key];
+    });
+    activeFailurePlan = { solidifier2: 2 };
+
+    const resumeState = { sectionResults: [] };
+
+    await assert.rejects(() => (
+      createCloudBaseRahdueSequentialReading({
+        cloudAIConfig: appConfig.cloudAI,
+        readingRequest: rahduePromptRequest,
+        resumeState,
+        onProgress(progress) {
+          progressEvents.push(progress);
+        }
+      })
+    ), /第二固化牌|solidifier2/, "A section that fails every local attempt should bubble up with the failed section name.");
+
+    assert.strictEqual(
+      resumeState.sectionResults.filter(Boolean).length,
+      initialRahdueSpread.sections.length - 1,
+      "Rahdue resume state should keep completed sections after one section exhausts its local attempts."
+    );
+
+    const failedPassSectionIds = streamCalls
+      .map((call) => parsePromptPayload(call.messages[1].content))
+      .filter((payload) => payload.currentSection)
+      .map((payload) => payload.currentSection.id);
+
+    assert.strictEqual(
+      failedPassSectionIds.filter((sectionId) => sectionId === "innerWheel").length,
+      1,
+      "Rahdue failure recovery should not restart earlier completed sections during the failed pass."
+    );
+    assert.strictEqual(
+      failedPassSectionIds.filter((sectionId) => sectionId === "solidifier2").length,
+      2,
+      "Rahdue failure recovery should spend local retries only on the failing section."
+    );
+
+    const resumeStartIndex = streamCalls.length;
+    const recoveredReading = await createCloudBaseRahdueSequentialReading({
+      cloudAIConfig: appConfig.cloudAI,
+      readingRequest: rahduePromptRequest,
+      resumeState,
+      onProgress(progress) {
+        progressEvents.push(progress);
+      }
+    });
+    const resumedPayloads = streamCalls.slice(resumeStartIndex).map((call) => parsePromptPayload(call.messages[1].content));
+
+    assert.deepStrictEqual(
+      resumedPayloads.filter((payload) => payload.currentSection).map((payload) => payload.currentSection.id),
+      ["solidifier2"],
+      "Rahdue resume should retry only the failed section instead of regenerating every completed section."
+    );
+    assert.strictEqual(
+      resumedPayloads[resumedPayloads.length - 1].sections.length,
+      initialRahdueSpread.sections.length,
+      "Rahdue resume should synthesize after the cached sections and retried section are complete."
+    );
+    assert.strictEqual(sectionAttemptCounts.innerWheel, 1, "Rahdue resume should not call the first section again after it is cached.");
+    assert.strictEqual(sectionAttemptCounts.solidifier2, 3, "Rahdue resume should continue the failed section attempt count until it succeeds.");
+    assert.doesNotThrow(() => {
+      assertValidReading(recoveredReading, rahduePromptRequest);
+    }, "Recovered Rahdue reading should satisfy the reading schema after retrying only the failed section.");
   } finally {
     global.wx.cloud = previousCloud;
   }
@@ -1655,14 +1728,17 @@ function createMockRahdueSectionResponse(section) {
   };
 }
 
-function createMockRahdueStreamResponse(payload, sectionAttemptCounts) {
+function createMockRahdueStreamResponse(payload, sectionAttemptCounts, failurePlan) {
   if (payload && payload.currentSection) {
     const section = payload.currentSection;
     const attempts = sectionAttemptCounts[section.id] || 0;
+    const plannedFailures = failurePlan && failurePlan[section.id]
+      ? failurePlan[section.id]
+      : 0;
 
     sectionAttemptCounts[section.id] = attempts + 1;
 
-    if (section.id === "innerWheel" && attempts === 0) {
+    if (attempts < plannedFailures) {
       return createInvalidMockRahdueSectionResponse(section);
     }
 

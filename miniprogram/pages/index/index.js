@@ -88,7 +88,7 @@ const uiCopy = {
     oauthDisconnected: "未连接",
     oauthBackupReady: "备用后端已就绪",
     oauthMissingKey: "模型密钥缺失",
-    buildLabel: "0.9.4 双语版本"
+    buildLabel: "0.9.5 双语版本"
   },
   en: {
     assetGateTitle: "Setting the table",
@@ -131,7 +131,7 @@ const uiCopy = {
     oauthDisconnected: "Disconnected",
     oauthBackupReady: "backup ready",
     oauthMissingKey: "model key missing",
-    buildLabel: "0.9.4 bilingual"
+    buildLabel: "0.9.5 bilingual"
   }
 };
 
@@ -1665,6 +1665,7 @@ Page({
 function requestReadingFromBestProvider(options) {
   const ui = getUiCopy(options.language);
   const sequentialRahdue = isRahdueRequest(options.readingRequest);
+  const rahdueResumeState = sequentialRahdue ? { sectionResults: [] } : null;
 
   if (cloudAIEnabled) {
     if (typeof options.onWaiting === "function") {
@@ -1677,7 +1678,8 @@ function requestReadingFromBestProvider(options) {
         ? createCloudBaseRahdueSequentialReading({
             cloudAIConfig: appConfig.cloudAI,
             readingRequest: options.readingRequest,
-            onProgress: options.onRahdueProgress
+            onProgress: options.onRahdueProgress,
+            resumeState: rahdueResumeState
           })
         : createCloudBaseReading({
             cloudAIConfig: appConfig.cloudAI,
@@ -1740,17 +1742,25 @@ function requestValidReadingAttempt(options, providerRequest, providerLabel, att
       }
 
       if (typeof options.onWaiting === "function") {
-        options.onWaiting(
-          languageCode === "en"
-            ? `${providerLabel} returned an incomplete format; regenerating (${attemptNumber + 1}/${READING_VALID_JSON_ATTEMPTS}).`
-            : `${providerLabel} 返回格式不完整，正在重新生成（${attemptNumber + 1}/${READING_VALID_JSON_ATTEMPTS}）。`
-        );
+        options.onWaiting(formatProviderRetryMessage(error, providerLabel, attemptNumber + 1, languageCode));
       }
 
       return delayReadingRetry().then(() => (
         requestValidReadingAttempt(options, providerRequest, providerLabel, attemptNumber + 1)
       ));
     });
+}
+
+function formatProviderRetryMessage(error, providerLabel, nextAttemptNumber, languageCode) {
+  if (error && error.rahdueRetryScope === "section" && error.rahdueSectionTitle) {
+    return languageCode === "en"
+      ? `${error.rahdueSectionTitle} needs another pass; keeping completed sections and retrying only that section (${nextAttemptNumber}/${READING_VALID_JSON_ATTEMPTS}).`
+      : `分区「${error.rahdueSectionTitle}」需要重试；已保留完成分区，只重试这一部分（${nextAttemptNumber}/${READING_VALID_JSON_ATTEMPTS}）。`;
+  }
+
+  return languageCode === "en"
+    ? `${providerLabel} returned an incomplete format; regenerating (${nextAttemptNumber}/${READING_VALID_JSON_ATTEMPTS}).`
+    : `${providerLabel} 返回格式不完整，正在重新生成（${nextAttemptNumber}/${READING_VALID_JSON_ATTEMPTS}）。`;
 }
 
 function createProviderReadingResult(providerResult) {
