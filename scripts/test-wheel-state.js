@@ -514,6 +514,8 @@ const readingJson = fs.readFileSync("miniprogram/pages/reading/reading.json", "u
 const readingResultScript = fs.readFileSync("miniprogram/services/reading-result.js", "utf8");
 const wheelEndSpacerStyle = pageStyles.match(/\.wheel-spacer-end\s*{[^}]+}/);
 const motionBlockStyle = pageStyles.match(/\.motion-block\s*{[^}]+}/);
+const deckStageStyle = pageStyles.match(/\.deck-stage\s*{[^}]+}/);
+const deckStageWheelStyle = pageStyles.match(/\.deck-stage-wheel\s*{[^}]+}/);
 
 assert(
   pageStyles.includes(".wheel-card-face") &&
@@ -658,11 +660,16 @@ assert(
     pageStyles.includes("max-width: 100%;") &&
     pageStyles.includes("width: auto;") &&
     pageStyles.includes("flex: 0 0 auto;") &&
-    pageStyles.includes(".deck-stage") &&
-    pageStyles.includes("border: 2rpx solid rgba(91, 63, 163, 0.18);") &&
-    pageStyles.includes("isolation: isolate;") &&
+    deckStageStyle &&
+    deckStageStyle[0].includes("border: 2rpx solid #fffaf0;") &&
+    deckStageStyle[0].includes("background: transparent;") &&
+    deckStageStyle[0].includes("isolation: isolate;") &&
+    !deckStageStyle[0].includes("box-shadow:") &&
     pageStyles.includes(".deck-stage-idle") &&
-    pageStyles.includes("border-style: dashed;") &&
+    deckStageWheelStyle &&
+    deckStageWheelStyle[0].includes("border-color: #fffaf0;") &&
+    !deckStageWheelStyle[0].includes("background:") &&
+    !pageStyles.includes("border-style: dashed;") &&
     pageStyles.includes(".wheel-motion-idle .wheel-scroll") &&
     pageStyles.includes(".wheel-motion-idle .wheel-card-arc") &&
     pageScript.includes("tapDeckStage()") &&
