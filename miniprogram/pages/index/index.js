@@ -46,12 +46,13 @@ const uiCopy = {
     assetGateLoading: "正在加载牌面与音乐",
     assetRetry: "重新加载",
     title: "塔罗牌",
-    modeChange: "完整牌阵 / 读牌人",
+    modeChange: "所有牌阵 / 读牌人",
     modeSimple: "单牌 · Misty",
-    modeAdvanced: "完整模式",
     musicOnLabel: "关闭音乐",
     musicOffLabel: "开启音乐",
     questionPlaceholder: "想问 Misty 什么呢",
+    planAPlaceholder: "方案 A",
+    planBPlaceholder: "方案 B",
     submitButton: "提交",
     readingTitle: "解读",
     overallLabel: "整体讯息",
@@ -90,10 +91,11 @@ const uiCopy = {
     title: "Tarot",
     modeChange: "Full Spreads / Readers",
     modeSimple: "Single · Misty",
-    modeAdvanced: "Full Mode",
     musicOnLabel: "Mute music",
     musicOffLabel: "Play music",
     questionPlaceholder: "What do you want to ask Misty?",
+    planAPlaceholder: "Plan A",
+    planBPlaceholder: "Plan B",
     submitButton: "Submit",
     readingTitle: "Reading",
     overallLabel: "Overall message",
@@ -996,11 +998,14 @@ localizeTarotDeck(tarotDeck);
 function createModeSummary(spread, reader, mode, language) {
   const ui = getUiCopy(language);
 
-  if (mode !== "advanced") {
+  if (
+    (!spread || spread.id === SIMPLE_SPREAD_ID) &&
+      (!reader || reader.id === SIMPLE_READER_ID)
+  ) {
     return ui.modeSimple;
   }
 
-  return `${ui.modeAdvanced} · ${spread.title} · ${reader.title}`;
+  return `${spread.title} · ${reader.title}`;
 }
 
 function getUiCopy(language) {

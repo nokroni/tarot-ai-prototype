@@ -802,6 +802,13 @@
   align-items: stretch;
 }
 
+.decision-options-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14rpx;
+  margin-top: 14rpx;
+}
+
 .compact-question-input {
   height: 104rpx;
   min-height: 104rpx;
@@ -809,6 +816,14 @@
   border-radius: 16rpx;
   font-size: 27rpx;
   line-height: 1.32;
+}
+
+.decision-option-input {
+  height: 84rpx;
+  min-height: 84rpx;
+  padding-top: 16rpx;
+  padding-bottom: 16rpx;
+  font-size: 25rpx;
 }
 
 .submit-button {

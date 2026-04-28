@@ -56,6 +56,28 @@
           {{ui.submitButton}}
         </button>
       </view>
+      <view wx:if="{{selectedSpread.id === 'decisionPair'}}" class="decision-options-row">
+        <textarea
+          class="question-input compact-question-input decision-option-input"
+          auto-height="{{false}}"
+          maxlength="80"
+          placeholder="{{ui.planAPlaceholder}}"
+          placeholder-class="placeholder"
+          value="{{decisionOptions.planA}}"
+          data-option="planA"
+          bindinput="onDecisionOptionInput"
+        />
+        <textarea
+          class="question-input compact-question-input decision-option-input"
+          auto-height="{{false}}"
+          maxlength="80"
+          placeholder="{{ui.planBPlaceholder}}"
+          placeholder-class="placeholder"
+          value="{{decisionOptions.planB}}"
+          data-option="planB"
+          bindinput="onDecisionOptionInput"
+        />
+      </view>
     </view>
 
     <view class="deck-stage {{wheel.isOpen ? 'deck-stage-wheel' : ''}}">

@@ -479,6 +479,7 @@ const appManifest = fs.readFileSync("miniprogram/app.json", "utf8");
 const advancedMarkup = fs.readFileSync("miniprogram/pages/advanced/advanced.wxml", "utf8");
 const advancedStyles = fs.readFileSync("miniprogram/pages/advanced/advanced.wxss", "utf8");
 const advancedScript = fs.readFileSync("miniprogram/pages/advanced/advanced.js", "utf8");
+const advancedJson = fs.readFileSync("miniprogram/pages/advanced/advanced.json", "utf8");
 
 assert(
   pageStyles.includes(".wheel-card-face") &&
@@ -515,16 +516,25 @@ assert(
   appManifest.includes('"pages/advanced/advanced"') &&
     fs.existsSync("miniprogram/pages/advanced/advanced.js") &&
     fs.existsSync("miniprogram/pages/advanced/advanced.wxml") &&
+    advancedJson.includes('"navigationBarTitleText": "所有牌阵"') &&
+    advancedScript.includes('title: "所有牌阵"') &&
+    advancedScript.includes('copy: "在这里切换完整牌阵和读牌人。"') &&
+    advancedScript.includes('apply: "确认"') &&
     advancedMarkup.includes('class="option-grid spread-grid"') &&
     advancedMarkup.includes('class="option-grid reader-grid"') &&
+    advancedMarkup.includes('class="reader-guide"') &&
+    advancedMarkup.includes('class="spread-guide"') &&
     advancedMarkup.includes('bindtap="applyAdvancedMode"') &&
-    advancedMarkup.includes('bindtap="returnSimpleMode"') &&
+    !advancedMarkup.includes('bindtap="returnSimpleMode"') &&
+    !advancedMarkup.includes("secondary-action") &&
     advancedStyles.includes(".reader-grid") &&
+    advancedStyles.includes(".reader-guide-line") &&
+    advancedStyles.includes(".spread-guide-line") &&
     advancedStyles.includes("max-width: 100%;") &&
     advancedStyles.includes("text-overflow: ellipsis;") &&
     advancedScript.includes("saveAdvancedReadingSelection") &&
     readingOptionsScript.includes('wx.setStorageSync(READING_MODE_STORAGE_KEY, "advanced")'),
-  "Complete spreads and readers should live on the advanced subpage."
+  "All spreads and readers should live on the advanced subpage with one confirm action and guidance text."
 );
 assert(
   pageMarkup.includes('class="question-dock"') &&
@@ -532,6 +542,13 @@ assert(
     pageMarkup.includes('class="mode-link"') &&
     pageMarkup.includes('bindtap="goAdvancedMode"') &&
     pageMarkup.includes('class="question-input compact-question-input"') &&
+    pageMarkup.includes('wx:if="{{selectedSpread.id === \'decisionPair\'}}"') &&
+    pageMarkup.includes('class="decision-options-row"') &&
+    pageMarkup.includes('class="question-input compact-question-input decision-option-input"') &&
+    pageMarkup.includes('data-option="planA"') &&
+    pageMarkup.includes('data-option="planB"') &&
+    pageMarkup.includes('placeholder="{{ui.planAPlaceholder}}"') &&
+    pageMarkup.includes('placeholder="{{ui.planBPlaceholder}}"') &&
     pageMarkup.includes('class="submit-button"') &&
     pageMarkup.includes('bindtap="drawCards"') &&
     pageMarkup.includes('class="deck-stage {{wheel.isOpen ? \'deck-stage-wheel\' : \'\'}}"') &&
@@ -548,8 +565,11 @@ assert(
     !pageMarkup.includes('class="cards-section"') &&
     pageStyles.includes(".question-dock") &&
     pageStyles.includes(".compact-question-input") &&
+    pageStyles.includes(".decision-options-row") &&
+    pageStyles.includes(".decision-option-input") &&
     pageStyles.includes("height: 104rpx;") &&
     pageStyles.includes("grid-template-columns: minmax(0, 1fr) minmax(96rpx, 116rpx);") &&
+    pageStyles.includes("grid-template-columns: repeat(2, minmax(0, 1fr));") &&
     pageStyles.includes(".submit-button") &&
     pageStyles.includes("max-width: 100%;") &&
     pageStyles.includes("width: auto;") &&
@@ -563,8 +583,10 @@ assert(
     !pageStyles.includes("0 18rpx 28rpx rgba(38, 35, 31") &&
     !pageStyles.includes(".idle-card-1") &&
     !pageStyles.includes(".idle-card-2") &&
-    !pageStyles.includes(".idle-card-3"),
-  "Home page should stay compact: question bar, submit, mode change, and a persistent deck display."
+    !pageStyles.includes(".idle-card-3") &&
+    !pageScript.includes("完整牌阵 / 读牌人") &&
+    !pageScript.includes("完整模式"),
+  "Home page should stay compact, show decision-pair option fields when needed, and avoid complete-mode labels."
 );
 const safetyNoteStyle = pageStyles.match(/\.note\s*{[^}]+}/);
 assert(

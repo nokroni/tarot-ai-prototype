@@ -32,8 +32,29 @@
         <text>{{item.title}}</text>
       </button>
     </view>
+    <view class="reader-guide">
+      <text
+        wx:for="{{readers}}"
+        wx:key="id"
+        class="reader-guide-line {{selectedReaderId === item.id ? 'active' : ''}}"
+      >
+        {{item.title}}：{{item.guide}}
+      </text>
+    </view>
+  </view>
+
+  <view class="spread-guide">
+    <text class="advanced-label">{{ui.spreadGuideTitle}}</text>
+    <view class="spread-guide-list">
+      <text
+        wx:for="{{spreads}}"
+        wx:key="id"
+        class="spread-guide-line {{selectedSpreadId === item.id ? 'active' : ''}}"
+      >
+        {{item.title}}：{{item.guide}}
+      </text>
+    </view>
   </view>
 
   <button class="primary-action" bindtap="applyAdvancedMode">{{ui.apply}}</button>
-  <button class="secondary-action" bindtap="returnSimpleMode">{{ui.simple}}</button>
 </view>

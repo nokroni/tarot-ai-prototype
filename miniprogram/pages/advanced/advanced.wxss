@@ -34,6 +34,10 @@
   margin-bottom: 28rpx;
 }
 
+.spread-guide {
+  margin: 34rpx 0 26rpx;
+}
+
 .advanced-label {
   display: block;
   margin: 0 0 14rpx 6rpx;
@@ -100,8 +104,29 @@
   box-shadow: 0 8rpx 24rpx rgba(64, 45, 24, 0.12);
 }
 
-.primary-action,
-.secondary-action {
+.reader-guide,
+.spread-guide-list {
+  display: grid;
+  gap: 10rpx;
+  margin-top: 14rpx;
+}
+
+.reader-guide-line,
+.spread-guide-line {
+  display: block;
+  color: #70685d;
+  font-size: 23rpx;
+  font-weight: 700;
+  line-height: 1.42;
+}
+
+.reader-guide-line.active,
+.spread-guide-line.active {
+  color: #26231f;
+  font-weight: 900;
+}
+
+.primary-action {
   display: flex;
   width: 100%;
   min-width: 0;
@@ -122,13 +147,6 @@
   color: #fffaf0;
 }
 
-.secondary-action {
-  border: 2rpx solid rgba(91, 63, 163, 0.22);
-  background: rgba(255, 250, 240, 0.78);
-  color: #5b3fa3;
-}
-
-.primary-action::after,
-.secondary-action::after {
+.primary-action::after {
   border: 0;
 }
