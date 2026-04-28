@@ -2,9 +2,13 @@ const appConfig = require("./config");
 
 App({
   onLaunch() {
-    if (appConfig.cloudAI && appConfig.cloudAI.envId && wx.cloud && wx.cloud.init) {
+    const cloudEnvId =
+      (appConfig.cloudAI && appConfig.cloudAI.envId) ||
+      (appConfig.cloudRun && appConfig.cloudRun.envId);
+
+    if (cloudEnvId && wx.cloud && wx.cloud.init) {
       wx.cloud.init({
-        env: appConfig.cloudAI.envId
+        env: cloudEnvId
       });
     }
   },
